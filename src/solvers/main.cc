@@ -69,7 +69,7 @@ int main() {
 
         scalar *nseSolver;
 
-        // CREATE NEW INSTANCE OF THE HYDRODYNAMICS SOLVER WITH TEMPERATURE SOLVER
+        // CREATE NEW INSTANCE OF THE HYDRODYNAMICS SOLVER WITH SCALAR SOLVER
 #ifdef PLANAR
         nseSolver = new scalar_d2(gridData, inputParams, mpi);
 #else

@@ -81,7 +81,7 @@
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
-    "Restart Run": false
+    "Restart Run": true
 
     "Time-Step": 0.001
     "Final Time": 10.0

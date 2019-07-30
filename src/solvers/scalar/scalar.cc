@@ -17,8 +17,8 @@
  */
 scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
             hydro(mesh, solParam, mpiParam),
-            guessedTemperature(mesh, "JAC_T", false),
-            temperatureLaplacian(mesh, "LAP_T", false),
+            guessedScalar(mesh, "JAC_T", false),
+            scalarLaplacian(mesh, "LAP_T", false),
             Ht(mesh, "Ht", false),
             T(mesh, "T", true)
 {

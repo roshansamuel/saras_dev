@@ -10,8 +10,8 @@ class scalar: public hydro {
     protected:
         boundary *tempBC;
 
-        sfield guessedTemperature;
-        sfield temperatureLaplacian;
+        sfield guessedScalar;
+        sfield scalarLaplacian;
 
         sfield Ht;
 
@@ -34,7 +34,7 @@ class scalar: public hydro {
  *
  *  The class initializes and stores the velocity vector field and the pressure scalar field along with a few auxilliary
  *  fields to solve the PDE.
- *  In addition to the fields in hydro class, the temperature equation is also solved here.
+ *  In addition to the fields in hydro class, the scalar equation is also solved here.
  *  It solves the NSE using the \ref solvePDE function from within which the implicit Crank-Nicholson method is used
  *  to solve the PDE.
  ********************************************************************************************************************************************

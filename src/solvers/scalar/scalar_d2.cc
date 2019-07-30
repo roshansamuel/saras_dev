@@ -21,7 +21,7 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
 
-    // INITIALIZE PRESSURE AND TEMPERATURE
+    // INITIALIZE PRESSURE AND SCALAR
     if (inputParams.restartFlag) {
         // Scalar fields to be read from HDF5 file is passed to reader class as a vector
         std::vector<field> readFields;
@@ -316,7 +316,7 @@ void scalar_d2::computeTimeStep() {
     pressureGradient *= inputParams.tStp;
     V -= pressureGradient;
 
-    // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE TEMPERATURE EQUATION
+    // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE SCALAR EQUATION
     T.computeDiff(Ht);
     Ht *= kappa;
 
@@ -325,7 +325,7 @@ void scalar_d2::computeTimeStep() {
         T.computeNLin(V, Ht);
 
     // EVEN WHEN NON-LINEAR TERM IS TURNED OFF, THE MEAN FLOW EFFECTS STILL REMAIN
-    // HENCE THE CONTRIBUTION OF VELOCITY TO TEMPERATURE EQUATION MUST BE ADDED
+    // HENCE THE CONTRIBUTION OF VELOCITY TO SCALAR EQUATION MUST BE ADDED
     // THIS CONTRIBUTION IS Uz FOR RBC AND SST, BUT Ux FOR VERTICAL CONVECTION
     } else {
         if (inputParams.probType == 5 || inputParams.probType == 6) {
@@ -476,30 +476,30 @@ void scalar_d2::solveT() {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
             for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                guessedTemperature.F.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
+                guessedScalar.F.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
                                                        hx2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
                                           inputParams.tStp * kappa / ( hz2hx2 * 2.0) + Ht.F.F(iX, iY, iZ))/
                                    (1.0 + inputParams.tStp * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
             }
         }
 
-        T = guessedTemperature;
+        T = guessedScalar;
 
         tempBC->imposeBC();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
             for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                temperatureLaplacian.F.F(iX, iY, iZ) = T.F.F(iX, iY, iZ) - (
+                scalarLaplacian.F.F(iX, iY, iZ) = T.F.F(iX, iY, iZ) - (
                         mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx2) +
                         mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz2)) *
                                         0.5 * inputParams.tStp * kappa;
             }
         }
 
-        temperatureLaplacian.F.F(T.F.fBulk) = abs(temperatureLaplacian.F.F(T.F.fBulk) - Ht.F.F(T.F.fBulk));
+        scalarLaplacian.F.F(T.F.fBulk) = abs(scalarLaplacian.F.F(T.F.fBulk) - Ht.F.F(T.F.fBulk));
 
-        maxError = temperatureLaplacian.F.fieldMax();
+        maxError = scalarLaplacian.F.fieldMax();
 
         if (maxError < inputParams.tolerance) {
             break;

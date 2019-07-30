@@ -24,7 +24,7 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
 
-    // INITIALIZE PRESSURE AND TEMPERATURE
+    // INITIALIZE PRESSURE AND SCALAR
     if (inputParams.restartFlag) {
         // Scalar fields to be read from HDF5 file is passed to reader class as a vector
         std::vector<field> readFields;
@@ -426,7 +426,7 @@ void scalar_d3::computeTimeStep() {
     pressureGradient *= inputParams.tStp;
     V -= pressureGradient;
 
-    // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE TEMPERATURE EQUATION
+    // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE SCALAR EQUATION
     T.computeDiff(Ht);
     Ht *= kappa;
 
@@ -631,7 +631,7 @@ void scalar_d3::solveT() {
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
             for (int iY = T.F.fBulk.lbound(1); iY <= T.F.fBulk.ubound(1); iY++) {
                 for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                    guessedTemperature.F.F(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
+                    guessedScalar.F.F(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) + T.F.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
                              inputParams.tStp * kappa / ( hx2hy2hz2 * 2.0) + Ht.F.F(iX, iY, iZ))/
@@ -642,7 +642,7 @@ void scalar_d3::solveT() {
             }
         }
 
-        T = guessedTemperature;
+        T = guessedScalar;
 
         tempBC->imposeBC();
 
@@ -650,7 +650,7 @@ void scalar_d3::solveT() {
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
             for (int iY = T.F.fBulk.lbound(1); iY <= T.F.fBulk.ubound(1); iY++) {
                 for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                    temperatureLaplacian.F.F(iX, iY, iZ) = T.F.F(iX, iY, iZ) - (
+                    scalarLaplacian.F.F(iX, iY, iZ) = T.F.F(iX, iY, iZ) - (
                            mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx * hx) +
                            mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY-1, iZ)) / (hy * hy) +
                            mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz * hz)) *
@@ -659,9 +659,9 @@ void scalar_d3::solveT() {
             }
         }
 
-        temperatureLaplacian.F.F(T.F.fBulk) = abs(temperatureLaplacian.F.F(T.F.fBulk) - Ht.F.F(T.F.fBulk));
+        scalarLaplacian.F.F(T.F.fBulk) = abs(scalarLaplacian.F.F(T.F.fBulk) - Ht.F.F(T.F.fBulk));
 
-        maxError = temperatureLaplacian.F.fieldMax();
+        maxError = scalarLaplacian.F.fieldMax();
 
         if (maxError < inputParams.tolerance) {
             break;
