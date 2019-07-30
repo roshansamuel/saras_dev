@@ -735,7 +735,7 @@ void thermal_d3::imposeUBCs() {
         // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
         V.Vx.F(V.Vx.fWalls(4)) = 0.0;
         // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-        V.Vx.F(V.Vx.fWalls(5)) = 0.0;
+        V.Vx.F(V.Vx.fWalls(5)) = 10.0;
     }
 }
 
