@@ -91,19 +91,19 @@ void boundary::imposeBC() {
                         wallData*(2.0*wallData - dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1)));
 
             } else {
-                // T LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND T IS COLLOCATED ALONG Z
-                dField.F.F(dField.F.fWalls(4)) = 2.0 - dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1));
+                // T LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Z
+                dField.F.F(dField.F.fWalls(4)) = 1.0;
             }
 
-            // T LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND T IS COLLOCATED ALONG Z
-            dField.F.F(dField.F.fWalls(5)) = -dField.F.F(dField.F.zDim.shift(dField.F.fWalls(5), -1));
+            // T LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Z
+            dField.F.F(dField.F.fWalls(5)) = 0.0;
 
         // COLD PLATE AT BOTTOM AND HOT PLATE AT TOP FOR SST
         } else if (mesh.inputParams.probType == 6) {
-            // T LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND T IS COLLOCATED ALONG Z
-            dField.F.F(dField.F.fWalls(4)) = -dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1));
-            // T LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND T IS COLLOCATED ALONG Z
-            dField.F.F(dField.F.fWalls(5)) = 2.0 - dField.F.F(dField.F.zDim.shift(dField.F.fWalls(5), -1));
+            // T LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Z
+            dField.F.F(dField.F.fWalls(4)) = 0.0;
+            // T LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Z
+            dField.F.F(dField.F.fWalls(5)) = 1.0;
 
         // ADIABATIC BC FOR VERTICAL CONVECTION
         } else if (mesh.inputParams.probType == 7) {

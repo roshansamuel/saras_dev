@@ -26,7 +26,7 @@ parser::parser() {
 void parser::parseYAML() {
     std::ifstream inFile;
 
-    inFile.open("parameters.yaml", std::ifstream::in);
+    inFile.open("input/parameters.yaml", std::ifstream::in);
 
     YAML::Node yamlNode;
     YAML::Parser parser(inFile);
