@@ -14,7 +14,12 @@ class vfield {
 
         std::string fieldName;
 
-        blitz::Array<double, 3> interVx, interVy, interVz, interPc;
+        // The following public arrays for getting interpolated values of variables are available *only if allocDerivatives flag is set to true*
+        // Attempting to use these arrays of a vfield with allocDerivatives set to false may give seg-fault!
+        blitz::Array<double, 3> interVx2Vx, interVy2Vx, interVz2Vx;
+        blitz::Array<double, 3> interVx2Vy, interVy2Vy, interVz2Vy;
+        blitz::Array<double, 3> interVx2Vz, interVy2Vz, interVz2Vz;
+        blitz::Array<double, 3> interPc2Vz;
 
         vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
 

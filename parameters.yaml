@@ -65,7 +65,7 @@
 
 # Parellelization parameters
 "Parallel":
-    "Number of OMP threads": 5
+    "Number of OMP threads": 3
     "X Number of Procs": 2
     "Y Number of Procs": 2
 
@@ -84,10 +84,10 @@
     "Restart Run": false
 
     "Time-Step": 0.001
-    "Final Time": 1.0
+    "Final Time": 0.1
 
     # No of iterations to display output to standard I/O
-    "I/O Count": 1
+    "I/O Count": 10
 
     # Time interval at which output file must be written
     "File Write Interval": 1.0

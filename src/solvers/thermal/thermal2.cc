@@ -142,18 +142,18 @@ void thermal_d2::solvePDE() {
     localCount = 0.0;
 
     // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-    V.interPc = 0.0;
+    V.interPc2Vz = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }
-    V.interPc /= V.Vz.PcIntSlices.size();
+    V.interPc2Vz /= V.Vz.PcIntSlices.size();
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
             localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
                             pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
 
             // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-            localUzT += V.Vz.F(iX, iY, iZ) * V.interPc(iX, iY, iZ);
+            localUzT += V.Vz.F(iX, iY, iZ) * V.interPc2Vz(iX, iY, iZ);
             localCount += 1.0;
         }
     }
@@ -204,18 +204,18 @@ void thermal_d2::solvePDE() {
         localCount = 0.0;
 
         // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-        V.interPc = 0.0;
+        V.interPc2Vz = 0.0;
         for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-            V.interPc(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+            V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
         }
-        V.interPc /= V.Vz.PcIntSlices.size();
+        V.interPc2Vz /= V.Vz.PcIntSlices.size();
         for (int iX = xLow; iX <= xTop; iX++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
                 localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
                                 pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
 
                 // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-                localUzT += V.Vz.F(iX, iY, iZ) * V.interPc(iX, iY, iZ);
+                localUzT += V.Vz.F(iX, iY, iZ) * V.interPc2Vz(iX, iY, iZ);
                 localCount += 1.0;
             }
         }
@@ -271,14 +271,14 @@ void thermal_d2::computeTimeStep() {
     V.computeNLin(V, Hv);
 
     // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE BUOYANCY TERM IN Vz MOMENTUM EQUATION
-    V.interPc = 0.0;
+    V.interPc2Vz = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }
-    V.interPc /= V.Vz.PcIntSlices.size();
+    V.interPc2Vz /= V.Vz.PcIntSlices.size();
 
     // ADD THE EXTRA TERM ARISING FROM BUOYANCY IN THE Vz COMPONENT OF Hv
-    Hv.Vz.F += Fb*V.interPc;
+    Hv.Vz.F += Fb*V.interPc2Vz;
 
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
     pressureGradient = 0.0;
@@ -375,10 +375,10 @@ void thermal_d2::solveVx() {
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vx.F(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
-                                                       hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                            inputParams.tStp * nu / ( hz2hx2 * 2.0) + Hv.Vx.F(iX, iY, iZ))/
-                        (1.0 + inputParams.tStp * nu * ((hz2 * mesh.xix2Colloc(iX) +
-                                                       hx2 * mesh.ztz2Staggr(iZ)))/hz2hx2);
+                                                     hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
+                        inputParams.tStp * nu / ( hz2hx2 * 2.0) + Hv.Vx.F(iX, iY, iZ))/
+                    (1.0 + inputParams.tStp * nu * ((hz2 * mesh.xix2Colloc(iX) +
+                                                     hx2 * mesh.ztz2Staggr(iZ)))/hz2hx2);
             }
         }
 
@@ -426,10 +426,10 @@ void thermal_d2::solveVz() {
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vz.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
-                                                       hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                               inputParams.tStp * nu / ( hz2hx2 * 2.0) + Hv.Vz.F(iX, iY, iZ))/
-                        (1.0 + inputParams.tStp * nu * ((hz2 * mesh.xix2Staggr(iX) +
-                                                       hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
+                                                     hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
+                        inputParams.tStp * nu / ( hz2hx2 * 2.0) + Hv.Vz.F(iX, iY, iZ))/
+                    (1.0 + inputParams.tStp * nu * ((hz2 * mesh.xix2Staggr(iX) +
+                                                     hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
             }
         }
 
@@ -478,8 +478,8 @@ void thermal_d2::solveT() {
             for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
                 guessedTemperature.F.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
                                                        hx2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
-                                inputParams.tStp * kappa / ( hz2hx2 * 2.0) + Ht.F.F(iX, iY, iZ))/
-                         (1.0 + inputParams.tStp * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
+                                          inputParams.tStp * kappa / ( hz2hx2 * 2.0) + Ht.F.F(iX, iY, iZ))/
+                                   (1.0 + inputParams.tStp * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
             }
         }
 

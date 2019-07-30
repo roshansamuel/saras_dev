@@ -21,20 +21,40 @@ vfield::vfield(const grid &gridData, std::string fieldName, const bool allocDeri
 {
     this->fieldName = fieldName;
 
-    interVx.resize(gridData.staggrFullSize);
-    interVx.reindexSelf(Vx.flBound);
+    if (allocDerivatives) {
+        interVx2Vx.resize(Vx.fSize);
+        interVx2Vx.reindexSelf(Vx.flBound);
+
+        interVx2Vy.resize(Vy.fSize);
+        interVx2Vy.reindexSelf(Vy.flBound);
+
+        interVx2Vz.resize(Vz.fSize);
+        interVx2Vz.reindexSelf(Vz.flBound);
 
 #ifndef PLANAR
-    interVy.resize(gridData.staggrFullSize);
-    interVy.reindexSelf(Vx.flBound);
+        interVy2Vx.resize(Vx.fSize);
+        interVy2Vx.reindexSelf(Vx.flBound);
+
+        interVy2Vy.resize(Vy.fSize);
+        interVy2Vy.reindexSelf(Vy.flBound);
+
+        interVy2Vz.resize(Vz.fSize);
+        interVy2Vz.reindexSelf(Vz.flBound);
 #endif
 
-    interVz.resize(gridData.staggrFullSize);
-    interVz.reindexSelf(Vx.flBound);
+        interVz2Vx.resize(Vx.fSize);
+        interVz2Vx.reindexSelf(Vx.flBound);
 
-    // Below array is used only in scalar solvers
-    interPc.resize(gridData.staggrFullSize);
-    interPc.reindexSelf(Vx.flBound);
+        interVz2Vy.resize(Vy.fSize);
+        interVz2Vy.reindexSelf(Vy.flBound);
+
+        interVz2Vz.resize(Vz.fSize);
+        interVz2Vz.reindexSelf(Vz.flBound);
+
+        // Below array is used only in scalar solvers
+        interPc2Vz.resize(Vz.fSize);
+        interPc2Vz.reindexSelf(Vz.flBound);
+    }
 }
 
 /**
@@ -82,77 +102,77 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     // Compute non-linear term for the Vx component
     Vx.calcDerivatives1();
 
-    interVx = 0.0;
+    interVx2Vx = 0.0;
     for (unsigned int i=0; i < Vx.VxIntSlices.size(); i++) {
-        interVx(Vx.fCore) += V.Vx.F(Vx.VxIntSlices(i));
+        interVx2Vx(Vx.fCore) += V.Vx.F(Vx.VxIntSlices(i));
     }
 #ifndef PLANAR
-    interVy = 0.0;
+    interVy2Vx = 0.0;
     for (unsigned int i=0; i < Vx.VyIntSlices.size(); i++) {
-        interVy(Vx.fCore) += V.Vy.F(Vx.VyIntSlices(i));
+        interVy2Vx(Vx.fCore) += V.Vy.F(Vx.VyIntSlices(i));
     }
 #endif
-    interVz = 0.0;
+    interVz2Vx = 0.0;
     for (unsigned int i=0; i < Vx.VzIntSlices.size(); i++) {
-        interVz(Vx.fCore) += V.Vz.F(Vx.VzIntSlices(i));
+        interVz2Vx(Vx.fCore) += V.Vz.F(Vx.VzIntSlices(i));
     }
 
 #ifdef PLANAR
-    H.Vx.F(Vx.fCore) -= interVx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
-                        interVz(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
+    H.Vx.F(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
+                        interVz2Vx(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
 #else
-    H.Vx.F(Vx.fCore) -= interVx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
-                        interVy(Vx.fCore)*Vx.d1F_dy1(Vx.fCore)/Vx.VyIntSlices.size() +
-                        interVz(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
+    H.Vx.F(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
+                        interVy2Vx(Vx.fCore)*Vx.d1F_dy1(Vx.fCore)/Vx.VyIntSlices.size() +
+                        interVz2Vx(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
 #endif
 
     // Compute non-linear term for the Vy component
 #ifndef PLANAR
     Vy.calcDerivatives1();
 
-    interVx = 0.0;
+    interVx2Vy = 0.0;
     for (unsigned int i=0; i < Vy.VxIntSlices.size(); i++) {
-        interVx(Vy.fCore) += V.Vx.F(Vy.VxIntSlices(i));
+        interVx2Vy(Vy.fCore) += V.Vx.F(Vy.VxIntSlices(i));
     }
-    interVy = 0.0;
+    interVy2Vy = 0.0;
     for (unsigned int i=0; i < Vy.VyIntSlices.size(); i++) {
-        interVy(Vy.fCore) += V.Vy.F(Vy.VyIntSlices(i));
+        interVy2Vy(Vy.fCore) += V.Vy.F(Vy.VyIntSlices(i));
     }
-    interVz = 0.0;
+    interVz2Vy = 0.0;
     for (unsigned int i=0; i < Vy.VzIntSlices.size(); i++) {
-        interVz(Vy.fCore) += V.Vz.F(Vy.VzIntSlices(i));
+        interVz2Vy(Vy.fCore) += V.Vz.F(Vy.VzIntSlices(i));
     }
 
-    H.Vy.F(Vy.fCore) -= interVx(Vy.fCore)*Vy.d1F_dx1(Vy.fCore)/Vy.VxIntSlices.size() +
-                        interVy(Vy.fCore)*Vy.d1F_dy1(Vy.fCore)/Vy.VyIntSlices.size() +
-                        interVz(Vy.fCore)*Vy.d1F_dz1(Vy.fCore)/Vy.VzIntSlices.size();
+    H.Vy.F(Vy.fCore) -= interVx2Vy(Vy.fCore)*Vy.d1F_dx1(Vy.fCore)/Vy.VxIntSlices.size() +
+                        interVy2Vy(Vy.fCore)*Vy.d1F_dy1(Vy.fCore)/Vy.VyIntSlices.size() +
+                        interVz2Vy(Vy.fCore)*Vy.d1F_dz1(Vy.fCore)/Vy.VzIntSlices.size();
 #endif
 
     // Compute non-linear term for the Vz component
     Vz.calcDerivatives1();
 
-    interVx = 0.0;
+    interVx2Vz = 0.0;
     for (unsigned int i=0; i < Vz.VxIntSlices.size(); i++) {
-        interVx(Vz.fCore) += V.Vx.F(Vz.VxIntSlices(i));
+        interVx2Vz(Vz.fCore) += V.Vx.F(Vz.VxIntSlices(i));
     }
 #ifndef PLANAR
-    interVy = 0.0;
+    interVy2Vz = 0.0;
     for (unsigned int i=0; i < Vz.VyIntSlices.size(); i++) {
-        interVy(Vz.fCore) += V.Vy.F(Vz.VyIntSlices(i));
+        interVy2Vz(Vz.fCore) += V.Vy.F(Vz.VyIntSlices(i));
     }
 #endif
-    interVz = 0.0;
+    interVz2Vz = 0.0;
     for (unsigned int i=0; i < Vz.VzIntSlices.size(); i++) {
-        interVz(Vz.fCore) += V.Vz.F(Vz.VzIntSlices(i));
+        interVz2Vz(Vz.fCore) += V.Vz.F(Vz.VzIntSlices(i));
     }
 
 #ifdef PLANAR
-    H.Vz.F(Vz.fCore) -= interVx(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
-                        interVz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
+    H.Vz.F(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
+                        interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
 #else
-    H.Vz.F(Vz.fCore) -= interVx(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
-                        interVy(Vz.fCore)*Vz.d1F_dy1(Vz.fCore)/Vz.VyIntSlices.size() +
-                        interVz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
+    H.Vz.F(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
+                        interVy2Vz(Vz.fCore)*Vz.d1F_dy1(Vz.fCore)/Vz.VyIntSlices.size() +
+                        interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
 #endif
 }
 

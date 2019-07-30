@@ -34,12 +34,14 @@ class field {
     public:
         blitz::Array<double, 3> F;
 
-        blitz::Array<double, 3> d1F_dx1, d1F_dy1, d1F_dz1;
-        blitz::Array<double, 3> d2F_dx2, d2F_dy2, d2F_dz2;
-
         std::string fieldName;
 
         const bool xStag, yStag, zStag;
+
+        // The following public arrays for getting derivatives of variables are available *only if allocDerivatives flag is set to true*
+        // Attempting to use these arrays of a field with allocDerivatives set to false may give seg-fault!
+        blitz::Array<double, 3> d1F_dx1, d1F_dy1, d1F_dz1;
+        blitz::Array<double, 3> d2F_dx2, d2F_dy2, d2F_dz2;
 
         blitz::RectDomain<3> fCore, fBulk;
         blitz::RectDomain<3> fCLft, fCRgt;

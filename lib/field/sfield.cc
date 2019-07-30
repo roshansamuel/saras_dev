@@ -22,16 +22,18 @@ sfield::sfield(const grid &gridData, std::string fieldName, const bool allocDeri
 {
     this->fieldName = fieldName;
 
-    interVx.resize(F.fSize);
-    interVx.reindexSelf(F.flBound);
+    if (allocDerivatives) {
+        interVx.resize(F.fSize);
+        interVx.reindexSelf(F.flBound);
 
 #ifndef PLANAR
-    interVy.resize(F.fSize);
-    interVy.reindexSelf(F.flBound);
+        interVy.resize(F.fSize);
+        interVy.reindexSelf(F.flBound);
 #endif
 
-    interVz.resize(F.fSize);
-    interVz.reindexSelf(F.flBound);
+        interVz.resize(F.fSize);
+        interVz.reindexSelf(F.flBound);
+    }
 }
 
 /**
