@@ -1,0 +1,121 @@
+# Problem parameters
+"Program":
+    # Choose from following list of problem types:
+    # 1 = Lid-Driven Cavity
+    # 2 = Taylor Green Vortices
+    # 3 = Channel Flow
+    # 4 = Duct Flow
+    # 5 = Rayleigh Benard Convection
+    # 6 = Stably Stratified Flow
+    # 7 = Vertical convection
+    # 8 = Rotating convection
+    "Problem Type": 5
+
+    # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
+    # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
+    # If periodic along all directions, Domain Type = PPP, and so on
+    # For 2D runs, only X and Z direction values are considered
+    "Domain Type": "NNN"
+
+    # For RBC, specify the non-dimensionalization to be used:
+    # 1 = small U, large Pr
+    # 2 = large U, large Pr
+    # 3 = small U, small Pr
+    # 4 = large U, small Pr
+    "RBC Type": 1
+
+    "Reynolds Number": 800
+    "Rayleigh Number": 6000
+    "Prandtl Number": 1.0
+    "Taylor Number": 50.0
+
+    # Dimensions of the domain
+    "X Length": 1.0
+    "Y Length": 1.0
+    "Z Length": 1.0
+
+    # For Problem Type 5 and 8, heating can be applied at bottom wall using a circular heating plate
+    # The radius of this plate is specified below.
+    # If the radius exceeds half the domain length specifed above, the solver will run like ordinary RBC
+    # Currently the solver supports this non-homogeneous BC only for 3D runs
+    "Patch Radius": 3.0
+
+
+# Mesh parameters
+"Mesh":
+    # Choose from following list of mesh types:
+    # Uniform - grid with uniformly spaced points
+    # TanHyp - tangent-hyperbolically stretched mesh which is fine near boundaries and coarse in the bulk
+    "Mesh Type": "Uniform"
+
+    # Stretching factor to be used for tangent-hyperbolic grids - considered only when Mesh Type is TanHyp
+    "X Beta": 1.0
+    "Y Beta": 1.0
+    "Z Beta": 1.0
+
+    # Choose the grid sizes (for the staggered grid) as indices from the list below
+    # These sizes are set to allow multigrid operations on the staggered grid
+    # 2D simulations can be run by setting Y Index to 0
+    # Grid sizes:   2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
+    # Size index:   0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
+    "X Index": 6
+    "Y Index": 6
+    "Z Index": 6
+
+
+# Parellelization parameters
+"Parallel":
+    "Number of OMP threads": 5
+    "X Number of Procs": 2
+    "Y Number of Procs": 2
+
+
+# Solver parameters
+"Solver":
+    "Differentiation Scheme": "CD2"
+
+    # Choose from following list of integration schemes:
+    # 1 = Implicit Crank Nicholson
+    # 2 = Euler Method (Not Implemented)
+    "Integration Scheme": 1
+
+    # Set below flag to true if restarting from a solution file
+    # If flag is true, solver will read the last written solution file in output directory for restart
+    "Restart Run": false
+
+    "Time-Step": 0.001
+    "Final Time": 1.0
+
+    # No of iterations to display output to standard I/O
+    "I/O Count": 1
+
+    # Time interval at which output file must be written
+    "File Write Interval": 1.0
+
+    # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
+    "Record Probes": false
+    "Probe Time Interval": 0.1
+
+    # Enter as many sets of probes as needed in Python NumPy's linspace style - startIndex:endIndex:noOfProbes
+    # Enter each set in square braces [], with each set separated by new line or space
+    "Probes": >
+        [5, 5, 5]
+        [1:62:3, 1:62:3, 1:62:3]
+        [1:62:3, 7, 1:62:3]
+        [5, 5, 6]
+
+
+# Poisson solver parameters
+"Multigrid":
+    # Tolerance used in Jacobi iterations
+    "Jacobi Tolerance": 0.00001
+    # No of restriction/prolongation steps in each V-Cycle
+    "V-Cycle Depth": 2
+    # No of V-Cycles to be performed
+    "V-Cycle Count": 5
+    # No of smoothing iterations to be performed before V-Cycle
+    "Pre-Smoothing Count": 10
+    # No of smoothing iterations to be performed after V-Cycle
+    "Post-Smoothing Count": 20
+    # No of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
+    "Inter-Smoothing Count": [5, 10, 10, 15]

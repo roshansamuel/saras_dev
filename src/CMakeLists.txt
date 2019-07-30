@@ -1,0 +1,5 @@
+if (TEST_RUN)
+    add_subdirectory (tests)
+else ()
+    add_subdirectory (solvers)
+endif ()

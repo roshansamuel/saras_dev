@@ -1,0 +1,10 @@
+*.gz
+*.swp
+*.swo
+*.out
+*.png
+*.dat
+*.vtk
+*.lay
+saras
+install/build/
