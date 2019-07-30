@@ -1,10 +1,10 @@
-#include "thermal.h"
+#include "scalar.h"
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the base thermal class
+ * \brief   Constructor of the base scalar class
  *
- *          The short base constructor of the thermal class merely assigns the const references to the grid and parser
+ *          The short base constructor of the scalar class merely assigns the const references to the grid and parser
  *          class instances being used in the solver.
  *          Also, the maximum allowable number of iterations for the Jacobi iterative solver being used to solve for the
  *          velocities implicitly is set as \f$ N_{max} = N_x \times N_y \times N_z \f$, where \f$N_x\f$, \f$N_y\f$ and \f$N_z\f$
@@ -15,7 +15,7 @@
  * \param   solParam is a const reference to the user-set parameters contained in the parser class
  ********************************************************************************************************************************************
  */
-thermal::thermal(const grid &mesh, const parser &solParam, parallel &mpiParam):
+scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
             hydro(mesh, solParam, mpiParam),
             guessedTemperature(mesh, "JAC_T", false),
             temperatureLaplacian(mesh, "LAP_T", false),
@@ -61,7 +61,7 @@ thermal::thermal(const grid &mesh, const parser &solParam, parallel &mpiParam):
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to solve the implicit equation for temperature
+ * \brief   Function to solve the implicit equation for scalar field
  *
  *          The implicit equation for \f$ \theta' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
  *          iterative method here.
@@ -76,4 +76,4 @@ thermal::thermal(const grid &mesh, const parser &solParam, parallel &mpiParam):
  *          Hence the variables i, j and k are not scalars in this function.
  ********************************************************************************************************************************************
  */
-void thermal::solveT() { };
+void scalar::solveT() { };

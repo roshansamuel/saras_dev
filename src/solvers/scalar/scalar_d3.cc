@@ -1,13 +1,13 @@
 #include <sys/time.h>
 #include <ctime>
 
-#include "thermal.h"
+#include "scalar.h"
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the thermal_d3 class derived from the base thermal class
+ * \brief   Constructor of the scalar_d3 class derived from the base scalar class
  *
- *          The constructor passes its arguments to the base thermal class and then initializes all the scalar and
+ *          The constructor passes its arguments to the base scalar class and then initializes all the scalar and
  *          vector fields necessary for solving the NS equations.
  *          The various coefficients for solving the equations are also set by a call to the \ref setCoefficients function.
  *          Based on the problem type specified by the user in the parameters file, and stored by the \ref parser class as
@@ -17,8 +17,8 @@
  * \param   solParam is a const reference to the user-set parameters contained in the parser class
  ********************************************************************************************************************************************
  */
-thermal_d3::thermal_d3(const grid &mesh, const parser &solParam, parallel &mpiParam):
-            thermal(mesh, solParam, mpiParam),
+scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam):
+            scalar(mesh, solParam, mpiParam),
             mgSolver(mesh, inputParams)
 {
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
@@ -91,7 +91,7 @@ thermal_d3::thermal_d3(const grid &mesh, const parser &solParam, parallel &mpiPa
     tempBC->imposeBC();
 }
 
-void thermal_d3::solvePDE() {
+void scalar_d3::solvePDE() {
 #ifndef TIME_RUN
     int xLow, xTop;
     int yLow, yTop;
@@ -310,7 +310,7 @@ void thermal_d3::solvePDE() {
 #endif
 }
 
-void thermal_d3::computeTimeStep() {
+void scalar_d3::computeTimeStep() {
 #ifdef TIME_RUN
     struct timeval begin, end;
 #endif
@@ -451,7 +451,7 @@ void thermal_d3::computeTimeStep() {
     tempBC->imposeBC();
 }
 
-void thermal_d3::solveVx() {
+void scalar_d3::solveVx() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -508,7 +508,7 @@ void thermal_d3::solveVx() {
     }
 }
 
-void thermal_d3::solveVy() {
+void scalar_d3::solveVy() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -565,7 +565,7 @@ void thermal_d3::solveVy() {
     }
 }
 
-void thermal_d3::solveVz() {
+void scalar_d3::solveVz() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -622,7 +622,7 @@ void thermal_d3::solveVz() {
     }
 }
 
-void thermal_d3::solveT() {
+void scalar_d3::solveT() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -679,7 +679,7 @@ void thermal_d3::solveT() {
     }
 }
 
-void thermal_d3::setCoefficients() {
+void scalar_d3::setCoefficients() {
     hx = mesh.dXi;
     hy = mesh.dEt;
     hz = mesh.dZt;
@@ -701,7 +701,7 @@ void thermal_d3::setCoefficients() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void thermal_d3::imposeUBCs() {
+void scalar_d3::imposeUBCs() {
     V.Vx.syncData();
 
     // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
@@ -750,7 +750,7 @@ void thermal_d3::imposeUBCs() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void thermal_d3::imposeVBCs() {
+void scalar_d3::imposeVBCs() {
     V.Vy.syncData();
 
     // IMPOSE BC FOR Vy ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
@@ -799,7 +799,7 @@ void thermal_d3::imposeVBCs() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void thermal_d3::imposeWBCs() {
+void scalar_d3::imposeWBCs() {
     V.Vz.syncData();
 
     // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
@@ -843,7 +843,7 @@ void thermal_d3::imposeWBCs() {
     }
 }
 
-double thermal_d3::testPeriodic() {
+double scalar_d3::testPeriodic() {
     double xCoord = 0.0;
     double yCoord = 0.0;
     double zCoord = 0.0;
@@ -988,4 +988,4 @@ double thermal_d3::testPeriodic() {
     return std::max(blitz::max(fabs(V.Vx.F)), blitz::max(fabs(V.Vy.F)));
 }
 
-thermal_d3::~thermal_d3() { }
+scalar_d3::~scalar_d3() { }

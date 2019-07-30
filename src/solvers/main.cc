@@ -1,6 +1,6 @@
 #include <iostream>
 #include "parallel.h"
-#include "thermal.h"
+#include "scalar.h"
 #include "parser.h"
 #include "hydro.h"
 #include "grid.h"
@@ -67,13 +67,13 @@ int main() {
             std::cout << std::endl;
         }
 
-        thermal *nseSolver;
+        scalar *nseSolver;
 
         // CREATE NEW INSTANCE OF THE HYDRODYNAMICS SOLVER WITH TEMPERATURE SOLVER
 #ifdef PLANAR
-        nseSolver = new thermal_d2(gridData, inputParams, mpi);
+        nseSolver = new scalar_d2(gridData, inputParams, mpi);
 #else
-        nseSolver = new thermal_d3(gridData, inputParams, mpi);
+        nseSolver = new scalar_d3(gridData, inputParams, mpi);
 #endif
 
         nseSolver->solvePDE();
@@ -94,8 +94,8 @@ int main() {
             std::cout << std::endl;
         }
 
-        thermal *nseSolver;
-        nseSolver = new thermal_d3(gridData, inputParams, mpi);
+        scalar *nseSolver;
+        nseSolver = new scalar_d3(gridData, inputParams, mpi);
 
         nseSolver->solvePDE();
 

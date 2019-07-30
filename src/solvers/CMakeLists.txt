@@ -1,15 +1,15 @@
 include_directories (
     ${PARENT_DIR}/src/solvers/hydro
-    ${PARENT_DIR}/src/solvers/thermal
+    ${PARENT_DIR}/src/solvers/scalar
 )
 
 set (EXECUTABLE_OUTPUT_PATH ${PARENT_DIR})
 
 set (HYDRO_SOURCE hydro/hydro.cc hydro/hydro2.cc hydro/hydro3.cc)
 
-set (THERMAL_SOURCE thermal/thermal.cc thermal/thermal2.cc thermal/thermal3.cc)
+set (SCALAR_SOURCE scalar/scalar.cc scalar/scalar_d2.cc scalar/scalar_d3.cc)
 
-set (SOURCES main.cc ${HYDRO_SOURCE} ${THERMAL_SOURCE})
+set (SOURCES main.cc ${HYDRO_SOURCE} ${SCALAR_SOURCE})
 
 add_executable (saras ${SOURCES})
 

@@ -1,10 +1,10 @@
-#include "thermal.h"
+#include "scalar.h"
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the thermal_d2 class derived from the base thermal class
+ * \brief   Constructor of the scalar_d2 class derived from the base scalar class
  *
- *          The constructor passes its arguments to the base thermal class and then initializes all the scalar and
+ *          The constructor passes its arguments to the base scalar class and then initializes all the scalar and
  *          vector fields necessary for solving the NS equations.
  *          The various coefficients for solving the equations are also set by a call to the \ref setCoefficients function.
  *          Based on the problem type specified by the user in the parameters file, and stored by the \ref parser class as
@@ -14,8 +14,8 @@
  * \param   solParam is a const reference to the user-set parameters contained in the parser class
  ********************************************************************************************************************************************
  */
-thermal_d2::thermal_d2(const grid &mesh, const parser &solParam, parallel &mpiParam):
-            thermal(mesh, solParam, mpiParam),
+scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam):
+            scalar(mesh, solParam, mpiParam),
             mgSolver(mesh, inputParams)
 {
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
@@ -75,7 +75,7 @@ thermal_d2::thermal_d2(const grid &mesh, const parser &solParam, parallel &mpiPa
     tempBC->imposeBC();
 }
 
-void thermal_d2::solvePDE() {
+void scalar_d2::solvePDE() {
     int xLow, xTop;
     int zLow, zTop;
 
@@ -254,10 +254,10 @@ void thermal_d2::solvePDE() {
     ofFile.close();
 }
 
-void thermal_d2::computeTimeStep() {
+void scalar_d2::computeTimeStep() {
     // BELOW FLAG MAY BE TURNED OFF FOR DEBUGGING/DIGNOSTIC RUNS ONLY
     // IT IS USED TO TURN OFF COMPUTATION OF NON-LINEAR TERMS
-    // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D THERMAL SOLVER
+    // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D scalar SOLVER
     bool nlinSwitch = true;
 
     Hv = 0.0;
@@ -365,7 +365,7 @@ void thermal_d2::computeTimeStep() {
     tempBC->imposeBC();
 }
 
-void thermal_d2::solveVx() {
+void scalar_d2::solveVx() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -416,7 +416,7 @@ void thermal_d2::solveVx() {
     }
 }
 
-void thermal_d2::solveVz() {
+void scalar_d2::solveVz() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -467,7 +467,7 @@ void thermal_d2::solveVz() {
     }
 }
 
-void thermal_d2::solveT() {
+void scalar_d2::solveT() {
     int iterCount = 0;
     double maxError = 0.0;
 
@@ -517,7 +517,7 @@ void thermal_d2::solveT() {
     }
 }
 
-void thermal_d2::setCoefficients() {
+void scalar_d2::setCoefficients() {
     hx = mesh.dXi;
     hz = mesh.dZt;
 
@@ -537,7 +537,7 @@ void thermal_d2::setCoefficients() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void thermal_d2::imposeUBCs() {
+void scalar_d2::imposeUBCs() {
     V.Vx.syncData();
 
     // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
@@ -574,7 +574,7 @@ void thermal_d2::imposeUBCs() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void thermal_d2::imposeWBCs() {
+void scalar_d2::imposeWBCs() {
     V.Vz.syncData();
 
     // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
@@ -605,7 +605,7 @@ void thermal_d2::imposeWBCs() {
     }
 }
 
-double thermal_d2::testPeriodic() {
+double scalar_d2::testPeriodic() {
     int iY = 0;
     double xCoord = 0.0;
     double zCoord = 0.0;
@@ -689,4 +689,4 @@ double thermal_d2::testPeriodic() {
     return std::max(blitz::max(fabs(V.Vx.F)), blitz::max(fabs(V.Vz.F)));
 }
 
-thermal_d2::~thermal_d2() { }
+scalar_d2::~scalar_d2() { }

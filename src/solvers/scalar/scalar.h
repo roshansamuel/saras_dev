@@ -1,12 +1,12 @@
-#ifndef THERMAL_H
-#define THERMAL_H
+#ifndef SCALAR_H
+#define SCALAR_H
 
 #include <blitz/array.h>
 
 #include "hydro.h"
 #include <math.h>
 
-class thermal: public hydro {
+class scalar: public hydro {
     protected:
         boundary *tempBC;
 
@@ -22,15 +22,15 @@ class thermal: public hydro {
 
         double nu, kappa, Fb;
 
-        thermal(const grid &mesh, const parser &solParam, parallel &mpiParam);
+        scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
-        virtual ~thermal() { };
+        virtual ~scalar() { };
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class thermal thermal.h "lib/thermal.h"
- *  \brief The base class thermal to solve the incompressible Navier-Stokes equations with energy equation
+ *  \class scalar scalar.h "lib/scalar.h"
+ *  \brief The base class scalar to solve the incompressible Navier-Stokes equations with energy equation
  *
  *  The class initializes and stores the velocity vector field and the pressure scalar field along with a few auxilliary
  *  fields to solve the PDE.
@@ -40,7 +40,7 @@ class thermal: public hydro {
  ********************************************************************************************************************************************
  */
 
-class thermal_d2: public thermal {
+class scalar_d2: public scalar {
     private:
         multigrid_d2 mgSolver;
 
@@ -59,18 +59,18 @@ class thermal_d2: public thermal {
         void computeTimeStep();
 
     public:
-        thermal_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
+        scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         void solvePDE();
         double testPeriodic();
 
-        ~thermal_d2();
+        ~scalar_d2();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class thermal_d2 thermal.h "lib/thermal.h"
- *  \brief The derived class from the thermal base class to solve the incompressible NSE in 2D with energy equation
+ *  \class scalar_d2 scalar.h "lib/scalar.h"
+ *  \brief The derived class from the scalar base class to solve the incompressible NSE in 2D with energy equation
  *
  *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
  *  Since the class is instantiated when solveing the NSE in 2D, the y-direction component of the grid is supressed.
@@ -78,7 +78,7 @@ class thermal_d2: public thermal {
  ********************************************************************************************************************************************
  */
 
-class thermal_d3: public thermal {
+class scalar_d3: public scalar {
     private:
         multigrid_d3 mgSolver;
 
@@ -103,18 +103,18 @@ class thermal_d3: public thermal {
         void computeTimeStep();
 
     public:
-        thermal_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
+        scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         void solvePDE();
         double testPeriodic();
 
-        ~thermal_d3();
+        ~scalar_d3();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class thermal_d3 thermal.h "lib/thermal.h"
- *  \brief The derived class from the thermal base class to solve the incompressible NSE in 3D with energy equation
+ *  \class scalar_d3 scalar.h "lib/scalar.h"
+ *  \brief The derived class from the scalar base class to solve the incompressible NSE in 3D with energy equation
  *
  *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
  *  Moreover, it imposes boundary conditions on all the three faces of the computational domain.
