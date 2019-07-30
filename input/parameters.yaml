@@ -9,7 +9,7 @@
     # 6 = Stably Stratified Flow
     # 7 = Vertical convection
     # 8 = Rotating convection
-    "Problem Type": 5
+    "Problem Type": 3
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
@@ -65,9 +65,9 @@
 
 # Parellelization parameters
 "Parallel":
-    "Number of OMP threads": 12
-    "X Number of Procs": 1
-    "Y Number of Procs": 1
+    "Number of OMP threads": 5
+    "X Number of Procs": 2
+    "Y Number of Procs": 2
 
 
 # Solver parameters
@@ -81,16 +81,16 @@
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
-    "Restart Run": true
+    "Restart Run": false
 
     "Time-Step": 0.001
-    "Final Time": 10.0
+    "Final Time": 1.0
 
     # No of iterations to display output to standard I/O
     "I/O Count": 1
 
     # Time interval at which output file must be written
-    "File Write Interval": 0.5
+    "File Write Interval": 1.0
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false
@@ -110,12 +110,12 @@
     # Tolerance used in Jacobi iterations
     "Jacobi Tolerance": 0.00001
     # No of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 3
+    "V-Cycle Depth": 2
     # No of V-Cycles to be performed
     "V-Cycle Count": 5
     # No of smoothing iterations to be performed before V-Cycle
     "Pre-Smoothing Count": 10
     # No of smoothing iterations to be performed after V-Cycle
-    "Post-Smoothing Count": 30
+    "Post-Smoothing Count": 20
     # No of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Inter-Smoothing Count": [5, 10, 15, 20]
+    "Inter-Smoothing Count": [5, 10, 10, 15]

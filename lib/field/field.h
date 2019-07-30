@@ -3,6 +3,7 @@
 
 #include <blitz/array.h>
 #include <string>
+#include <h5si.h>
 
 #include "mpidata.h"
 #include "differ.h"
@@ -11,6 +12,8 @@
 class field {
     private:
         const grid &gridData;
+
+        h5::Plan io_plan;
 
         blitz::Array<double, 1> x_Metric, y_Metric, z_Metric;
         blitz::Array<double, 1> xxMetric, yyMetric, zzMetric;
@@ -54,7 +57,7 @@ class field {
         blitz::Array<blitz::RectDomain<3>, 1> VxIntSlices, VyIntSlices, VzIntSlices;
         blitz::Array<blitz::RectDomain<3>, 1> WxIntSlices, WyIntSlices, WzIntSlices;
 
-        blitz::TinyVector<int, 3> fSize;
+        blitz::TinyVector<int, 3> fSize, gSize;
         blitz::TinyVector<int, 3> flBound, cuBound;
 
         mpidata *mpiHandle;
@@ -65,6 +68,8 @@ class field {
 
         void calcDerivatives1();
         void calcDerivatives2();
+
+        void write();
 
         void syncData();
 

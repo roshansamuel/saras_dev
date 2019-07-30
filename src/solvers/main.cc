@@ -1,4 +1,5 @@
 #include <iostream>
+#include <h5si.h>
 #include "parallel.h"
 #include "scalar.h"
 #include "parser.h"
@@ -10,6 +11,7 @@ int main() {
 
     // INITIALIZE MPI
     MPI_Init(NULL, NULL);
+    h5::init();
 
     // ALL PROCESSES READ THE INPUT PARAMETERS
     parser inputParams;
@@ -120,6 +122,7 @@ int main() {
     }
 
     // FINALIZE AND CLEAN-UP
+    h5::finalize();
     MPI_Finalize();
 
     return 0;

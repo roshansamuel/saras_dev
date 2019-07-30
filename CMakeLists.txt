@@ -49,8 +49,8 @@ if (TIME_RUN)
 endif ()
 
 # Set compiler flags for normal and debug runs
-set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3")
-set (CMAKE_CXX_FLAGS_DEBUG "-Wall -g ${OpenMP_C_FLAGS} -DBZ_DEBUG")
+set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3 -std=c++11 -DH5SI_ENABLE_MPI")
+set (CMAKE_CXX_FLAGS_DEBUG "-Wall -g ${OpenMP_C_FLAGS} -DBZ_DEBUG -std=c++11 -DH5SI_ENABLE_MPI")
 
 add_subdirectory (lib)
 add_subdirectory (src)

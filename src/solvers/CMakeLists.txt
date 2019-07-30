@@ -13,4 +13,4 @@ set (SOURCES main.cc ${HYDRO_SOURCE} ${SCALAR_SOURCE})
 
 add_executable (saras ${SOURCES})
 
-target_link_libraries(saras field grid parser probes reader writer boundary parallel poisson yaml-cpp hdf5 debug /usr/local/lib/libblitz.a)
+target_link_libraries(saras field grid parser probes reader writer boundary parallel poisson yaml-cpp h5si hdf5 debug /usr/local/lib/libblitz.a)
