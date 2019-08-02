@@ -69,7 +69,7 @@ class field {
         void calcDerivatives1();
         void calcDerivatives2();
 
-        void write(string folder, string field);
+        void write(std::string folder, std::string field);
 
         void syncData();
 

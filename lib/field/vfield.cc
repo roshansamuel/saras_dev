@@ -233,7 +233,7 @@ void vfield::syncData() {
 void vfield::write(double time) {
 
     //create folder
-    string folder = "output/Time_" + std::to_string(time);
+    std::string folder = "output/Time_" + std::to_string(time);
     mkdir(folder.c_str(), S_IRWXU|S_IRWXG);
 
     Vx.write(folder, fieldName);

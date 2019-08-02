@@ -114,9 +114,9 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
     F = 0.0;
 
     //Core ranges for writing in file
-    vector<size_t> xRange(2);
-    vector<size_t> yRange(2);
-    vector<size_t> zRange(2);
+    std::vector<size_t> xRange(2);
+    std::vector<size_t> yRange(2);
+    std::vector<size_t> zRange(2);
 
 #ifdef PLANAR
        if (fieldName == "Vy")
@@ -822,7 +822,7 @@ double field::fieldMax() {
 /**
  * \brief Writes a given array to HDF5 file according to the initialized plan
  */
-void field::write(string folder, string field) {
+void field::write(std::string folder, std::string field) {
 
     h5::File f;
     f.mpioInit(MPI_COMM_WORLD);
