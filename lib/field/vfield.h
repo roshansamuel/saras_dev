@@ -30,6 +30,8 @@ class vfield {
 
         void syncData();
 
+        void write(double time);
+
         vfield& operator += (vfield &a);
         vfield& operator -= (vfield &a);
         vfield& operator *= (double a);

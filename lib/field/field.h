@@ -57,8 +57,8 @@ class field {
         blitz::Array<blitz::RectDomain<3>, 1> VxIntSlices, VyIntSlices, VzIntSlices;
         blitz::Array<blitz::RectDomain<3>, 1> WxIntSlices, WyIntSlices, WzIntSlices;
 
-        blitz::TinyVector<int, 3> fSize, gSize;
-        blitz::TinyVector<int, 3> flBound, cuBound;
+        blitz::TinyVector<size_t, 3> fSize, gSize;
+        blitz::TinyVector<size_t, 3> flBound, cuBound;
 
         mpidata *mpiHandle;
 
@@ -69,7 +69,7 @@ class field {
         void calcDerivatives1();
         void calcDerivatives2();
 
-        void write();
+        void write(string folder, string field);
 
         void syncData();
 

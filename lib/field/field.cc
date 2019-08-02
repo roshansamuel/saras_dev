@@ -114,137 +114,77 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
     F = 0.0;
 
     //Core ranges for writing in file
-    vector<int> xRange(2);
-    vector<int> yRange(2);
-    vector<int> zRange(2);
+    vector<size_t> xRange(2);
+    vector<size_t> yRange(2);
+    vector<size_t> zRange(2);
 
-    if (fieldName == "Vx") {
-/*
-        cout << "field.cc: " << fieldName << " " << gridData.rankData.xRank << " " << gridData.rankData.yRank << endl;
-        cout << "field.cc: " << fSize(0) << " " << fSize(1) << " " << fSize(2) << endl;
-        cout << "field.cc: " << gSize(0) << " " << gSize(1) << " " << gSize(2) << endl;
-*/
-        if ( (gridData.rankData.xRank == gridData.inputParams.npX - 1) && (gridData.rankData.yRank == gridData.inputParams.npY - 1) ) {
-           if (xStag)
-                xRange = {1, fSize(0)-2};
-           else
-                xRange = {1, fSize(0)-2};
+#ifdef PLANAR
+       if (fieldName == "Vy")
+            gSize(1) = 1;  
+#endif
 
-           if (yStag)
-                yRange = {1, fSize(1)-2};
-           else
-                yRange = {1, fSize(1)-2};
+        if ( (gridData.rankData.xRank == gridData.inputParams.npX - 1) and (gridData.rankData.yRank == gridData.inputParams.npY - 1) ) {
+              if (xStag)
+                  xRange = {1, fSize(0)-2};
+              else
+                  xRange = {1, fSize(0)-2};
 
-           if (zStag)
-                zRange = {1, fSize(2)-2};
-           else
-                zRange = {1, fSize(2)-2};
-          }
+              if (yStag)
+                  yRange = {1, fSize(1)-2};
+              else
+                  yRange = {1, fSize(1)-2};
+        }
         else if (gridData.rankData.xRank == gridData.inputParams.npX - 1) {
-           if (xStag)
-                xRange = {1, fSize(0)-2};
-           else
-                xRange = {1, fSize(0)-2};
+                 if (xStag)
+                     xRange = {1, fSize(0)-2};
+                 else
+                     xRange = {1, fSize(0)-2};
 
-           if (yStag)
-                yRange = {1, fSize(1)-3};
-           else
-                yRange = {1, fSize(1)-3};
-
-           if (zStag)
-                zRange = {1, fSize(2)-2};
-           else
-                zRange = {1, fSize(2)-2};
-          }
+                 if (yStag)
+                     yRange = {1, fSize(1)-3};
+                 else
+                     yRange = {1, fSize(1)-2};
+        } 
         else if (gridData.rankData.yRank == gridData.inputParams.npY - 1) {
-           if (xStag)
-                xRange = {1, fSize(0)-2};
-           else
-                xRange = {1, fSize(0)-2};
+                 if (xStag)
+                     xRange = {1, fSize(0)-3};
+                 else
+                     xRange = {1, fSize(0)-2};
 
-            if (yStag)
-                yRange = {1, fSize(1)-2};
-           else
-                yRange = {1, fSize(1)-2};
+                 if (yStag)
+                     yRange = {1, fSize(1)-2};
+                 else
+                     yRange = {1, fSize(1)-2};
+        }
+        else {
+                 if (xStag)
+                     xRange = {1, fSize(0)-3};
+                 else
+                     xRange = {1, fSize(0)-2};
 
-           if (zStag)
-                zRange = {1, fSize(2)-2};
-           else
-                zRange = {1, fSize(2)-2};
-         }
-         else {
-            if (xStag)
-                xRange = {1, fSize(0)-2};
-           else
-                xRange = {1, fSize(0)-2};
-
-            if (yStag)
-                yRange = {1, fSize(1)-3};
-           else
-                yRange = {1, fSize(1)-3};
-
-           if (zStag)
-                zRange = {1, fSize(2)-2};
-           else
-                zRange = {1, fSize(2)-2};
+                 if (yStag)
+                     yRange = {1, fSize(1)-3};
+                 else
+                     yRange = {1, fSize(1)-2};
         }
 
 
-	h5::Select core({xRange, yRange, zRange});
+        if (zStag)
+            zRange = {1, fSize(2)-2};
+        else
+            zRange = {1, fSize(2)-2};
+
+	    h5::Select core({xRange, yRange, zRange});
 
         io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
                       {gridData.inputParams.npX, gridData.inputParams.npY, 1},
-                      {fSize(0),fSize(1),fSize(2)},
+                      {fSize(0), fSize(1), fSize(2)},
                       core,
-                      {gSize(0),gSize(1),gSize(2)},
+                      {gSize(0), gSize(1), gSize(2)},
                       {{}, {}, {}},
                       h5::Dtype("double"),
                       h5::H5SI_LOCAL_EXPRESSION);
 
-/*
-        if ( (gridData.rankData.xRank == gridData.inputParams.npX - 1) && (gridData.rankData.yRank == gridData.inputParams.npY - 1) ) {
-            io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
-                          {gridData.inputParams.npX, gridData.inputParams.npY, 1},
-                          {fSize(0),fSize(1),fSize(2)},
-                          {{1,fSize(0)-2},{1,fSize(1)-2},{1,fSize(2)-2}},
-                          {gSize(0),gSize(1),gSize(2)},
-                          {{}, {}, {}},
-                          h5::Dtype("double"),
-                          h5::H5SI_LOCAL_EXPRESSION);
-        }
-        else if (gridData.rankData.xRank == gridData.inputParams.npX - 1) {
-           io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
-                          {gridData.inputParams.npX, gridData.inputParams.npY, 1},
-                          {fSize(0),fSize(1),fSize(2)},
-                          {{1,fSize(0)-2},{1,fSize(1)-3} ,{1,fSize(2)-2}},
-                          {gSize(0),gSize(1),gSize(2)},
-                          {{}, {}, {}},
-                          h5::Dtype("double"),
-                          h5::H5SI_LOCAL_EXPRESSION);
-        }
-        else if (gridData.rankData.yRank == gridData.inputParams.npY - 1) {
-            io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
-                          {gridData.inputParams.npX, gridData.inputParams.npY, 1},
-                          {fSize(0),fSize(1),fSize(2)},
-                          {{1,fSize(0)-2},{1,fSize(1)-2} ,{1,fSize(2)-2}},
-                          {gSize(0),gSize(1),gSize(2)},
-                          {{}, {}, {}},
-                          h5::Dtype("double"),
-                          h5::H5SI_LOCAL_EXPRESSION);
-    
-        }
-        else {
-           io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
-                          {gridData.inputParams.npX, gridData.inputParams.npY, 1},
-                          {fSize(0),fSize(1),fSize(2)},
-                          {{1,fSize(0)-2},{1,fSize(1)-3} ,{1,fSize(2)-2}},
-                          {gSize(0),gSize(1),gSize(2)},
-                          {{}, {}, {}},
-                          h5::Dtype("double"),
-                          h5::H5SI_LOCAL_EXPRESSION);
-        }
-*/
-  }
 }
 
 /**
@@ -840,20 +780,6 @@ void field::calcDerivatives2() {
 }
 
 /**
- * \brief Writes a given array to HDF5 file according to the initialized plan
- */
-void field::write() {
-
-    h5::File f;
-    f.mpioInit(MPI_COMM_WORLD);
-    f.open(fieldName + ".h5", "w");
-
-    h5::Dataset ds = f.create_dataset(fieldName, io_plan);
-
-    ds << F.data();
-}
-
-/**
  ********************************************************************************************************************************************
  * \brief   Function to synchronise data across all processors when performing parallel computations
  *
@@ -891,6 +817,20 @@ double field::fieldMax() {
     MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
 
     return globalMax;
+}
+
+/**
+ * \brief Writes a given array to HDF5 file according to the initialized plan
+ */
+void field::write(string folder, string field) {
+
+    h5::File f;
+    f.mpioInit(MPI_COMM_WORLD);
+
+    f.open(folder + "/" + field + "." + fieldName + ".h5", "w");
+
+    h5::Dataset ds = f.create_dataset(fieldName, io_plan);
+    ds << F.data();
 }
 
 /**
