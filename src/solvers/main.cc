@@ -51,14 +51,14 @@ int main() {
     } else if (inputParams.probType <= 7) {
         if (mpi.rank == 0) {
             if (inputParams.probType == 5) {
-                std::cout << std::endl << "Solving NSE for Rayleigh-Benard convection" << std::endl;
+                std::cout << std::endl << "Solving NSE for heated bottom-plate problem" << std::endl;
             } else if (inputParams.probType == 6) {
-                std::cout << std::endl << "Solving NSE for Stably-stratified flows" << std::endl;
+                std::cout << std::endl << "Solving NSE for heated top-plate problem" << std::endl;
             } else {
                 if (not inputParams.xPer) {
-                    std::cout << std::endl << "Solving NSE for vertical convection" << std::endl;
+                    std::cout << std::endl << "Solving NSE for heated sidewall problem" << std::endl;
                 } else {
-                    std::cout << std::endl << "ERROR: X direction cannot be periodic for vertical convection. ABORTING" << std::endl;
+                    std::cout << std::endl << "ERROR: X direction cannot be periodic for heated sidewall problem. ABORTING" << std::endl;
 
                     MPI_Finalize();
                     exit(0);
@@ -80,28 +80,9 @@ int main() {
 
         delete nseSolver;
 
-    } else if (inputParams.probType == 8) {
-#ifdef PLANAR
-        if (mpi.rank == 0) {
-            std::cout << std::endl << "ERROR: Rotating convection cannot be solved with PLANAR flag turned on. ABORTING" << std::endl;
-        }
-
-        MPI_Finalize();
-        exit(0);
-#endif
-        if (mpi.rank == 0) {
-            std::cout << std::endl << "Solving NSE for Rotating Rayleigh-Benard convection" << std::endl;
-            std::cout << std::endl;
-        }
-
-        scalar *nseSolver;
-        nseSolver = new scalar_d3(gridData, inputParams, mpi);
-
-        nseSolver->solvePDE();
-
-        delete nseSolver;
-
-    } else {
+    }    
+    
+    else {
         if (mpi.rank == 0) {
             std::cout << std::endl << "Invalid problem type. ABORTING" << std::endl;
         }

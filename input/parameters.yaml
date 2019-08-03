@@ -45,7 +45,7 @@
     # 2 = Coriolis force 
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
     # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
-    "Force": 4
+    "Force": 3
 
 
 # Mesh parameters
@@ -72,8 +72,8 @@
 
 # Parellelization parameters
 "Parallel":
-    "Number of OMP threads": 12
-    "X Number of Procs": 1
+    "Number of OMP threads": 1
+    "X Number of Procs": 2
     "Y Number of Procs": 1
 
 
