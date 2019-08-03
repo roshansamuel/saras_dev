@@ -29,19 +29,19 @@ scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
     if (inputParams.rbcType == 1) {
         nu = inputParams.Pr;
         kappa = 1.0;
-        Fb = inputParams.Ra*inputParams.Pr;
+        //Fb = inputParams.Ra*inputParams.Pr;
     } else if (inputParams.rbcType == 2) {
         nu = sqrt(inputParams.Pr/inputParams.Ra);
         kappa = 1.0/sqrt(inputParams.Pr*inputParams.Ra);
-        Fb = 1.0;
+        //Fb = 1.0;
     } else if (inputParams.rbcType == 3) {
         nu = 1.0;
         kappa = 1.0/inputParams.Pr;
-        Fb = inputParams.Ra;
+        //Fb = inputParams.Ra;
     } else if (inputParams.rbcType == 4) {
         nu = sqrt(inputParams.Pr/inputParams.Ra);
         kappa = 1.0/sqrt(inputParams.Pr*inputParams.Ra);
-        Fb = inputParams.Pr;
+        //Fb = inputParams.Pr;
     } else {
         if (mpiData.rank == 0) {
             std::cout << "ERROR: Invalid RBC non-dimensionalization type. Aborting" << std::endl;

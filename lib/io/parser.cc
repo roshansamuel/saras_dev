@@ -42,6 +42,7 @@ void parser::parseYAML() {
     yamlNode["Program"]["X Length"] >> Lx;
     yamlNode["Program"]["Y Length"] >> Ly;
     yamlNode["Program"]["Z Length"] >> Lz;
+    yamlNode["Program"]["Force"] >> Force;
     yamlNode["Program"]["Patch Radius"] >> patchRadius;
 
     yamlNode["Mesh"]["Mesh Type"] >> meshType;

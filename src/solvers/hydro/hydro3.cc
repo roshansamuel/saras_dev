@@ -355,6 +355,10 @@ void hydro_d3::computeTimeStep() {
     gettimeofday(&begin, NULL);
 #endif
 
+
+
+    Force.add_VForce(Hv);
+
     pressureGradient = 0.0;
     P.gradient(pressureGradient);
 

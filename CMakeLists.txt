@@ -12,7 +12,8 @@ include_directories (${HEADER_DIR}/parallel
                      ${HEADER_DIR}/poisson
                      ${HEADER_DIR}/field
                      ${HEADER_DIR}/grid
-                     ${HEADER_DIR}/io)
+                     ${HEADER_DIR}/io
+                     ${HEADER_DIR}/force)
 
 message (STATUS "The parent directory is ${PARENT_DIR}")
 message (STATUS "Install folder is ${INSTALL_DIR}")

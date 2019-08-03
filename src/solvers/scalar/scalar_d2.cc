@@ -270,16 +270,13 @@ void scalar_d2::computeTimeStep() {
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN Hv
     V.computeNLin(V, Hv);
 
-    // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE BUOYANCY TERM IN Vz MOMENTUM EQUATION
-    V.interPc2Vz = 0.0;
-    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-    }
-    V.interPc2Vz /= V.Vz.PcIntSlices.size();
+    // ADD FORCING TO THE RHS
 
-    // ADD THE EXTRA TERM ARISING FROM BUOYANCY IN THE Vz COMPONENT OF Hv
-    Hv.Vz.F += Fb*V.interPc2Vz;
+    Force.add_VForce(Hv, T);
 
+
+
+    
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
     pressureGradient = 0.0;
     P.gradient(pressureGradient);
@@ -347,6 +344,8 @@ void scalar_d2::computeTimeStep() {
     }
     // BELOW STEP IS USED ONLY WHEN SOLVING THETA EQUATION - VERIFY!
     //Ht = V.Vz;
+
+    Force.add_SForce(Ht);
 
     Ht *= inputParams.tStp;
     Ht += T;

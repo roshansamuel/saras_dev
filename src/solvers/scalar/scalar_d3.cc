@@ -342,24 +342,9 @@ void scalar_d3::computeTimeStep() {
     gettimeofday(&begin, NULL);
 #endif
 
-    // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE BUOYANCY TERM IN Vz MOMENTUM EQUATION
-    V.interPc2Vz = 0.0;
-    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-    }
-    V.interPc2Vz /= V.Vz.PcIntSlices.size();
+    //ADD FORCING TO THE RHS
+    Force.add_VForce(Hv, T);
 
-    // ADD THE EXTRA TERM ARISING FROM BUOYANCY IN THE Vz COMPONENT OF Hv
-    Hv.Vz.F += Fb*V.interPc2Vz;
-
-    // EXTRA FORCING TERMS FOR CORIOLIS FORCE FROM ROTATING RBC 
-    if (inputParams.probType == 8) {
-        //ADD THE ROTATING TERM IN THE Vx COMPONENT OF Hv
-        Hv.Vx.F += inputParams.Pr*sqrt(inputParams.Ta)*V.Vy.F;
-
-        //SUBTRACT THE ROTATING TERM IN THE Vy COMPONENT of Hv
-        Hv.Vy.F -= inputParams.Pr*sqrt(inputParams.Ta)*V.Vx.F;
-    }
 
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
     pressureGradient = 0.0;
@@ -432,6 +417,8 @@ void scalar_d3::computeTimeStep() {
 
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN Ht
     T.computeNLin(V, Ht);
+
+    Force.add_SForce(Ht);
 
     Ht *= inputParams.tStp;
     Ht += T;

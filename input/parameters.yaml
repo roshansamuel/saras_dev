@@ -1,14 +1,13 @@
 # Problem parameters
 "Program":
     # Choose from following list of problem types:
-    # 1 = Lid-Driven Cavity
-    # 2 = Taylor Green Vortices
-    # 3 = Channel Flow
-    # 4 = Duct Flow
-    # 5 = Rayleigh Benard Convection
-    # 6 = Stably Stratified Flow
-    # 7 = Vertical convection
-    # 8 = Rotating convection
+    # 1 = Hydrodynamics: Lid-Driven Cavity
+    # 2 = Hydrodynamics: Taylor Green Vortices
+    # 3 = Hydrodynamics: Channel Flow
+    # 4 = Hydrodynamics: Duct Flow
+    # 5 = Flows with scalar: Heated bottom plate 
+    # 6 = Flows with scalar: Heated upper plate
+    # 7 = Flows with scalar: Heated sidewall
     "Problem Type": 5
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
@@ -27,7 +26,7 @@
     "Reynolds Number": 800
     "Rayleigh Number": 6000
     "Prandtl Number": 1.0
-    "Taylor Number": 50.0
+    "Taylor Number": 100.0
 
     # Dimensions of the domain
     "X Length": 1.0
@@ -39,6 +38,14 @@
     # If the radius exceeds half the domain length specifed above, the solver will run like ordinary RBC
     # Currently the solver supports this non-homogeneous BC only for 3D runs
     "Patch Radius": 3.0
+
+    #Choose the type of forcing (source term) for the momentum equation
+    # 0 = No forcing
+    # 1 = Random forcing (This is yet to be implemented)
+    # 2 = Coriolis force 
+    # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
+    # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
+    "Force": 4
 
 
 # Mesh parameters
@@ -81,16 +88,16 @@
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
-    "Restart Run": true
+    "Restart Run": false
 
     "Time-Step": 0.001
-    "Final Time": 10.0
+    "Final Time": 5.0
 
     # No of iterations to display output to standard I/O
     "I/O Count": 1
 
     # Time interval at which output file must be written
-    "File Write Interval": 0.5
+    "File Write Interval": 0.1
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false

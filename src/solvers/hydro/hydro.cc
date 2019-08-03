@@ -29,9 +29,11 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             velocityLaplacian(mesh, "LAP_V", false),
             pressureGradient(mesh, "GRAD_P", false),
             P(mesh, "P", true),
-            V(mesh, "V", true)
+            V(mesh, "V", true),
+            Force(V, solParam, mpiParam)
 {
     maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+
 }
 
 /**

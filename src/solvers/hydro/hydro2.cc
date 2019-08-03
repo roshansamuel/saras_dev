@@ -250,6 +250,8 @@ void hydro_d2::computeTimeStep() {
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN Hv
     V.computeNLin(V, Hv);
 
+    Force.add_VForce(Hv);
+
     pressureGradient = 0.0;
     P.gradient(pressureGradient);
 

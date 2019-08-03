@@ -13,6 +13,7 @@
 #include "vfield.h"
 #include "parser.h"
 #include "grid.h"
+#include "force.h"
 
 class hydro {
     protected:
@@ -54,6 +55,8 @@ class hydro {
         sfield P;
 
         vfield V;
+
+        force Force;
 
         hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
 

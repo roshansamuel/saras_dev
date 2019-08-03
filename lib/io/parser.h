@@ -29,6 +29,7 @@ class parser {
         int xInd, yInd, zInd;
         int vcDepth, vcCount;
         int preSmooth, postSmooth;
+        int Force;
 
         int iScheme;
         int probType;
