@@ -90,7 +90,7 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
     }
 
     V.write(0);
-
+    P.write(0);
     // Disable periodic data transfer by setting neighbouring ranks of boundary sub-domains to NULL
     // Left and right walls
     if (not inputParams.xPer) {

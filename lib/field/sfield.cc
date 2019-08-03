@@ -136,6 +136,16 @@ void sfield::syncData() {
     F.syncData();
 }
 
+void sfield::write(double time) {
+
+    //create folder
+    std::string folder = "output/Time_" + std::to_string(time);
+    mkdir(folder.c_str(), S_IRWXU|S_IRWXG);
+
+    F.write(folder, fieldName);
+}
+
+
 /**
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to add a given scalar field

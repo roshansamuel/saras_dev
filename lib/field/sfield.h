@@ -26,6 +26,8 @@ class sfield {
         void gradient(vfield &gradF);
 
         void syncData();
+        void write(double time);
+
 
         sfield& operator += (sfield &a);
         sfield& operator -= (sfield &a);

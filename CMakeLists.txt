@@ -48,9 +48,20 @@ if (TIME_RUN)
     add_definitions(-DTIME_RUN)
 endif ()
 
+# Check compiler supports C++11 or not
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+if(COMPILER_SUPPORTS_CXX11)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  message(STATUS "Compiler ${CMAKE_CXX_COMPILER} has C++11 support.")
+else()
+  message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
+endif()
+
+
 # Set compiler flags for normal and debug runs
-set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3 -std=c++0x -DH5SI_ENABLE_MPI")
-set (CMAKE_CXX_FLAGS_DEBUG "-Wall -g ${OpenMP_C_FLAGS} -DBZ_DEBUG -std=c++0x -DH5SI_ENABLE_MPI")
+set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3 -std=c++11 -DH5SI_ENABLE_MPI")
+set (CMAKE_CXX_FLAGS_DEBUG "-Wall -g ${OpenMP_C_FLAGS} -DBZ_DEBUG -std=c++11 -DH5SI_ENABLE_MPI")
 
 add_subdirectory (lib)
 add_subdirectory (src)
