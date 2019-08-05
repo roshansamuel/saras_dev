@@ -36,6 +36,7 @@ void parser::parseYAML() {
     yamlNode["Program"]["Domain Type"] >> domainType;
     yamlNode["Program"]["RBC Type"] >> rbcType;
     yamlNode["Program"]["Reynolds Number"] >> Re;
+    yamlNode["Program"]["Rossby Number"] >> Ro;
     yamlNode["Program"]["Rayleigh Number"] >> Ra;
     yamlNode["Program"]["Prandtl Number"] >> Pr;
     yamlNode["Program"]["Taylor Number"] >> Ta;

@@ -13,7 +13,7 @@ class sfield;
 
 class force{
     private:
-        double Fb;
+        double Fb, Fr;
         void add_Buoyancy(vfield &Hv, sfield &T);
         void add_Coriolis(vfield &Hv);
         void add_RandomForce(vfield &Hv);

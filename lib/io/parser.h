@@ -42,6 +42,7 @@ class parser {
         double Ra;
         double Pr;
         double Ta;
+        double Ro;
         double fwInt;
         double prInt;
         double tolerance;

@@ -5,15 +5,22 @@ force::force(vfield &U, const parser &solParams, parallel &mpiParam):
     inputParams(solParams),
     mpiData(mpiParam)
 {
-    if (inputParams.probType >= 5){
+    if (inputParams.probType < 5){
+        Fr = 1.0/inputParams.Ro;
+    }
+    else{
         if (inputParams.rbcType == 1) {                     
-            Fb = inputParams.Ra*inputParams.Pr;    
+            Fb = inputParams.Ra*inputParams.Pr;
+            Fr = inputParams.Pr*sqrt(inputParams.Ta);
         } else if (inputParams.rbcType == 2) {    
-            Fb = 1.0;    
+            Fb = 1.0;
+            Fr = sqrt(inputParams.Ta*inputParams.Pr/inputParams.Ra); 
         } else if (inputParams.rbcType == 3) {    
-            Fb = inputParams.Ra;    
+            Fb = inputParams.Ra;
+            Fr = sqrt(inputParams.Ta);
         } else {                                                            
             Fb = inputParams.Pr;
+            Fr = sqrt(inputParams.Ta*inputParams.Pr/inputParams.Ra); 
         }
     }
 }
@@ -111,9 +118,9 @@ void force::add_Buoyancy(vfield &Hv, sfield &T) {
 void force::add_Coriolis(vfield &Hv){
 #ifndef PLANAR
     //ADD THE ROTATING TERM IN THE Vx COMPONENT OF Hv
-    Hv.Vx.F += inputParams.Pr*sqrt(inputParams.Ta)*V.Vy.F;
+    Hv.Vx.F += Fr*V.Vy.F;
     //SUBTRACT THE ROTATING TERM IN THE Vy COMPONENT of Hv
-    Hv.Vy.F -= inputParams.Pr*sqrt(inputParams.Ta)*V.Vx.F;
+    Hv.Vy.F -= Fr*V.Vx.F;
 #endif
 }
 
