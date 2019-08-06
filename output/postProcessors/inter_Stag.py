@@ -14,20 +14,26 @@ def hdf5_reader(filename,dataset):
 
 
 
-Ra = 1e7
+Ra = 6000.0
 Pr=1.0
 
-kappa = np.sqrt(1.0/(Ra*Pr))
-nu = np.sqrt(Pr/Ra)
+#kappa = np.sqrt(1.0/(Ra*Pr))
+#nu = np.sqrt(Pr/Ra)
+
+kappa = 1.0
+nu = Pr
+
 
 lx, ly, lz = 1.0, 1.0, 1.0
 
-U = hdf5_reader("Soln_0027.0000.h5", "Vx")
-V = hdf5_reader("Soln_0027.0000.h5", "Vy")
-W = hdf5_reader("Soln_0027.0000.h5", "Vz")
+fileName = "Soln_0300.0000.h5"
 
-T = hdf5_reader("Soln_0027.0000.h5", "T")
-P = hdf5_reader("Soln_0027.0000.h5", "P")
+U = hdf5_reader(fileName, "Vx")
+V = hdf5_reader(fileName, "Vy")
+W = hdf5_reader(fileName, "Vz")
+
+T = hdf5_reader(fileName, "T")
+P = hdf5_reader(fileName, "P")
 
 U_st = np.zeros_like(P)
 V_st = np.zeros_like(P)
@@ -59,28 +65,12 @@ W_st[:,:,0] = 0.0
 W_st[:,:,-1] = 0.0
 
 
-f1 = h5py.File("SolnI_0027.0000.h5", "w")
+f1 = h5py.File("SolnI_0300.0000.h5", "w")
 dset1 = f1.create_dataset("Vx", data = U_st)
 dset2 = f1.create_dataset("Vy", data = V_st)
 dset3 = f1.create_dataset("Vz", data = W_st)
 dset4 = f1.create_dataset("T", data = T)
 dset5 = f1.create_dataset("P", data = P)
 f1.close()
-
-UzT = W_st*T_st
-
-
-av_UzT = np.mean(UzT)
-Nu = 1.0 + av_UzT/(kappa/lz)
-print "Nu", Nu
-
-Uh_rms = U_st**2 + V_st**2
-Uh_z_avg = np.zeros([Nz_s])
-for i in range(Nz_s):
-    Uh_z_avg[i] = np.sqrt(np.mean(Uh_rms[:,:,i]))
-
-plt.plot(Uh_z_avg, z)
-plt.show()
-
 
 

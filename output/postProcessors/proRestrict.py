@@ -34,28 +34,24 @@ def prolong(function):
     prolonged = np.zeros([rx + 1, ry + 1, rz + 1])
     print "Initializing the prolonging operation"
     for i in range(0, rx+1, 2):
-        print i, "out of", rx
         for j in range(0, ry+1, 2):
             for k in range(0, rz+1, 2):
                 prolonged[i, j, k] = function[i/2, j/2, k/2]
     
     print "Prolonging along x direction"
     for i in range(1, rx, 2):
-        print i, "out of", rx-1
         for j in range(0, ry+1, 2):
             for k in range(0, rz+1, 2):
                 prolonged[i, j, k] = (prolonged[i-1, j, k] + prolonged[i+1, j, k])/2.0
 
     print "Prolonging along y direction"
     for i in range(0, rx+1):
-        print i, "out of", rx
         for j in range(1, ry, 2):
             for k in range(0, rz+1):
                 prolonged[i, j, k] = (prolonged[i, j-1, k] + prolonged[i, j+1, k])/2.0
 
     print "Prolonging along z direction"
     for i in range(0, rx+1):
-        print i, "out of", rx
         for j in range(0, ry+1):
             for k in range(1, rz, 2):
                 prolonged[i, j, k] = (prolonged[i, j, k-1] + prolonged[i, j, k+1])/2.0
@@ -64,13 +60,37 @@ def prolong(function):
 
 
 
-T = hdf5_reader("Soln_0005.0000.h5", "T")
+fileName = "SolnI_0300.0000.h5" 
+T = hdf5_reader(fileName, "T")
+U = hdf5_reader(fileName, "Vx")
+V = hdf5_reader(fileName, "Vy")
+W = hdf5_reader(fileName, "Vz")
+P = hdf5_reader(fileName, "P")
+print "Prolonging T"
 T_p = prolong(T)
+print "Prolonging U"
+U_p = prolong(U)
+print "Prolonging V"
+V_p = prolong(V)
+print "Prolonging W"
+W_p = prolong(W)
+print "Prolonging P"
+P_p = prolong(P)
+
 #print T_p.shape
-print np.mean(T), np.mean(T_p)
+#print np.mean(T), np.mean(T_p)
 #print T[25, 38, 50]
-print T_p[121, 79, 121]
-print (T[60, 39, 60] + T[61, 39, 60] + T[60, 39, 61] + T[61, 39, 61] + T[60, 40, 60] + T[61, 40, 60] + T[60, 40, 61] + T[61, 40, 61])/8.0
+#print T_p[121, 79, 121]
+#print (T[60, 39, 60] + T[61, 39, 60] + T[60, 39, 61] + T[61, 39, 61] + T[60, 40, 60] + T[61, 40, 60] + T[60, 40, 61] + T[61, 40, 61])/8.0
+
+f1 = h5py.File("SolnIP_0300.0000.h5", "w")
+dset1 = f1.create_dataset("Vx", data = U_p)
+dset2 = f1.create_dataset("Vy", data = V_p)
+dset3 = f1.create_dataset("Vz", data = W_p)
+dset4 = f1.create_dataset("T", data = T_p)
+dset5 = f1.create_dataset("P", data = P_p)
+f1.close()
+
 
 
 

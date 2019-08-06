@@ -21,7 +21,7 @@
     # 2 = large U, large Pr
     # 3 = small U, small Pr
     # 4 = large U, small Pr
-    "RBC Type": 1
+    "RBC Type": 2
 
     "Reynolds Number": 800
     "Rossby Number": 12
@@ -46,7 +46,7 @@
     # 2 = Coriolis force 
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
     # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
-    "Force": 4
+    "Force": 3
 
 
 # Mesh parameters
@@ -66,9 +66,9 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes:   2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index:   0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 6
-    "Y Index": 6
-    "Z Index": 6
+    "X Index": 7
+    "Y Index": 7
+    "Z Index": 7
 
 
 # Parellelization parameters
@@ -91,14 +91,14 @@
     # If flag is true, solver will read the last written solution file in output directory for restart
     "Restart Run": true
 
-    "Time-Step": 0.001
-    "Final Time": 5.0
+    "Time-Step": 0.025
+    "Final Time": 500.0
 
     # No of iterations to display output to standard I/O
     "I/O Count": 1
 
     # Time interval at which output file must be written
-    "File Write Interval": 0.1
+    "File Write Interval": 5
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false
