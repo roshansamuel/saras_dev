@@ -7,4 +7,4 @@
 *.vtk
 *.lay
 saras
-install/build/
+compile/build/
