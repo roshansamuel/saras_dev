@@ -11,6 +11,7 @@
 #include "field.h"
 #include "grid.h"
 #include "hdf5.h"
+#include "mpi.h"
 
 class writer {
     private:
@@ -38,7 +39,7 @@ class writer {
         writer(const grid &mesh, std::vector<field> &wFields);
 
         void writeData(double time);
-
+        
         ~writer();
 };
 

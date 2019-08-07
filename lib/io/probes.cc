@@ -193,7 +193,7 @@ void probes::createMPIStruct() {
 
     // Below method of defining MPI_struct is compatible with MPICH2 since it avoids use of deprecated functions and definitions
     int bLengths[4] = {1, 1, 1, 10};
-    MPI_Datatype baseTypes[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_DOUBLE_PRECISION};
+    MPI_Datatype baseTypes[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_DOUBLE};
     MPI_Aint displacements[4];
     MPI_Aint intlb, intex;
 

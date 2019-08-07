@@ -215,7 +215,7 @@ void hydro_d3::solvePDE() {
         }
     }
 
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
@@ -265,7 +265,7 @@ void hydro_d3::solvePDE() {
             }
         }
 
-        MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
         if (timeStepCount % inputParams.ioCnt == 0) {
             if (mesh.rankData.rank == 0) {

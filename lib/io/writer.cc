@@ -1,5 +1,5 @@
 #include "writer.h"
-
+#include <h5si.h>
 /**
  ********************************************************************************************************************************************
  * \brief   Constructor of the writer class
@@ -201,6 +201,7 @@ void writer::outputCheck() {
  * \param   time is a double precision value containing the time to be used for naming the file
  ********************************************************************************************************************************************
  */
+
 void writer::writeData(double time) {
     hid_t plist_id;
 

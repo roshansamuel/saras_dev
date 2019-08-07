@@ -70,14 +70,14 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(0) += 1;
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayX0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &sendSubarrayX0);
     MPI_Type_commit(&sendSubarrayX0);
 
     // RECEIVE SUB-ARRAY ON LEFT SIDE
     saStarts = padWidth;            saStarts(0) = 0;
     loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayX0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &recvSubarrayX0);
     MPI_Type_commit(&recvSubarrayX0);
 
 
@@ -90,14 +90,14 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(0) -= 1;
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayX1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &sendSubarrayX1);
     MPI_Type_commit(&sendSubarrayX1);
 
     // RECEIVE SUB-ARRAY ON RIGHT SIDE
     saStarts = padWidth;            saStarts(0) = coreSize(0) + padWidth(0);
     loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayX1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &recvSubarrayX1);
     MPI_Type_commit(&recvSubarrayX1);
 
 
@@ -111,14 +111,14 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(1) += 1;
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayY0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &sendSubarrayY0);
     MPI_Type_commit(&sendSubarrayY0);
 
     // RECEIVE SUB-ARRAY ON FRONT SIDE
     saStarts = padWidth;            saStarts(1) = 0;
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayY0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &recvSubarrayY0);
     MPI_Type_commit(&recvSubarrayY0);
 
     // SEND SUB-ARRAY ON REAR SIDE
@@ -130,14 +130,14 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(1) -= 1;
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayY1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &sendSubarrayY1);
     MPI_Type_commit(&sendSubarrayY1);
 
     // RECEIVE SUB-ARRAY ON REAR SIDE
     saStarts = padWidth;            saStarts(1) = coreSize(1) + padWidth(1);
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayY1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE, &recvSubarrayY1);
     MPI_Type_commit(&recvSubarrayY1);
 }
 

@@ -251,7 +251,7 @@ void multigrid_d3::solve() {
             }
         }
 
-        MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         if (globalMax < inputParams.tolerance) {
             break;
         }
@@ -493,7 +493,7 @@ void multigrid_d3::createMGSubArrays() {
                 ptsCount += 1;
             }
         }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_DOUBLE_PRECISION, &xMGArray(i));
+        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_DOUBLE, &xMGArray(i));
         MPI_Type_commit(&xMGArray(i));
 
         // CREATE Y_MG_ARRAY DATATYPE
@@ -511,7 +511,7 @@ void multigrid_d3::createMGSubArrays() {
                 ptsCount += 1;
             }
         }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_DOUBLE_PRECISION, &yMGArray(i));
+        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_DOUBLE, &yMGArray(i));
         MPI_Type_commit(&yMGArray(i));
 
         mgSendLft(i) =  strideValues(i), 0, 0;

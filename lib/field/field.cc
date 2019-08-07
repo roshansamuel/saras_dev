@@ -814,7 +814,7 @@ double field::fieldMax() {
      * Check Ref. [4] in README for explanation.                                                                   *
      ***************************************************************************************************************/
 
-    MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
     return globalMax;
 }
@@ -822,6 +822,7 @@ double field::fieldMax() {
 /**
  * \brief Writes a given array to HDF5 file according to the initialized plan
  */
+
 void field::write(std::string folder, std::string field) {
 
     h5::File f;
@@ -832,6 +833,7 @@ void field::write(std::string folder, std::string field) {
     h5::Dataset ds = f.create_dataset(fieldName, io_plan);
     ds << F.data();
 }
+
 
 /**
  ********************************************************************************************************************************************

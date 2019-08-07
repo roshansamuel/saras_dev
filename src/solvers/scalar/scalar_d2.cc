@@ -158,9 +158,9 @@ void scalar_d2::solvePDE() {
         }
     }
 
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     NusseltNo = 1.0 + (totalUzT/totalCount)/kappa;
 
     if (mesh.rankData.rank == 0) {
@@ -220,9 +220,9 @@ void scalar_d2::solvePDE() {
             }
         }
 
-        MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         NusseltNo = 1.0 + (totalUzT/totalCount)/kappa;
 
         if (timeStepCount % inputParams.ioCnt == 0) {
