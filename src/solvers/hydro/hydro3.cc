@@ -222,9 +222,9 @@ void hydro_d3::solvePDE() {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
 
-        ofFile << "#VARIABLES = Time, Energy, Divergence\n";
+        ofFile << "#VARIABLES = Time, Energy, Divergence, dt\n";
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
+                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << inputParams.tStp << std::endl;
     }
 
     // WRITE DATA AT t = 0
@@ -240,12 +240,17 @@ void hydro_d3::solvePDE() {
 #endif
 
     // TIME-INTEGRATION LOOP
+    dt = inputParams.tStp;
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
+        V.compute_dt(V, dt);
+        if (dt > inputParams.tStp) {
+            dt = inputParams.tStp;
+        }
 
         timeStepCount += 1;
-        time += inputParams.tStp;
+        time += dt;
 
 #ifndef TIME_RUN
         V.divergence(divV);
@@ -271,22 +276,22 @@ void hydro_d3::solvePDE() {
                                            std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
 
                 ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                        std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
+                                        std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << dt << std::endl;
             }
         }
 
-        if (inputParams.readProbes and std::abs(prTime - time) < 0.5*inputParams.tStp) {
+        if (inputParams.readProbes and std::abs(prTime - time) < 0.5*dt) {
             dataProbe->probeData(time);
             prTime += inputParams.prInt;
         }
 
-        if (std::abs(fwTime - time) < 0.5*inputParams.tStp) {
+        if (std::abs(fwTime - time) < 0.5*dt) {
             dataWriter.writeData(time);
             fwTime += inputParams.fwInt;
         }
 #endif
 
-        if (std::abs(inputParams.tMax - time) < 0.5*inputParams.tStp) {
+        if (std::abs(inputParams.tMax - time) < 0.5*dt) {
             break;
         }
     }
@@ -364,7 +369,7 @@ void hydro_d3::computeTimeStep() {
 
     // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
     Hv -= pressureGradient;
-    Hv *= inputParams.tStp;
+    Hv *= dt;
 
     // ADD THE CALCULATED VALUES TO THE VELOCITY AT START OF TIME-STEP
     Hv += V;
@@ -394,12 +399,12 @@ void hydro_d3::computeTimeStep() {
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.divergence(mgRHS);
-    mgRHS *= inverseDt;
+    mgRHS *= 1.0/dt;
     gettimeofday(&end, NULL);
     prhs_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #else
     V.divergence(mgRHS);
-    mgRHS *= inverseDt;
+    mgRHS *= 1.0/dt;
 #endif
 
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
@@ -420,7 +425,7 @@ void hydro_d3::computeTimeStep() {
 
     // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
     Pp.gradient(pressureGradient);
-    pressureGradient *= inputParams.tStp;
+    pressureGradient *= dt;
     V -= pressureGradient;
 
     // IMPOSE BOUNDARY CONDITIONS ON V
@@ -441,8 +446,8 @@ void hydro_d3::solveVx() {
                     guessedVelocity.Vx.F(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                                     inputParams.tStp / ( hx2hy2hz2 * 2.0 * inputParams.Re) + Hv.Vx.F(iX, iY, iZ))/
-                                 (1.0 + inputParams.tStp * ((hy2hz2 * mesh.xix2Colloc(iX) +
+                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + Hv.Vx.F(iX, iY, iZ))/
+                                 (1.0 + dt * ((hy2hz2 * mesh.xix2Colloc(iX) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ)))/(inputParams.Re * hx2hy2hz2));
                 }
@@ -461,7 +466,7 @@ void hydro_d3::solveVx() {
                            mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx * hx) +
                            mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY-1, iZ)) / (hy * hy) +
                            mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz * hz)) *
-                                           0.5 * inputParams.tStp * inverseRe;
+                                           0.5 * dt * inverseRe;
                 }
             }
         }
@@ -498,8 +503,8 @@ void hydro_d3::solveVy() {
                     guessedVelocity.Vy.F(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1))) *
-                                     inputParams.tStp / ( hx2hy2hz2 * 2.0 * inputParams.Re) + Hv.Vy.F(iX, iY, iZ))/
-                                 (1.0 + inputParams.tStp * ((hy2hz2 * mesh.xix2Staggr(iX) +
+                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + Hv.Vy.F(iX, iY, iZ))/
+                                 (1.0 + dt * ((hy2hz2 * mesh.xix2Staggr(iX) +
                                                            hz2hx2 * mesh.ety2Colloc(iY) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ)))/(inputParams.Re * hx2hy2hz2));
                 }
@@ -518,7 +523,7 @@ void hydro_d3::solveVy() {
                            mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) / (hx * hx) +
                            mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY-1, iZ)) / (hy * hy) +
                            mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY, iZ-1)) / (hz * hz)) *
-                                           0.5 * inputParams.tStp * inverseRe;
+                                           0.5 * dt * inverseRe;
                 }
             }
         }
@@ -555,8 +560,8 @@ void hydro_d3::solveVz() {
                     guessedVelocity.Vz.F(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                                     inputParams.tStp / ( hx2hy2hz2 * 2.0 * inputParams.Re) + Hv.Vz.F(iX, iY, iZ))/
-                                 (1.0 + inputParams.tStp * ((hy2hz2 * mesh.xix2Staggr(iX) +
+                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + Hv.Vz.F(iX, iY, iZ))/
+                                 (1.0 + dt * ((hy2hz2 * mesh.xix2Staggr(iX) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) +
                                                            hx2hy2 * mesh.ztz2Colloc(iZ)))/(inputParams.Re * hx2hy2hz2));
                 }
@@ -575,7 +580,7 @@ void hydro_d3::solveVz() {
                            mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx * hx) +
                            mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY-1, iZ)) / (hy * hy) +
                            mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz * hz)) *
-                                           0.5 * inputParams.tStp * inverseRe;
+                                           0.5 * dt * inverseRe;
                 }
             }
         }

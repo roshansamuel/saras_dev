@@ -20,9 +20,7 @@ class scalar: public hydro {
     public:
         sfield T;
 
-//        force *Force;
-
-        double nu, kappa; // Fb;
+        double nu, kappa; 
 
         scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
 

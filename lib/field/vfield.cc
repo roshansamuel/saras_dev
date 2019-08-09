@@ -1,6 +1,6 @@
 #include "sfield.h"
 #include "vfield.h"
-
+#include <math.h>
 /**
  ********************************************************************************************************************************************
  * \brief   Constructor of the vfield class
@@ -174,6 +174,47 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
                         interVy2Vz(Vz.fCore)*Vz.d1F_dy1(Vz.fCore)/Vz.VyIntSlices.size() +
                         interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
 #endif
+}
+
+/**
+********************************************************************************************************************************************
+* \brief    Operator is used to calculate time step #dt_calc for time integration using CFL Condition with desired Courant No
+*           
+*           
+*
+*
+*
+*********************************************************************************************************************************************
+*/
+
+void vfield::compute_dt(const vfield &V, double &dt_out) {
+    double Courant_no;
+    double localUmax, localVmax, localWmax;
+    double Umax, Vmax, Wmax;
+    double delx, dely, delz; 
+    Courant_no = 0.10;
+    delx = gridData.dXi;
+    delz = gridData.dZt;
+#ifdef PLANAR
+    dely = 0.0;
+#else
+    dely = gridData.dEt;
+#endif
+
+    localUmax = blitz::max(abs(V.Vx.F)); 
+    localWmax = blitz::max(abs(V.Vz.F));
+#ifdef PLANAR
+    localVmax = 1.0;
+#else
+    localVmax = blitz::max(abs(V.Vy.F));
+#endif
+
+    MPI_Allreduce(&localUmax, &Umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localWmax, &Wmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localVmax, &Vmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+
+    dt_out = double(Courant_no*(delx/Umax + dely/Vmax + delz/Wmax));
+
 }
 
 /**
