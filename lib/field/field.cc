@@ -174,7 +174,7 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
         else
             zRange = {1, fSize(2)-2};
 
-	    h5::Select core({xRange, yRange, zRange});
+        h5::Select core({xRange, yRange, zRange});
 
         io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
                       {gridData.inputParams.npX, gridData.inputParams.npY, 1},
