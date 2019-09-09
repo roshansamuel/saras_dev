@@ -174,14 +174,13 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
         else
             zRange = {1, fSize(2)-2};
 
-        h5::Select core({xRange, yRange, zRange});
 
-        io_plan.set_plan({gridData.rankData.xRank, gridData.rankData.yRank, 0},
+        io_plan.set_plan_local({gridData.rankData.xRank, gridData.rankData.yRank, 0},
                       {gridData.inputParams.npX, gridData.inputParams.npY, 1},
                       {fSize(0), fSize(1), fSize(2)},
-                      core,
+                      h5::Select({xRange, yRange, zRange}),
                       {gSize(0), gSize(1), gSize(2)},
-                      {{}, {}, {}},
+                      h5::Select({{}, {}, {}}),
                       h5::Dtype("double"),
                       h5::H5SI_LOCAL_EXPRESSION);
 

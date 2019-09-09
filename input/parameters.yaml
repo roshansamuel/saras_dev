@@ -9,7 +9,7 @@
     # 6 = Stably Stratified Flow
     # 7 = Vertical convection
     # 8 = Rotating convection
-    "Problem Type": 3
+    "Problem Type": 2
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
