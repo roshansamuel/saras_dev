@@ -20,14 +20,14 @@ class hydro {
         int timeStepCount;
         int maxIterations;
 
-        double time;
+        double time, dt;
 
         double hx, hy, hz;
 
         const grid &mesh;
         const parser &inputParams;
 
-        const double inverseRe, inverseDt;
+        const double inverseRe;
 
         probes *dataProbe;
 

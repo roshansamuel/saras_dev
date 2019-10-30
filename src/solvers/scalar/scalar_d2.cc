@@ -170,9 +170,9 @@ void scalar_d2::solvePDE() {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
 
-        ofFile << "#VARIABLES = Time, Energy, NusseltNo, Divergence\n";
+        ofFile << "#VARIABLES = Time, Energy, NusseltNo, Divergence, dt\n";
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
+                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << inputParams.tStp << std::endl;
     }
 
     // WRITE DATA AT t = 0
@@ -187,12 +187,17 @@ void scalar_d2::solvePDE() {
     prTime += inputParams.prInt;
 
     // TIME-INTEGRATION LOOP
+    dt = inputParams.tStp;
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
+        V.computeTStp(dt);
+        if (dt > inputParams.tStp) {
+            dt = inputParams.tStp;
+        }
 
         timeStepCount += 1;
-        time += inputParams.tStp;
+        time += dt;
 
         V.divergence(divV);
         maxDivergence = divV.F.fieldMax();
@@ -231,21 +236,21 @@ void scalar_d2::solvePDE() {
                                            std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
 
                 ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                        std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
+                                        std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << dt << std::endl;
             }
         }
 
-        if (inputParams.readProbes and std::abs(prTime - time) < 0.5*inputParams.tStp) {
+        if (inputParams.readProbes and std::abs(prTime - time) < 0.5*dt) {
             dataProbe->probeData(time);
             prTime += inputParams.prInt;
         }
 
-        if (std::abs(fwTime - time) < 0.5*inputParams.tStp) {
+        if (std::abs(fwTime - time) < 0.5*dt) {
             dataWriter.writeData(time);
             fwTime += inputParams.fwInt;
         }
 
-        if (std::abs(inputParams.tMax - time) < 0.5*inputParams.tStp) {
+        if (std::abs(inputParams.tMax - time) < 0.5*dt) {
             break;
         }
     }
@@ -283,7 +288,7 @@ void scalar_d2::computeTimeStep() {
 
     // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
     Hv -= pressureGradient;
-    Hv *= inputParams.tStp;
+    Hv *= dt;
 
     // ADD THE CALCULATED VALUES TO THE VELOCITY AT START OF TIME-STEP
     Hv += V;
@@ -297,7 +302,7 @@ void scalar_d2::computeTimeStep() {
 
     // CALCULATE THE RHS FOR THE POISSON SOLVER FROM THE GUESSED VALUES OF VELOCITY IN V
     V.divergence(mgRHS);
-    mgRHS *= inverseDt;
+    mgRHS *= 1.0/dt;
 
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
     mgSolver.mgSolve(Pp, mgRHS);
@@ -310,7 +315,7 @@ void scalar_d2::computeTimeStep() {
 
     // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
     Pp.gradient(pressureGradient);
-    pressureGradient *= inputParams.tStp;
+    pressureGradient *= dt;
     V -= pressureGradient;
 
     // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE SCALAR EQUATION
@@ -347,7 +352,7 @@ void scalar_d2::computeTimeStep() {
 
     Force.add_SForce(Ht);
 
-    Ht *= inputParams.tStp;
+    Ht *= dt;
     Ht += T;
 
     // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
@@ -375,8 +380,8 @@ void scalar_d2::solveVx() {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vx.F(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
                                                      hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                        inputParams.tStp * nu / ( hz2hx2 * 2.0) + Hv.Vx.F(iX, iY, iZ))/
-                    (1.0 + inputParams.tStp * nu * ((hz2 * mesh.xix2Colloc(iX) +
+                        dt * nu / ( hz2hx2 * 2.0) + Hv.Vx.F(iX, iY, iZ))/
+                    (1.0 + dt * nu * ((hz2 * mesh.xix2Colloc(iX) +
                                                      hx2 * mesh.ztz2Staggr(iZ)))/hz2hx2);
             }
         }
@@ -391,7 +396,7 @@ void scalar_d2::solveVx() {
                 velocityLaplacian.Vx.F(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - (
                                 mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
                                 mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2)) *
-                                                0.5 * inputParams.tStp * nu;
+                                                0.5 * dt * nu;
             }
         }
 
@@ -426,8 +431,8 @@ void scalar_d2::solveVz() {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vz.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
                                                      hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                        inputParams.tStp * nu / ( hz2hx2 * 2.0) + Hv.Vz.F(iX, iY, iZ))/
-                    (1.0 + inputParams.tStp * nu * ((hz2 * mesh.xix2Staggr(iX) +
+                        dt * nu / ( hz2hx2 * 2.0) + Hv.Vz.F(iX, iY, iZ))/
+                    (1.0 + dt * nu * ((hz2 * mesh.xix2Staggr(iX) +
                                                      hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
             }
         }
@@ -442,7 +447,7 @@ void scalar_d2::solveVz() {
                 velocityLaplacian.Vz.F(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - (
                                 mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
                                 mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2)) *
-                                                0.5 * inputParams.tStp * nu;
+                                                0.5 * dt * nu;
             }
         }
 
@@ -477,8 +482,8 @@ void scalar_d2::solveT() {
             for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
                 guessedScalar.F.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
                                                        hx2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
-                                          inputParams.tStp * kappa / ( hz2hx2 * 2.0) + Ht.F.F(iX, iY, iZ))/
-                                   (1.0 + inputParams.tStp * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
+                                          dt * kappa / ( hz2hx2 * 2.0) + Ht.F.F(iX, iY, iZ))/
+                                   (1.0 + dt * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
             }
         }
 
@@ -492,7 +497,7 @@ void scalar_d2::solveT() {
                 scalarLaplacian.F.F(iX, iY, iZ) = T.F.F(iX, iY, iZ) - (
                         mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx2) +
                         mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz2)) *
-                                        0.5 * inputParams.tStp * kappa;
+                                        0.5 * dt * kappa;
             }
         }
 

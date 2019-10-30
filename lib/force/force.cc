@@ -126,7 +126,6 @@ void force::add_Coriolis(vfield &Hv){
 
     Hv.Vx.F += Fr*V.interVy2Vx;
 
-
     //SUBTRACT THE ROTATING TERM IN THE Vy COMPONENT of Hv
     V.interVx2Vy = 0.0;
     for (unsigned int i=0; i < V.Vy.VxIntSlices.size(); i++) {

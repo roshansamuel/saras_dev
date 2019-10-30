@@ -2,6 +2,9 @@
 #define VFIELD_H
 
 #include "field.h"
+#include "parallel.h"
+#include "grid.h"
+#include <math.h>
 
 class sfield;       // FORWARD DECLARATION
 
@@ -24,6 +27,7 @@ class vfield {
         vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
 
         void computeDiff(vfield &H);
+        void computeTStp(double &dt_out);
         void computeNLin(const vfield &V, vfield &H);
 
         void divergence(sfield &divV);
