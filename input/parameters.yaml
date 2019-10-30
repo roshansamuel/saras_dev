@@ -92,7 +92,7 @@
     "Restart Run": false
 
     "Time-Step": 0.005
-    "Final Time": 10.0
+    "Final Time": 0.1
 
     # No of iterations to display output to standard I/O
     "I/O Count": 1

@@ -118,9 +118,22 @@ void force::add_Buoyancy(vfield &Hv, sfield &T) {
 void force::add_Coriolis(vfield &Hv){
 #ifndef PLANAR
     //ADD THE ROTATING TERM IN THE Vx COMPONENT OF Hv
-    Hv.Vx.F += Fr*V.Vy.F;
+    V.interVy2Vx = 0.0;
+    for (unsigned int i=0; i < V.Vx.VyIntSlices.size(); i++) {
+        V.interVy2Vx(V.Vx.fCore) += V.Vy.F(V.Vx.VyIntSlices(i));
+    }   
+    V.interVy2Vx /= V.Vx.VyIntSlices.size();
+
+    Hv.Vx.F += Fr*V.interVy2Vx;
+
     //SUBTRACT THE ROTATING TERM IN THE Vy COMPONENT of Hv
-    Hv.Vy.F -= Fr*V.Vx.F;
+    V.interVx2Vy = 0.0;
+    for (unsigned int i=0; i < V.Vy.VxIntSlices.size(); i++) {
+        V.interVx2Vy(V.Vy.fCore) += V.Vx.F(V.Vy.VxIntSlices(i));
+    }   
+    V.interVx2Vy /= V.Vy.VxIntSlices.size();
+
+    Hv.Vy.F -= Fr*V.interVx2Vy;
 #endif
 }
 

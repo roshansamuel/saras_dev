@@ -180,41 +180,54 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
 ********************************************************************************************************************************************
 * \brief    Operator is used to calculate time step #dt_calc for time integration using CFL Condition with desired Courant No
 *           
-*           
-*
-*
 *
 *********************************************************************************************************************************************
 */
 
-void vfield::compute_dt(const vfield &V, double &dt_out) {
+void vfield::computeTStp(double &dt_out) {
     double Courant_no;
-    double localUmax, localVmax, localWmax;
     double Umax, Vmax, Wmax;
     double delx, dely, delz; 
+
     Courant_no = 0.10;
+
+    double localUmax, localVmax, localWmax;
+
     delx = gridData.dXi;
-    delz = gridData.dZt;
+    localUmax = blitz::max(abs(Vx.F)); 
 #ifdef PLANAR
     dely = 0.0;
-#else
-    dely = gridData.dEt;
-#endif
-
-    localUmax = blitz::max(abs(V.Vx.F)); 
-    localWmax = blitz::max(abs(V.Vz.F));
-#ifdef PLANAR
     localVmax = 1.0;
 #else
-    localVmax = blitz::max(abs(V.Vy.F));
+    dely = gridData.dEt;
+    localVmax = blitz::max(abs(Vy.F));
 #endif
+    delz = gridData.dZt;
+    localWmax = blitz::max(abs(Vz.F));
 
     MPI_Allreduce(&localUmax, &Umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&localWmax, &Wmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&localVmax, &Vmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localWmax, &Wmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+
+    /*
+    delx = gridData.dXi;
+    Umax = Vx.fieldMax();
+#ifdef PLANAR
+    dely = 0.0;
+    Vmax = 1.0;
+#else
+    dely = gridData.dEt;
+    Vmax = Vy.fieldMax();
+#endif
+    delz = gridData.dZt;
+    Wmax = Vz.fieldMax();
+    */
+
+    //if (gridData.rankData.rank == 0) std::cout << Umax << std::endl;
+    //if (gridData.rankData.rank == 0) std::cout << Vmax << std::endl;
+    //if (gridData.rankData.rank == 0) std::cout << Wmax << std::endl;
 
     dt_out = double(Courant_no*(delx/Umax + dely/Vmax + delz/Wmax));
-
 }
 
 /**

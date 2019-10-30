@@ -191,7 +191,7 @@ void scalar_d2::solvePDE() {
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
-        V.compute_dt(V, dt);
+        V.computeTStp(dt);
         if (dt > inputParams.tStp) {
             dt = inputParams.tStp;
         }
