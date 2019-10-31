@@ -37,6 +37,7 @@ class parser {
         bool readProbes;
         bool restartFlag;
         bool xPer, yPer, zPer;
+        bool useCFL;
 
         double Re;
         double Ra;
@@ -50,6 +51,7 @@ class parser {
         double tStp, tMax;
         double patchRadius;
         double betaX, betaY, betaZ;
+        double courantNumber;
 
         std::string meshType;
         std::string dScheme;

@@ -184,12 +184,12 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
 *********************************************************************************************************************************************
 */
 
-void vfield::computeTStp(double &dt_out) {
-    double Courant_no;
+void vfield::computeTStp(double &dt_out, double Courant_no) {
+    //double Courant_no;
     double Umax, Vmax, Wmax;
     double delx, dely, delz; 
 
-    Courant_no = 0.10;
+    //Courant_no = 0.10;
 
     double localUmax, localVmax, localWmax;
 

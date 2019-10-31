@@ -68,6 +68,8 @@ void parser::parseYAML() {
     yamlNode["Solver"]["Record Probes"] >> readProbes;
     yamlNode["Solver"]["Probe Time Interval"] >> prInt;
     yamlNode["Solver"]["Probes"] >> probeCoords;
+    yamlNode["Solver"]["Use CFL Condition"] >> useCFL;
+    yamlNode["Solver"]["Courant Number"] >> courantNumber;
 
     yamlNode["Multigrid"]["Jacobi Tolerance"] >> tolerance;
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;

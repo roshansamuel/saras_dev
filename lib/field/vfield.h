@@ -27,7 +27,7 @@ class vfield {
         vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
 
         void computeDiff(vfield &H);
-        void computeTStp(double &dt_out);
+        void computeTStp(double &dt_out, double Courant_no);
         void computeNLin(const vfield &V, vfield &H);
 
         void divergence(sfield &divV);

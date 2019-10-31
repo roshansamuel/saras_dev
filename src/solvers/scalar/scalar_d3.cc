@@ -229,11 +229,13 @@ void scalar_d3::solvePDE() {
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
-        V.computeTStp(dt);
-        if (dt > inputParams.tStp) {
-            dt = inputParams.tStp;
+        if (inputParams.useCFL) {
+            V.computeTStp(dt, inputParams.courantNumber);
+            if (dt > inputParams.tStp) {
+                dt = inputParams.tStp;
+            }
         }
-
+        
         timeStepCount += 1;
         time += dt;
 
