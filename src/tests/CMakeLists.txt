@@ -6,7 +6,7 @@ include_directories (
 
 set (EXECUTABLE_OUTPUT_PATH ${PARENT_DIR})
 
-set (HYDRO_SOURCE ${PARENT_DIR}/src/solvers/hydro/hydro.cc ${PARENT_DIR}/src/solvers/hydro/hydro2.cc ${PARENT_DIR}/src/solvers/hydro/hydro3.cc)
+set (HYDRO_SOURCE ${PARENT_DIR}/src/solvers/hydro/hydro.cc ${PARENT_DIR}/src/solvers/hydro/hydro_d2.cc ${PARENT_DIR}/src/solvers/hydro/hydro_d3.cc)
 
 set (TEST_SOURCE units/field_test.cc units/differ_test.cc units/nlin_test.cc units/poisson_test.cc units/hydro_test.cc)
 

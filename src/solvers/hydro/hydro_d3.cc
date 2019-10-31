@@ -333,21 +333,6 @@ void hydro_d3::computeTimeStep() {
     Hv *= inverseRe;
 #endif
 
-    //if (mesh.rankData.rank == 0) {
-    //    for (int i=1; i<4; i++) {
-    //        for (int j=1; j<4; j++) {
-    //            for (int k=1; k<4; k++) {
-    //                std::cout << std::fixed << std::setw(15) << std::setprecision(10) << Hv.Vx.F(i, j, k) << "\t";
-    //            }
-    //            std::cout << std::endl;
-    //        }
-    //    }
-    //    std::cout << "\n" << timeStepCount << "\n" << std::endl;
-    //}
-    //if (timeStepCount == 2) {
-    //    exit(0);
-    //}
-
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN Hv
 #ifndef TIME_RUN
     V.computeNLin(V, Hv);
@@ -359,8 +344,6 @@ void hydro_d3::computeTimeStep() {
 
     gettimeofday(&begin, NULL);
 #endif
-
-
 
     Force.add_VForce(Hv);
 

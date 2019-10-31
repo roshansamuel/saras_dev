@@ -5,7 +5,7 @@ include_directories (
 
 set (EXECUTABLE_OUTPUT_PATH ${PARENT_DIR})
 
-set (HYDRO_SOURCE hydro/hydro.cc hydro/hydro2.cc hydro/hydro3.cc)
+set (HYDRO_SOURCE hydro/hydro.cc hydro/hydro_d2.cc hydro/hydro_d3.cc)
 
 set (SCALAR_SOURCE scalar/scalar.cc scalar/scalar_d2.cc scalar/scalar_d3.cc)
 

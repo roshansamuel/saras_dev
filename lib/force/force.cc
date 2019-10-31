@@ -45,7 +45,7 @@ void force::add_VForce(vfield &Hv)
         }
     }
 
-    else { //
+    else {
         if (mpiData.rank==0){
             std::cout<<"Invalid Forcing. Program aborting..."<<std::endl;
             exit(0);
@@ -77,7 +77,7 @@ void force::add_VForce(vfield &Hv, sfield &T)
         add_Coriolis(Hv);
     }
 
-    else { //
+    else {
         if (mpiData.rank==0){
             std::cout<<"Invalid Forcing. Program aborting..."<<std::endl;
             exit(0);
@@ -86,8 +86,8 @@ void force::add_VForce(vfield &Hv, sfield &T)
 }
 
 void force::add_RandomForce(vfield &Hv){
-
     blitz::Array<double, 3> Force_x, Force_y, Force_z;
+
     Force_x.resize(V.Vx.fSize);
     Force_x.reindexSelf(V.Vx.flBound);
     Force_x = 0; //Needs to be developed; currently set to zero
@@ -103,8 +103,8 @@ void force::add_RandomForce(vfield &Hv){
     Force_z.reindexSelf(V.Vz.flBound);
     Force_z = 0; //Needs to be developed; currently set to zero
     Hv.Vz.F += Force_z;
-
 }
+
 
 void force::add_Buoyancy(vfield &Hv, sfield &T) {
     V.interPc2Vz = 0.0;
@@ -141,6 +141,4 @@ void::force::add_SForce(sfield &Ht) {
     Ht.F.F += 0; //Scalar forcing needs to be implemented
 }
 
-force::~force()
-{}
-
+force::~force() { }
