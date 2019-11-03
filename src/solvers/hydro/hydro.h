@@ -6,6 +6,7 @@
 #include "boundary.h"
 #include "parallel.h"
 #include "poisson.h"
+#include "plainvf.h"
 #include "writer.h"
 #include "reader.h"
 #include "probes.h"
@@ -16,6 +17,20 @@
 #include "force.h"
 
 class hydro {
+    public:
+        vfield V;
+
+        sfield P;
+
+        force Force;
+
+        hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
+
+        virtual void solvePDE();
+        virtual double testPeriodic();
+
+        virtual ~hydro() { };
+
     protected:
         int timeStepCount;
         int maxIterations;
@@ -39,9 +54,9 @@ class hydro {
         vfield Hv;
         vfield Fv;
 
-        vfield guessedVelocity;
-        vfield velocityLaplacian;
-        vfield pressureGradient;
+        plainvf velocityLaplacian;
+        plainvf pressureGradient;
+        plainvf guessedVelocity;
 
         virtual void solveVx();
         virtual void solveVy();
@@ -50,20 +65,6 @@ class hydro {
         virtual void setCoefficients();
 
         virtual void computeTimeStep();
-
-    public:
-        sfield P;
-
-        vfield V;
-
-        force Force;
-
-        hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        virtual void solvePDE();
-        virtual double testPeriodic();
-
-        virtual ~hydro() { };
 };
 
 /**
@@ -79,6 +80,14 @@ class hydro {
  */
 
 class hydro_d2: public hydro {
+    public:
+        hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
+
+        void solvePDE();
+        double testPeriodic();
+
+        ~hydro_d2();
+
     private:
         multigrid_d2 mgSolver;
 
@@ -93,14 +102,6 @@ class hydro_d2: public hydro {
         void setCoefficients();
 
         void computeTimeStep();
-
-    public:
-        hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        double testPeriodic();
-
-        ~hydro_d2();
 };
 
 /**
@@ -115,6 +116,14 @@ class hydro_d2: public hydro {
  */
 
 class hydro_d3: public hydro {
+    public:
+        hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
+
+        void solvePDE();
+        double testPeriodic();
+
+        ~hydro_d3();
+
     private:
         multigrid_d3 mgSolver;
 
@@ -135,14 +144,6 @@ class hydro_d3: public hydro {
         void setCoefficients();
 
         void computeTimeStep();
-
-    public:
-        hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        double testPeriodic();
-
-        ~hydro_d3();
 };
 
 /**

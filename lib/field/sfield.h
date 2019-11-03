@@ -3,6 +3,9 @@
 
 #include "field.h"
 
+class plainsf;       // FORWARD DECLARATION
+class plainvf;       // FORWARD DECLARATION
+
 class vfield;       // FORWARD DECLARATION
 
 class sfield {
@@ -23,15 +26,21 @@ class sfield {
         void computeDiff(sfield &H);
         void computeNLin(const vfield &V, sfield &H);
 
-        void gradient(vfield &gradF);
+        void gradient(plainvf &gradF, const vfield &V);
 
         void syncData();
 
+        sfield& operator += (plainsf &a);
+        sfield& operator -= (plainsf &a);
+
         sfield& operator += (sfield &a);
         sfield& operator -= (sfield &a);
+
         sfield& operator *= (double a);
 
+        void operator = (plainsf &a);
         void operator = (sfield &a);
+
         void operator = (double a);
 
         ~sfield() { };

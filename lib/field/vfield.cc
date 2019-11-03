@@ -1,6 +1,8 @@
+#include "plainvf.h"
 #include "sfield.h"
 #include "vfield.h"
 #include <math.h>
+
 /**
  ********************************************************************************************************************************************
  * \brief   Constructor of the vfield class
@@ -283,6 +285,46 @@ void vfield::syncData() {
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Overloaded operator to add a given plain vector field
+ *
+ *          The unary operator += adds a given plain vector field to the entire field stored as vfield and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a reference to a plainvf to be deducted from the member fields
+ *
+ * \return  A pointer to itself is returned by the vector field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+vfield& vfield::operator += (plainvf &a) {
+    Vx.F += a.Vx;
+    Vy.F += a.Vy;
+    Vz.F += a.Vz;
+
+    return *this;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to subtract a given plain vector field
+ *
+ *          The unary operator -= subtracts a given plain vector field from the entire field stored as vfield and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a reference to a plainvf to be deducted from the member fields
+ *
+ * \return  A pointer to itself is returned by the vector field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+vfield& vfield::operator -= (plainvf &a) {
+    Vx.F -= a.Vx;
+    Vy.F -= a.Vy;
+    Vz.F -= a.Vz;
+
+    return *this;
+}
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Overloaded operator to add a given vector field
  *
  *          The unary operator += adds a given vector field to the entire field stored as vfield and returns
@@ -343,17 +385,17 @@ vfield& vfield::operator *= (double a) {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Overloaded operator to assign a scalar value to the vector field
+ * \brief   Overloaded operator to assign a plain vector field to the vector field
  *
- *          The operator = assigns a double precision value to all the fields (Vx, Vy and Vz) stored in vfield.
+ *          The operator = assigns all the three scalar sub-fields of a vfield to all the corresponding fields (Vx, Vy and Vz).
  *
- * \param   a is a double precision number to be assigned to the vector field
+ * \param   a is a plainvf to be assigned to the vector field
  ********************************************************************************************************************************************
  */
-void vfield::operator = (double a) {
-    Vx.F = a;
-    Vy.F = a;
-    Vz.F = a;
+void vfield::operator = (plainvf &a) {
+    Vx.F = a.Vx;
+    Vy.F = a.Vy;
+    Vz.F = a.Vz;
 }
 
 /**
@@ -369,4 +411,19 @@ void vfield::operator = (vfield &a) {
     Vx.F = a.Vx.F;
     Vy.F = a.Vy.F;
     Vz.F = a.Vz.F;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to assign a scalar value to the vector field
+ *
+ *          The operator = assigns a double precision value to all the fields (Vx, Vy and Vz) stored in vfield.
+ *
+ * \param   a is a double precision number to be assigned to the vector field
+ ********************************************************************************************************************************************
+ */
+void vfield::operator = (double a) {
+    Vx.F = a;
+    Vy.F = a;
+    Vz.F = a;
 }

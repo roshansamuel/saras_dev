@@ -1,3 +1,5 @@
+#include "plainsf.h"
+#include "plainvf.h"
 #include "sfield.h"
 #include "vfield.h"
 
@@ -103,10 +105,11 @@ void sfield::computeNLin(const vfield &V, sfield &H) {
  *          vector field as defined by the tensor operation:
  *          \f$ \nabla f = \frac{\partial f}{\partial x}i + \frac{\partial f}{\partial y}j + \frac{\partial f}{\partial z}k \f$.
  *
- * \param   gradF is a pointer to a vector field (vfield) into which the computed gradient must be written.
+ * \param   gradF is a reference to a plain vector field (plainvf) into which the computed gradient must be written.
+ * \param   V is a const reference to a vector field (vfield) whose core slices are used to compute gradient, since plainvf doesn't have them
  ********************************************************************************************************************************************
  */
-void sfield::gradient(vfield &gradF) {
+void sfield::gradient(plainvf &gradF, const vfield &V) {
     blitz::firstIndex i;
     blitz::secondIndex j;
     blitz::thirdIndex k;
@@ -117,11 +120,11 @@ void sfield::gradient(vfield &gradF) {
     yColl = blitz::Range(gridData.collocCoreDomain.lbound(1), gridData.collocCoreDomain.ubound(1));
     zColl = blitz::Range(gridData.collocCoreDomain.lbound(2), gridData.collocCoreDomain.ubound(2));
 
-    gradF.Vx.F(gradF.Vx.fCore) = gridData.xi_xColloc(xColl)(i)*(F.F(gradF.Vx.fCRgt) - F.F(gradF.Vx.fCore))/gridData.dXi;
+    gradF.Vx(V.Vx.fCore) = gridData.xi_xColloc(xColl)(i)*(F.F(V.Vx.fCRgt) - F.F(V.Vx.fCore))/gridData.dXi;
 #ifndef PLANAR
-    gradF.Vy.F(gradF.Vy.fCore) = gridData.et_yColloc(yColl)(j)*(F.F(gradF.Vy.fCBak) - F.F(gradF.Vy.fCore))/gridData.dEt;
+    gradF.Vy(V.Vy.fCore) = gridData.et_yColloc(yColl)(j)*(F.F(V.Vy.fCBak) - F.F(V.Vy.fCore))/gridData.dEt;
 #endif
-    gradF.Vz.F(gradF.Vz.fCore) = gridData.zt_zColloc(zColl)(k)*(F.F(gradF.Vz.fCTop) - F.F(gradF.Vz.fCore))/gridData.dZt;
+    gradF.Vz(V.Vz.fCore) = gridData.zt_zColloc(zColl)(k)*(F.F(V.Vz.fCTop) - F.F(V.Vz.fCore))/gridData.dZt;
 }
 
 /**
@@ -134,6 +137,42 @@ void sfield::gradient(vfield &gradF) {
  */
 void sfield::syncData() {
     F.syncData();
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to add a given plain scalar field
+ *
+ *          The unary operator += adds a given plain scalar field to the entire field stored as sfield and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a reference to a plainsf to be added to the member field
+ *
+ * \return  A pointer to itself is returned by the scalar field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+sfield& sfield::operator += (plainsf &a) {
+    F.F += a.F;
+
+    return *this;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to subtract a given plain scalar field
+ *
+ *          The unary operator -= subtracts a given plain scalar field from the entire field stored as sfield and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a reference to a plainsf to be deducted from the member field
+ *
+ * \return  A pointer to itself is returned by the scalar field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+sfield& sfield::operator -= (plainsf &a) {
+    F.F -= a.F;
+
+    return *this;
 }
 
 /**
@@ -192,15 +231,15 @@ sfield& sfield::operator *= (double a) {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Overloaded operator to assign a scalar value to the scalar field
+ * \brief   Overloaded operator to assign a plain scalar field to the scalar field
  *
- *          The operator = assigns a double precision value to all the scalar field.
+ *          The operator = copies the contents of the input plain scalar field to itself.
  *
- * \param   a is a double precision number to be assigned to the scalar field
+ * \param   a is the plainsf to be assigned to the scalar field
  ********************************************************************************************************************************************
  */
-void sfield::operator = (double a) {
-    F.F = a;
+void sfield::operator = (plainsf &a) {
+    F.F = a.F;
 }
 
 /**
@@ -214,4 +253,17 @@ void sfield::operator = (double a) {
  */
 void sfield::operator = (sfield &a) {
     F.F = a.F.F;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to assign a scalar value to the scalar field
+ *
+ *          The operator = assigns a double precision value to all the scalar field.
+ *
+ * \param   a is a double precision number to be assigned to the scalar field
+ ********************************************************************************************************************************************
+ */
+void sfield::operator = (double a) {
+    F.F = a;
 }

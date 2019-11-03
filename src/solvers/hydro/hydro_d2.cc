@@ -258,7 +258,7 @@ void hydro_d2::computeTimeStep() {
     Force.add_VForce(Hv);
 
     pressureGradient = 0.0;
-    P.gradient(pressureGradient);
+    P.gradient(pressureGradient, V);
 
     // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
     Hv -= pressureGradient;
@@ -288,7 +288,7 @@ void hydro_d2::computeTimeStep() {
     P += Pp;
 
     // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
-    Pp.gradient(pressureGradient);
+    Pp.gradient(pressureGradient, V);
     pressureGradient *= dt;
     V -= pressureGradient;
 
@@ -306,7 +306,7 @@ void hydro_d2::solveVx() {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vx.F(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
+                guessedVelocity.Vx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
                                                        hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
                                  dt / ( hz2hx2 * 2.0 * inputParams.Re) + Hv.Vx.F(iX, iY, iZ))/
                              (1.0 + dt * ((hz2 * mesh.xix2Colloc(iX) +
@@ -314,23 +314,23 @@ void hydro_d2::solveVx() {
             }
         }
 
-        V.Vx = guessedVelocity.Vx;
+        V.Vx.F = guessedVelocity.Vx;
 
         imposeUBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                velocityLaplacian.Vx.F(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - (
+                velocityLaplacian.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - (
                                 mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
                                 mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2)) *
                                             0.5 * dt * inverseRe;
             }
         }
 
-        velocityLaplacian.Vx.F(V.Vx.fBulk) = abs(velocityLaplacian.Vx.F(V.Vx.fBulk) - Hv.Vx.F(V.Vx.fBulk));
+        velocityLaplacian.Vx(V.Vx.fBulk) = abs(velocityLaplacian.Vx(V.Vx.fBulk) - Hv.Vx.F(V.Vx.fBulk));
 
-        maxError = velocityLaplacian.Vx.fieldMax();
+        maxError = velocityLaplacian.vxMax();
 
         if (maxError < inputParams.tolerance) {
             break;
@@ -357,7 +357,7 @@ void hydro_d2::solveVz() {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vz.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
+                guessedVelocity.Vz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
                                                        hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
                                     dt / ( hz2hx2 * 2.0 * inputParams.Re) + Hv.Vz.F(iX, iY, iZ))/
                              (1.0 + dt * ((hz2 * mesh.xix2Staggr(iX) +
@@ -365,23 +365,23 @@ void hydro_d2::solveVz() {
             }
         }
 
-        V.Vz = guessedVelocity.Vz;
+        V.Vz.F = guessedVelocity.Vz;
 
         imposeWBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                velocityLaplacian.Vz.F(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - (
+                velocityLaplacian.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - (
                                 mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
                                 mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2)) *
                                                 0.5 * dt * inverseRe;
             }
         }
 
-        velocityLaplacian.Vz.F(V.Vz.fBulk) = abs(velocityLaplacian.Vz.F(V.Vz.fBulk) - Hv.Vz.F(V.Vz.fBulk));
+        velocityLaplacian.Vz(V.Vz.fBulk) = abs(velocityLaplacian.Vz(V.Vz.fBulk) - Hv.Vz.F(V.Vz.fBulk));
 
-        maxError = velocityLaplacian.Vz.fieldMax();
+        maxError = velocityLaplacian.vzMax();
 
         if (maxError < inputParams.tolerance) {
             break;

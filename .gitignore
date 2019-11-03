@@ -7,4 +7,5 @@
 *.vtk
 *.lay
 saras
+doc/
 compile/build/
