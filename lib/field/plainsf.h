@@ -1,15 +1,23 @@
 #ifndef PLAINSF_H
 #define PLAINSF_H
 
+#include "plainvf.h"
 #include "sfield.h"
+#include "vfield.h"
 #include "grid.h"
 
 class plainsf {
     private:
+        blitz::firstIndex i;
+        blitz::secondIndex j;
+        blitz::thirdIndex k;
+
         const grid &gridData;
 
     public:
         blitz::Array<double, 3> F;
+
+        blitz::Range xColl, yColl, zColl;
 
         plainsf(const grid &gridData, const sfield &refF);
 
@@ -27,6 +35,26 @@ class plainsf {
         void operator = (sfield &a);
 
         void operator = (double a);
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Operator to compute the gradient of the plain scalar field
+ *
+ *          The gradient operator computes the gradient of the cell centered scalar field, and stores it into a face-centered staggered
+ *          plain vector field as defined by the tensor operation:
+ *          \f$ \nabla f = \frac{\partial f}{\partial x}i + \frac{\partial f}{\partial y}j + \frac{\partial f}{\partial z}k \f$.
+ *
+ * \param   gradF is a reference to a plain vector field (plainvf) into which the computed gradient must be written.
+ * \param   V is a const reference to a vector field (vfield) whose core slices are used to compute gradient, since plainvf doesn't have them
+ ********************************************************************************************************************************************
+ */
+        inline void gradient(plainvf &gradF, const vfield &V) {
+            gradF.Vx(V.Vx.fCore) = gridData.xi_xColloc(xColl)(i)*(F(V.Vx.fCRgt) - F(V.Vx.fCore))/gridData.dXi;
+#ifndef PLANAR
+            gradF.Vy(V.Vy.fCore) = gridData.et_yColloc(yColl)(j)*(F(V.Vy.fCBak) - F(V.Vy.fCore))/gridData.dEt;
+#endif
+            gradF.Vz(V.Vz.fCore) = gridData.zt_zColloc(zColl)(k)*(F(V.Vz.fCTop) - F(V.Vz.fCore))/gridData.dZt;
+        }
 
 /**
  ********************************************************************************************************************************************

@@ -42,7 +42,7 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     createMGSubArrays();
 }
 
-void multigrid_d2::mgSolve(sfield &inFn, const plainsf &rhs) {
+void multigrid_d2::mgSolve(plainsf &inFn, const plainsf &rhs) {
     pressureData = 0.0;
     residualData = 0.0;
     inputRHSData = 0.0;
@@ -60,7 +60,7 @@ void multigrid_d2::mgSolve(sfield &inFn, const plainsf &rhs) {
     }
 
     // RETURN CALCULATED PRESSURE DATA
-    inFn.F.F = pressureData(blitz::RectDomain<3>(inFn.F.F.lbound(), inFn.F.F.ubound()));
+    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 }
 
 void multigrid_d2::vCycle() {

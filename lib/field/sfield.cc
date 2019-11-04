@@ -100,7 +100,7 @@ void sfield::computeNLin(const vfield &V, plainsf &H) {
  * \brief   Operator to compute the gradient of the scalar field
  *
  *          The gradient operator computes the gradient of the cell centered scalar field, and stores it into a face-centered staggered
- *          vector field as defined by the tensor operation:
+ *          plain vector field as defined by the tensor operation:
  *          \f$ \nabla f = \frac{\partial f}{\partial x}i + \frac{\partial f}{\partial y}j + \frac{\partial f}{\partial z}k \f$.
  *
  * \param   gradF is a reference to a plain vector field (plainvf) into which the computed gradient must be written.

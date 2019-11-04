@@ -230,11 +230,11 @@ void poisson::vCycle() { };
  *          Finally, the computed solution is transferred back from the internal data-structures back into the
  *          scalar field supplied by the calling function.
  *
- * \param   inFn is a pointer to the scalar field (cell-centered) into which the computed soltuion must be transferred
- * \param   rhs is a const reference to the scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
+ * \param   inFn is a pointer to the plain scalar field (cell-centered) into which the computed soltuion must be transferred
+ * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
  ********************************************************************************************************************************************
  */
-void poisson::mgSolve(sfield &inFn, const plainsf &rhs) { };
+void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) { };
 
 /**
  ********************************************************************************************************************************************
