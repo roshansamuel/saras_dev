@@ -61,7 +61,7 @@ class field {
 
         differ xDim, yDim, zDim;
 
-        field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag, const bool allocDerivatives);
+        field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag);
 
         void calcDerivatives1();
         void calcDerivatives2();

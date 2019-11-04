@@ -8,7 +8,6 @@
  *          The name for the plain vector field as given by the user is also assigned.
  *
  * \param   gridData is a const reference to the global data contained in the grid class
- * \param   fieldName is a string value set by the user to name and identify the plain vector field
  * \param   refV is a const reference to a sample vfield according to whose components the components of plainvf is resized
  ********************************************************************************************************************************************
  */
@@ -16,11 +15,20 @@ plainvf::plainvf(const grid &gridData, const vfield &refV): gridData(gridData) {
     Vx.resize(refV.Vx.fSize);
     Vx.reindexSelf(refV.Vx.flBound);
 
+    mpiVxData = new mpidata(Vx, gridData.rankData);
+    mpiVxData->createSubarrays(refV.Vx.fSize, refV.Vx.cuBound + 1, gridData.padWidths, refV.Vx.xStag, refV.Vx.yStag);
+
     Vy.resize(refV.Vy.fSize);
     Vy.reindexSelf(refV.Vy.flBound);
 
+    mpiVyData = new mpidata(Vy, gridData.rankData);
+    mpiVyData->createSubarrays(refV.Vy.fSize, refV.Vy.cuBound + 1, gridData.padWidths, refV.Vy.xStag, refV.Vy.yStag);
+
     Vz.resize(refV.Vz.fSize);
     Vz.reindexSelf(refV.Vz.flBound);
+
+    mpiVzData = new mpidata(Vz, gridData.rankData);
+    mpiVzData->createSubarrays(refV.Vz.fSize, refV.Vz.cuBound + 1, gridData.padWidths, refV.Vz.xStag, refV.Vz.yStag);
 }
 
 /**

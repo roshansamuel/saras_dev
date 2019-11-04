@@ -13,7 +13,7 @@ class plainsf {
 
         plainsf(const grid &gridData, const sfield &refF);
 
-        inline double fieldMax();
+        mpidata *mpiHandle;
 
         plainsf& operator += (plainsf &a);
         plainsf& operator -= (plainsf &a);
@@ -27,6 +27,18 @@ class plainsf {
         void operator = (sfield &a);
 
         void operator = (double a);
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to synchronise data across all processors when performing parallel computations
+ *
+ *          This function calls the \ref mpidata#syncData "syncData" function of mpidata class to perform perform data-transfer and thus update
+ *          the sub-domain boundary pads.
+ ********************************************************************************************************************************************
+ */
+        inline void syncData() {
+            mpiHandle->syncData();
+        }
 
 /**
  ********************************************************************************************************************************************

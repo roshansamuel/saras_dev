@@ -13,6 +13,8 @@ class plainvf {
 
         plainvf(const grid &gridData, const vfield &refV);
 
+        mpidata *mpiVxData, *mpiVyData, *mpiVzData;
+
         plainvf& operator += (plainvf &a);
         plainvf& operator -= (plainvf &a);
 
@@ -25,6 +27,20 @@ class plainvf {
         void operator = (vfield &a);
 
         void operator = (double a);
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to synchronise data across all processors when performing parallel computations
+ *
+ *          Each of the individual field components have to send and receive data across its MPI decomposed sub-domains.
+ *          This function calls the \ref mpidata#syncData "syncData" function for each component to update the sub-domain boundary pads.
+ ********************************************************************************************************************************************
+ */
+        inline void syncData() {
+            mpiVxData->syncData();
+            mpiVyData->syncData();
+            mpiVzData->syncData();
+        }
 
 /**
  ********************************************************************************************************************************************

@@ -12,13 +12,15 @@
  *          across the processors during MPI communication.
  *
  * \param   gridData is a const reference to the global data contained in the grid class
- * \param   fieldName is a string value set by the user to name and identify the plain scalar field
  * \param   refF is a const reference to a sample sfield according to which the plainsf is resized
  ********************************************************************************************************************************************
  */
 plainsf::plainsf(const grid &gridData, const sfield &refF): gridData(gridData) {
     F.resize(refF.F.fSize);
     F.reindexSelf(refF.F.flBound);
+
+    mpiHandle = new mpidata(F, gridData.rankData);
+    mpiHandle->createSubarrays(refF.F.fSize, refF.F.cuBound + 1, gridData.padWidths, refF.F.xStag, refF.F.yStag);
 }
 
 /**

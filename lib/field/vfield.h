@@ -24,11 +24,11 @@ class vfield {
         blitz::Array<double, 3> interVx2Vz, interVy2Vz, interVz2Vz;
         blitz::Array<double, 3> interPc2Vz;
 
-        vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
+        vfield(const grid &gridData, std::string fieldName);
 
-        void computeDiff(vfield &H);
+        void computeDiff(plainvf &H);
         void computeTStp(double &dt_out);
-        void computeNLin(const vfield &V, vfield &H);
+        void computeNLin(const vfield &V, plainvf &H);
 
         void divergence(plainsf &divV, const sfield &P);
 

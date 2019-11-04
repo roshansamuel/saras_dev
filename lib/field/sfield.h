@@ -21,10 +21,10 @@ class sfield {
         // Attempting to use these arrays of an sfield with allocDerivatives set to false may give seg-fault!
         blitz::Array<double, 3> interVx, interVy, interVz;
 
-        sfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
+        sfield(const grid &gridData, std::string fieldName);
 
-        void computeDiff(sfield &H);
-        void computeNLin(const vfield &V, sfield &H);
+        void computeDiff(plainsf &H);
+        void computeNLin(const vfield &V, plainsf &H);
 
         void gradient(plainvf &gradF, const vfield &V);
 

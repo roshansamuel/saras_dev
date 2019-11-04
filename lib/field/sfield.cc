@@ -18,24 +18,22 @@
  * \param   fieldName is a string value set by the user to name and identify the scalar field
  ********************************************************************************************************************************************
  */
-sfield::sfield(const grid &gridData, std::string fieldName, const bool allocDerivatives):
+sfield::sfield(const grid &gridData, std::string fieldName):
                gridData(gridData),
-               F(gridData, fieldName, true, true, true, allocDerivatives)
+               F(gridData, fieldName, true, true, true)
 {
     this->fieldName = fieldName;
 
-    if (allocDerivatives) {
-        interVx.resize(F.fSize);
-        interVx.reindexSelf(F.flBound);
+    interVx.resize(F.fSize);
+    interVx.reindexSelf(F.flBound);
 
 #ifndef PLANAR
-        interVy.resize(F.fSize);
-        interVy.reindexSelf(F.flBound);
+    interVy.resize(F.fSize);
+    interVy.reindexSelf(F.flBound);
 #endif
 
-        interVz.resize(F.fSize);
-        interVz.reindexSelf(F.flBound);
-    }
+    interVz.resize(F.fSize);
+    interVz.reindexSelf(F.flBound);
 }
 
 /**
@@ -48,13 +46,13 @@ sfield::sfield(const grid &gridData, std::string fieldName, const bool allocDeri
  * \param   H is a pointer to a scalar field (sfield) to which the output of the function is to be written
  ********************************************************************************************************************************************
  */
-void sfield::computeDiff(sfield &H) {
+void sfield::computeDiff(plainsf &H) {
     F.calcDerivatives2();
 
 #ifdef PLANAR
-    H.F.F = F.d2F_dx2 + F.d2F_dz2;
+    H.F = F.d2F_dx2 + F.d2F_dz2;
 #else
-    H.F.F = F.d2F_dx2 + F.d2F_dy2 + F.d2F_dz2;
+    H.F = F.d2F_dx2 + F.d2F_dy2 + F.d2F_dz2;
 #endif
 }
 
@@ -69,7 +67,7 @@ void sfield::computeDiff(sfield &H) {
  * \param   V is a const reference to a vector field (vfield) that specifies the convection velocity at each point
  ********************************************************************************************************************************************
  */
-void sfield::computeNLin(const vfield &V, sfield &H) {
+void sfield::computeNLin(const vfield &V, plainsf &H) {
     F.calcDerivatives1();
 
     interVx = 0.0;
@@ -88,12 +86,12 @@ void sfield::computeNLin(const vfield &V, sfield &H) {
     }
 
 #ifdef PLANAR
-    H.F.F(F.fCore) -= interVx(F.fCore)*F.d1F_dx1(F.fCore)/F.VxIntSlices.size() +
-                      interVz(F.fCore)*F.d1F_dz1(F.fCore)/F.VzIntSlices.size();
+    H.F(F.fCore) -= interVx(F.fCore)*F.d1F_dx1(F.fCore)/F.VxIntSlices.size() +
+                    interVz(F.fCore)*F.d1F_dz1(F.fCore)/F.VzIntSlices.size();
 #else
-    H.F.F(F.fCore) -= interVx(F.fCore)*F.d1F_dx1(F.fCore)/F.VxIntSlices.size() +
-                      interVy(F.fCore)*F.d1F_dy1(F.fCore)/F.VyIntSlices.size() +
-                      interVz(F.fCore)*F.d1F_dz1(F.fCore)/F.VzIntSlices.size();
+    H.F(F.fCore) -= interVx(F.fCore)*F.d1F_dx1(F.fCore)/F.VxIntSlices.size() +
+                    interVy(F.fCore)*F.d1F_dy1(F.fCore)/F.VyIntSlices.size() +
+                    interVz(F.fCore)*F.d1F_dz1(F.fCore)/F.VzIntSlices.size();
 #endif
 }
 

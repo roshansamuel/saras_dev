@@ -429,7 +429,7 @@ void hydro_d3::solveVx() {
                     guessedVelocity.Vx(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + nseRHS.Vx.F(iX, iY, iZ))/
+                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + nseRHS.Vx(iX, iY, iZ))/
                                  (1.0 + dt * ((hy2hz2 * mesh.xix2Colloc(iX) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ)))/(inputParams.Re * hx2hy2hz2));
@@ -454,7 +454,7 @@ void hydro_d3::solveVx() {
             }
         }
 
-        velocityLaplacian.Vx(V.Vx.fBulk) = abs(velocityLaplacian.Vx(V.Vx.fBulk) - nseRHS.Vx.F(V.Vx.fBulk));
+        velocityLaplacian.Vx(V.Vx.fBulk) = abs(velocityLaplacian.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
 
         maxError = velocityLaplacian.vxMax();
 
@@ -486,7 +486,7 @@ void hydro_d3::solveVy() {
                     guessedVelocity.Vy(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1))) *
-                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + nseRHS.Vy.F(iX, iY, iZ))/
+                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + nseRHS.Vy(iX, iY, iZ))/
                                  (1.0 + dt * ((hy2hz2 * mesh.xix2Staggr(iX) +
                                                            hz2hx2 * mesh.ety2Colloc(iY) +
                                                            hx2hy2 * mesh.ztz2Staggr(iZ)))/(inputParams.Re * hx2hy2hz2));
@@ -511,7 +511,7 @@ void hydro_d3::solveVy() {
             }
         }
 
-        velocityLaplacian.Vy(V.Vy.fBulk) = abs(velocityLaplacian.Vy(V.Vy.fBulk) - nseRHS.Vy.F(V.Vy.fBulk));
+        velocityLaplacian.Vy(V.Vy.fBulk) = abs(velocityLaplacian.Vy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
 
         maxError = velocityLaplacian.vyMax();
 
@@ -543,7 +543,7 @@ void hydro_d3::solveVz() {
                     guessedVelocity.Vz(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
                                                            hx2hy2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + nseRHS.Vz.F(iX, iY, iZ))/
+                                     dt / ( hx2hy2hz2 * 2.0 * inputParams.Re) + nseRHS.Vz(iX, iY, iZ))/
                                  (1.0 + dt * ((hy2hz2 * mesh.xix2Staggr(iX) +
                                                            hz2hx2 * mesh.ety2Staggr(iY) +
                                                            hx2hy2 * mesh.ztz2Colloc(iZ)))/(inputParams.Re * hx2hy2hz2));
@@ -568,7 +568,7 @@ void hydro_d3::solveVz() {
             }
         }
 
-        velocityLaplacian.Vz(V.Vz.fBulk) = abs(velocityLaplacian.Vz(V.Vz.fBulk) - nseRHS.Vz.F(V.Vz.fBulk));
+        velocityLaplacian.Vz(V.Vz.fBulk) = abs(velocityLaplacian.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
 
         maxError = velocityLaplacian.vzMax();
 
@@ -892,7 +892,7 @@ double hydro_d3::testPeriodic() {
                 V.Vx.F(i, j, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
                                      cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
                                      cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
-                nseRHS.Vx.F(i, j, k) = V.Vx.F(i, j, k);
+                nseRHS.Vx(i, j, k) = V.Vx.F(i, j, k);
             }
         }
     }
@@ -903,13 +903,13 @@ double hydro_d3::testPeriodic() {
                 V.Vy.F(i, j, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
                                       sin(2.0*M_PI*mesh.yColloc(j)/mesh.yLen)*
                                       cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
-                nseRHS.Vy.F(i, j, k) = V.Vy.F(i, j, k);
+                nseRHS.Vy(i, j, k) = V.Vy.F(i, j, k);
             }
         }
     }
 
     V.Vz.F = 0.0;
-    nseRHS.Vz.F = 0.0;
+    nseRHS.Vz = 0.0;
 
     // EXPECTED VALUES IN THE PAD REGIONS IF DATA TRANSFER HAPPENS WITH NO HITCH
     // X-VELOCITY IN LEFT AND RIGHT PADS
@@ -917,12 +917,12 @@ double hydro_d3::testPeriodic() {
         for (int iY = V.Vx.fCore.lbound(1); iY <= V.Vx.fCore.ubound(1); iY += iX) {
             for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += iX) {
                 xCoord = mesh.xColloc(V.Vx.fCore.lbound(0)) - (mesh.xColloc(V.Vx.fCore.lbound(0) + iX) - mesh.xColloc(V.Vx.fCore.lbound(0)));
-                nseRHS.Vx.F(V.Vx.fCore.lbound(0) - iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
+                nseRHS.Vx(V.Vx.fCore.lbound(0) - iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
                                                                   cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
                                                                   cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 xCoord = mesh.xColloc(V.Vx.fCore.ubound(0)) + (mesh.xColloc(V.Vx.fCore.ubound(0)) - mesh.xColloc(V.Vx.fCore.ubound(0) - iX));
-                nseRHS.Vx.F(V.Vx.fCore.ubound(0) + iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
+                nseRHS.Vx(V.Vx.fCore.ubound(0) + iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
                                                                   cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
                                                                   cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
@@ -934,12 +934,12 @@ double hydro_d3::testPeriodic() {
         for (int iX = V.Vx.fCore.lbound(0); iX <= V.Vx.fCore.ubound(0); iX += iY) {
             for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += iY) {
                 yCoord = mesh.yStaggr(V.Vx.fCore.lbound(1)) - (mesh.yStaggr(V.Vx.fCore.lbound(1) + iY) - mesh.yStaggr(V.Vx.fCore.lbound(1)));
-                nseRHS.Vx.F(iX, V.Vx.fCore.lbound(1) - iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+                nseRHS.Vx(iX, V.Vx.fCore.lbound(1) - iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
                                                                   cos(2.0*M_PI*yCoord/mesh.yLen)*
                                                                   cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 yCoord = mesh.yStaggr(V.Vx.fCore.ubound(1)) + (mesh.yStaggr(V.Vx.fCore.ubound(1)) - mesh.yStaggr(V.Vx.fCore.ubound(1) - iY));
-                nseRHS.Vx.F(iX, V.Vx.fCore.ubound(1) + iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+                nseRHS.Vx(iX, V.Vx.fCore.ubound(1) + iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
                                                                   cos(2.0*M_PI*yCoord/mesh.yLen)*
                                                                   cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
@@ -951,12 +951,12 @@ double hydro_d3::testPeriodic() {
         for (int iX = V.Vx.fCore.lbound(0); iX <= V.Vx.fCore.ubound(0); iX += iZ) {
             for (int iY = V.Vx.fCore.lbound(1); iY <= V.Vx.fCore.ubound(1); iY += iZ) {
                 zCoord = mesh.zStaggr(V.Vx.fCore.lbound(2)) - (mesh.zStaggr(V.Vx.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vx.fCore.lbound(2)));
-                nseRHS.Vx.F(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+                nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
                                                                   cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
                                                                   cos(2.0*M_PI*zCoord/mesh.zLen);
 
                 zCoord = mesh.zStaggr(V.Vx.fCore.ubound(2)) + (mesh.zStaggr(V.Vx.fCore.ubound(2)) - mesh.zStaggr(V.Vx.fCore.ubound(2) - iZ));
-                nseRHS.Vx.F(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+                nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
                                                                   cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
                                                                   cos(2.0*M_PI*zCoord/mesh.zLen);
             }
@@ -968,12 +968,12 @@ double hydro_d3::testPeriodic() {
         for (int iY = V.Vy.fCore.lbound(1); iY <= V.Vy.fCore.ubound(1); iY += iX) {
             for (int iZ = V.Vy.fCore.lbound(2); iZ <= V.Vy.fCore.ubound(2); iZ += iX) {
                 xCoord = mesh.xStaggr(V.Vy.fCore.lbound(0)) - (mesh.xStaggr(V.Vy.fCore.lbound(0) + iX) - mesh.xStaggr(V.Vy.fCore.lbound(0)));
-                nseRHS.Vy.F(V.Vy.fCore.lbound(0) - iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
+                nseRHS.Vy(V.Vy.fCore.lbound(0) - iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
                                                                    sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
                                                                    cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 xCoord = mesh.xStaggr(V.Vy.fCore.ubound(0)) + (mesh.xStaggr(V.Vy.fCore.ubound(0)) - mesh.xStaggr(V.Vy.fCore.ubound(0) - iX));
-                nseRHS.Vy.F(V.Vy.fCore.ubound(0) + iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
+                nseRHS.Vy(V.Vy.fCore.ubound(0) + iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
                                                                    sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
                                                                    cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
@@ -985,12 +985,12 @@ double hydro_d3::testPeriodic() {
         for (int iX = V.Vy.fCore.lbound(0); iX <= V.Vy.fCore.ubound(0); iX += iY) {
             for (int iZ = V.Vy.fCore.lbound(2); iZ <= V.Vy.fCore.ubound(2); iZ += iY) {
                 yCoord = mesh.yColloc(V.Vy.fCore.lbound(1)) - (mesh.yColloc(V.Vy.fCore.lbound(1) + iY) - mesh.yColloc(V.Vy.fCore.lbound(1)));
-                nseRHS.Vy.F(iX, V.Vy.fCore.lbound(1) - iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+                nseRHS.Vy(iX, V.Vy.fCore.lbound(1) - iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
                                                                    sin(2.0*M_PI*yCoord/mesh.yLen)*
                                                                    cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 yCoord = mesh.yColloc(V.Vy.fCore.ubound(1)) + (mesh.yColloc(V.Vy.fCore.ubound(1)) - mesh.yColloc(V.Vy.fCore.ubound(1) - iY));
-                nseRHS.Vy.F(iX, V.Vy.fCore.ubound(1) + iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+                nseRHS.Vy(iX, V.Vy.fCore.ubound(1) + iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
                                                                    sin(2.0*M_PI*yCoord/mesh.yLen)*
                                                                    cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
@@ -1002,12 +1002,12 @@ double hydro_d3::testPeriodic() {
         for (int iX = V.Vy.fCore.lbound(0); iX <= V.Vy.fCore.ubound(0); iX += iZ) {
             for (int iY = V.Vy.fCore.lbound(1); iY <= V.Vy.fCore.ubound(1); iY += iZ) {
                 zCoord = mesh.zStaggr(V.Vy.fCore.lbound(2)) - (mesh.zStaggr(V.Vy.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vy.fCore.lbound(2)));
-                nseRHS.Vy.F(iX, iY, V.Vy.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+                nseRHS.Vy(iX, iY, V.Vy.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
                                                                    sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
                                                                    cos(2.0*M_PI*zCoord/mesh.zLen);
 
                 zCoord = mesh.zStaggr(V.Vy.fCore.ubound(2)) + (mesh.zStaggr(V.Vy.fCore.ubound(2)) - mesh.zStaggr(V.Vy.fCore.ubound(2) - iZ));
-                nseRHS.Vy.F(iX, iY, V.Vy.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+                nseRHS.Vy(iX, iY, V.Vy.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
                                                                    sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
                                                                    cos(2.0*M_PI*zCoord/mesh.zLen);
             }
