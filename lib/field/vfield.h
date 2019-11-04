@@ -3,9 +3,10 @@
 
 #include "field.h"
 
+class plainsf;       // FORWARD DECLARATION
 class plainvf;       // FORWARD DECLARATION
 
-class sfield;       // FORWARD DECLARATION
+class sfield;        // FORWARD DECLARATION
 
 class vfield {
     private:
@@ -29,7 +30,7 @@ class vfield {
         void computeTStp(double &dt_out);
         void computeNLin(const vfield &V, vfield &H);
 
-        void divergence(sfield &divV);
+        void divergence(plainsf &divV, const sfield &P);
 
         void syncData();
 

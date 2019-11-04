@@ -6,7 +6,7 @@
 class plainsf;       // FORWARD DECLARATION
 class plainvf;       // FORWARD DECLARATION
 
-class vfield;       // FORWARD DECLARATION
+class vfield;        // FORWARD DECLARATION
 
 class sfield {
     private:

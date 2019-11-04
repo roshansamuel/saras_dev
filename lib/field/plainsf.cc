@@ -23,27 +23,6 @@ plainsf::plainsf(const grid &gridData, const sfield &refF): gridData(gridData) {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to extract the maximum value from the plain scalar field
- *
- *          The function uses the in-built blitz function to obtain the maximum value in an array.
- *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
- *          the global maximum from the entire computational domain.
- *
- * \return  The double precision value of the maximum is returned (it is implicitly assumed that only double precision values are used)
- ********************************************************************************************************************************************
- */
-inline double plainsf::fieldMax() {
-    double localMax, globalMax;
-
-    localMax = blitz::max(F);
-
-    MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-
-    return globalMax;
-}
-
-/**
- ********************************************************************************************************************************************
  * \brief   Overloaded operator to add a given plain scalar field
  *
  *          The unary operator += adds a given plain scalar field to the entire field stored as plainsf and returns

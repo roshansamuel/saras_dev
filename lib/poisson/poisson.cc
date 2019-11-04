@@ -234,7 +234,7 @@ void poisson::vCycle() { };
  * \param   rhs is a const reference to the scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
  ********************************************************************************************************************************************
  */
-void poisson::mgSolve(sfield &inFn, const sfield &rhs) { };
+void poisson::mgSolve(sfield &inFn, const plainsf &rhs) { };
 
 /**
  ********************************************************************************************************************************************

@@ -1,3 +1,4 @@
+#include "plainsf.h"
 #include "plainvf.h"
 #include "sfield.h"
 #include "vfield.h"
@@ -245,26 +246,26 @@ void vfield::computeTStp(double &dt_out) {
  * \param   divV is a pointer to a scalar field (sfield) into which the computed divergence must be written.
  ********************************************************************************************************************************************
  */
-void vfield::divergence(sfield &divV) {
+void vfield::divergence(plainsf &divV, const sfield &P) {
     blitz::firstIndex i;
     blitz::secondIndex j;
     blitz::thirdIndex k;
 
     blitz::Range xStag, yStag, zStag;
 
-    xStag = blitz::Range(divV.F.fCore.lbound(0), divV.F.fCore.ubound(0));
-    yStag = blitz::Range(divV.F.fCore.lbound(1), divV.F.fCore.ubound(1));
-    zStag = blitz::Range(divV.F.fCore.lbound(2), divV.F.fCore.ubound(2));
+    xStag = blitz::Range(P.F.fCore.lbound(0), P.F.fCore.ubound(0));
+    yStag = blitz::Range(P.F.fCore.lbound(1), P.F.fCore.ubound(1));
+    zStag = blitz::Range(P.F.fCore.lbound(2), P.F.fCore.ubound(2));
 
-    divV.F.F = 0.0;
+    divV = 0.0;
 
 #ifdef PLANAR
-    divV.F.F(divV.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(divV.F.fCore) - Vx.F(divV.F.fCLft))/gridData.dXi + 
-                             gridData.zt_zStaggr(zStag)(k)*(Vz.F(divV.F.fCore) - Vz.F(divV.F.fCBot))/gridData.dZt;
+    divV.F(P.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(P.F.fCore) - Vx.F(P.F.fCLft))/gridData.dXi + 
+                        gridData.zt_zStaggr(zStag)(k)*(Vz.F(P.F.fCore) - Vz.F(P.F.fCBot))/gridData.dZt;
 #else
-    divV.F.F(divV.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(divV.F.fCore) - Vx.F(divV.F.fCLft))/gridData.dXi + 
-                             gridData.et_yStaggr(yStag)(j)*(Vy.F(divV.F.fCore) - Vy.F(divV.F.fCFrt))/gridData.dEt + 
-                             gridData.zt_zStaggr(zStag)(k)*(Vz.F(divV.F.fCore) - Vz.F(divV.F.fCBot))/gridData.dZt;
+    divV.F(P.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(P.F.fCore) - Vx.F(P.F.fCLft))/gridData.dXi + 
+                        gridData.et_yStaggr(yStag)(j)*(Vy.F(P.F.fCore) - Vy.F(P.F.fCFrt))/gridData.dEt + 
+                        gridData.zt_zStaggr(zStag)(k)*(Vz.F(P.F.fCore) - Vz.F(P.F.fCBot))/gridData.dZt;
 #endif
 }
 

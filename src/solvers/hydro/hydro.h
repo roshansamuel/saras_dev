@@ -49,10 +49,9 @@ class hydro {
         parallel &mpiData;
 
         sfield Pp;
-        sfield mgRHS;
+        plainsf mgRHS;
 
-        vfield Hv;
-        vfield Fv;
+        vfield nseRHS;
 
         plainvf velocityLaplacian;
         plainvf pressureGradient;

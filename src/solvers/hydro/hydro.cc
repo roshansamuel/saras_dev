@@ -24,9 +24,8 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             inverseRe(1.0/inputParams.Re),
             mpiData(mpiParam),
             Pp(mesh, "Pp", false),
-            mgRHS(mesh, "MG", false),
-            Hv(mesh, "Hv", false),
-            Fv(mesh, "Fv", false),
+            mgRHS(mesh, P),
+            nseRHS(mesh, "NSE_RHS", false),
             velocityLaplacian(mesh, V),
             pressureGradient(mesh, V),
             guessedVelocity(mesh, V)
