@@ -35,11 +35,11 @@ void boundary::imposeBC() {
         if (mesh.inputParams.probType == 5 || mesh.inputParams.probType == 6 || mesh.inputParams.probType == 8) {
             // T LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG X
             if (mesh.rankData.xRank == 0) {
-                dField.F.F(dField.F.fWalls(0)) = dField.F.F(dField.F.xDim.shift(dField.F.fWalls(0), 1));
+                dField.F.F(dField.F.fWalls(0)) = dField.F.F(dField.F.shift(0, dField.F.fWalls(0), 1));
             }
             // T LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG X
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                dField.F.F(dField.F.fWalls(1)) = dField.F.F(dField.F.xDim.shift(dField.F.fWalls(1), -1));
+                dField.F.F(dField.F.fWalls(1)) = dField.F.F(dField.F.shift(0, dField.F.fWalls(1), -1));
             }
 
         // CONDUCTING BC FOR VERTICAL CONVECTION
@@ -61,11 +61,11 @@ void boundary::imposeBC() {
         // ADIABATIC BCS
         // T LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Y
         if (mesh.rankData.yRank == 0) {
-            dField.F.F(dField.F.fWalls(2)) = dField.F.F(dField.F.yDim.shift(dField.F.fWalls(2), 1));
+            dField.F.F(dField.F.fWalls(2)) = dField.F.F(dField.F.shift(1, dField.F.fWalls(2), 1));
         }
         // T LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Y
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            dField.F.F(dField.F.fWalls(3)) = dField.F.F(dField.F.yDim.shift(dField.F.fWalls(3), -1));
+            dField.F.F(dField.F.fWalls(3)) = dField.F.F(dField.F.shift(1, dField.F.fWalls(3), -1));
         }
     }
 #endif
@@ -73,22 +73,22 @@ void boundary::imposeBC() {
     // IMPOSE BC FOR T ALONG TOP AND BOTTOM WALLS
     if (mesh.inputParams.zPer) {
         // PERIODIC BCS
-        dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.zDim.shift(dField.F.fWalls(5), -1));
-        dField.F.F(dField.F.fWalls(5)) = dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1));
+        dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.shift(2, dField.F.fWalls(5), -1));
+        dField.F.F(dField.F.fWalls(5)) = dField.F.F(dField.F.shift(2, dField.F.fWalls(4), 1));
     } else {
         // NON PERIODIC BCS
         // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
         if (mesh.inputParams.probType == 5 || mesh.inputParams.probType == 8) {
             if (nonHgBC) {
                 // First impose Neumann BC everywhere for adiabatic wall
-                dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1));
+                dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.shift(2, dField.F.fWalls(4), 1));
 
                 // Now in the area of the circular patch, make all values 0 in order to apply conducting BC
                 dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.fWalls(4))*wallMask;
 
                 // Finally apply conducting BC in the circular patch alone
                 dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.fWalls(4)) +
-                        wallData*(2.0*wallData - dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1)));
+                        wallData*(2.0*wallData - dField.F.F(dField.F.shift(2, dField.F.fWalls(4), 1)));
 
             } else {
                 // T LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND T IS STAGGERED ALONG Z
@@ -108,9 +108,9 @@ void boundary::imposeBC() {
         // ADIABATIC BC FOR VERTICAL CONVECTION
         } else if (mesh.inputParams.probType == 7) {
             // T LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND T IS COLLOCATED ALONG Z
-            dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1));
+            dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.shift(2, dField.F.fWalls(4), 1));
             // T LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND T IS COLLOCATED ALONG Z
-            dField.F.F(dField.F.fWalls(5)) = dField.F.F(dField.F.zDim.shift(dField.F.fWalls(5), -1));
+            dField.F.F(dField.F.fWalls(5)) = dField.F.F(dField.F.shift(2, dField.F.fWalls(5), -1));
         }
     }
 }

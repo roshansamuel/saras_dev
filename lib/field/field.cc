@@ -7,7 +7,6 @@
  *          The field class decides the limits necessary for a 3D array to store the data as per the specified grid staggering details.
  *          It initializes and stores necessary RectDomain objects for getting the core slice and various offset slices for performing
  *          finite difference operations.
- *          Correspondingly, three instances of the \ref differ class are also initialized to compute derivatives along the three directions.
  *          The upper and lower bounds necessary for the array are also calculated depending on the directions along which the mesh is
  *          staggered and those along which it is collocated.
  *          Finally, a blitz array to store the data of the field is resized according to the limits and initialized to 0.
@@ -20,10 +19,7 @@
  */
 field::field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag, const bool allocDerivatives):
              gridData(gridData),
-             xStag(xStag), yStag(yStag), zStag(zStag),
-             xDim(0, gridData.dXi), 
-             yDim(1, gridData.dEt), 
-             zDim(2, gridData.dZt)
+             xStag(xStag), yStag(yStag), zStag(zStag)
 {
     this->fieldName = fieldName;
 
@@ -33,66 +29,22 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
     if (xStag) {
         fSize(0) = gridData.staggrFullSize(0);
         flBound(0) = gridData.staggrFullDomain.lbound()(0);
-
-        x_Metric.reference(gridData.xi_xStaggr);
-        xxMetric.reference(gridData.xixxStaggr);
-        x2Metric.reference(gridData.xix2Staggr);
-    } else {
-        x_Metric.reference(gridData.xi_xColloc);
-        xxMetric.reference(gridData.xixxColloc);
-        x2Metric.reference(gridData.xix2Colloc);
-    }
+    }    
 
     if (yStag) {
         fSize(1) = gridData.staggrFullSize(1);
         flBound(1) = gridData.staggrFullDomain.lbound()(1);
-
-        y_Metric.reference(gridData.et_yStaggr);
-        yyMetric.reference(gridData.etyyStaggr);
-        y2Metric.reference(gridData.ety2Staggr);
-    } else {
-        y_Metric.reference(gridData.et_yColloc);
-        yyMetric.reference(gridData.etyyColloc);
-        y2Metric.reference(gridData.ety2Colloc);
-    }
+     }
 
     if (zStag) {
         fSize(2) = gridData.staggrFullSize(2);
         flBound(2) = gridData.staggrFullDomain.lbound()(2);
-
-        z_Metric.reference(gridData.zt_zStaggr);
-        zzMetric.reference(gridData.ztzzStaggr);
-        z2Metric.reference(gridData.ztz2Staggr);
-    } else {
-        z_Metric.reference(gridData.zt_zColloc);
-        zzMetric.reference(gridData.ztzzColloc);
-        z2Metric.reference(gridData.ztz2Colloc);
     }
 
     F.resize(fSize);
     F.reindexSelf(flBound);
 
     mpiHandle = new mpidata(F, gridData.rankData);
-
-    if (allocDerivatives) {
-        d1F_dx1.resize(fSize);
-        d1F_dx1.reindexSelf(flBound);
-
-        d1F_dy1.resize(fSize);
-        d1F_dy1.reindexSelf(flBound);
-
-        d1F_dz1.resize(fSize);
-        d1F_dz1.reindexSelf(flBound);
-
-        d2F_dx2.resize(fSize);
-        d2F_dx2.reindexSelf(flBound);
-
-        d2F_dy2.resize(fSize);
-        d2F_dy2.reindexSelf(flBound);
-
-        d2F_dz2.resize(fSize);
-        d2F_dz2.reindexSelf(flBound);
-    }
 
     setCoreSlice();
     setBulkSlice();
@@ -104,6 +56,28 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
     mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths, xStag, yStag);
 
     F = 0.0;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to shift a blitz RectDomain object a specified number of steps in specified dimension.
+ *
+ *          The RectDomain objects offer a view of the blitz arrays on which the shift function operates.
+ *          These objects are shifted along the dimension specified in the argument, by <B>dim</B>, through a number of steps,
+ *          to offer offset views.
+ *
+ * \param   dim is the integer input to specify the dimension (direction) of the shift. [x-0	y-1		z-2] 
+ * \param   core is the input RectDomain object which is to be shifted to get the new view
+ * \param   steps is the integer value by which the input view must be offset along the dimension specified by <B>dim</B>
+ *
+ * \return  A RectDomain object that specifies the new offset view of the data
+ ********************************************************************************************************************************************
+ */
+blitz::RectDomain<3> field::shift(int dim, blitz::RectDomain<3> core, int steps) {
+    core.lbound()(dim) += steps;
+    core.ubound()(dim) += steps;
+
+    return core;
 }
 
 /**
@@ -134,14 +108,14 @@ void field::setCoreSlice() {
 
     fCore = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), cuBound);
 
-    fCLft = xDim.shift(fCore, -1);
-    fCRgt = xDim.shift(fCore,  1);
+    fCLft = shift(0, fCore, -1);
+    fCRgt = shift(0, fCore,  1);
 
-    fCFrt = yDim.shift(fCore, -1);
-    fCBak = yDim.shift(fCore,  1);
+    fCFrt = shift(1, fCore, -1);
+    fCBak = shift(1, fCore,  1);
 
-    fCBot = zDim.shift(fCore, -1);
-    fCTop = zDim.shift(fCore,  1);
+    fCBot = shift(2, fCore, -1);
+    fCTop = shift(2, fCore,  1);
 }
 
 /**
@@ -315,9 +289,9 @@ void field::setInterpolationSlices() {
                  **/
                 VyIntSlices.resize(4);
                 VyIntSlices(0) = fCore;
-                VyIntSlices(1) = yDim.shift(VyIntSlices(0), -1);
-                VyIntSlices(2) = xDim.shift(VyIntSlices(0), 1);
-                VyIntSlices(3) = yDim.shift(VyIntSlices(2), -1);
+                VyIntSlices(1) = shift(1, VyIntSlices(0), -1);
+                VyIntSlices(2) = shift(0, VyIntSlices(0), 1);
+                VyIntSlices(3) = shift(1, VyIntSlices(2), -1);
 
                 /* Interpolation of data - Vz ---> Vx
                  * Interpolation types:
@@ -327,9 +301,9 @@ void field::setInterpolationSlices() {
                  **/
                 VzIntSlices.resize(4);
                 VzIntSlices(0) = fCore;
-                VzIntSlices(1) = zDim.shift(VzIntSlices(0), -1);
-                VzIntSlices(2) = xDim.shift(VzIntSlices(0), 1);
-                VzIntSlices(3) = zDim.shift(VzIntSlices(2), -1);
+                VzIntSlices(1) = shift(2, VzIntSlices(0), -1);
+                VzIntSlices(2) = shift(0, VzIntSlices(0), 1);
+                VzIntSlices(3) = shift(2, VzIntSlices(2), -1);
 
                 /* Interpolation of data - Pc ---> Vx
                  * Interpolation types:
@@ -339,7 +313,7 @@ void field::setInterpolationSlices() {
                  **/
                 PcIntSlices.resize(2);
                 PcIntSlices(0) = fCore;
-                PcIntSlices(1) = xDim.shift(PcIntSlices(0), 1);
+                PcIntSlices(1) = shift(0, PcIntSlices(0), 1);
 
             } else {
                 /* coll stag coll */
@@ -389,7 +363,7 @@ void field::setInterpolationSlices() {
                  **/
                 VxIntSlices.resize(2);
                 VxIntSlices(0) = fCore;
-                VxIntSlices(1) = xDim.shift(VxIntSlices(0), -1);
+                VxIntSlices(1) = shift(0, VxIntSlices(0), -1);
 
                 /* Interpolation of data - Vy ---> Pc
                  * Interpolation types:
@@ -399,7 +373,7 @@ void field::setInterpolationSlices() {
                  **/
                 VyIntSlices.resize(2);
                 VyIntSlices(0) = fCore;
-                VyIntSlices(1) = yDim.shift(VyIntSlices(0), -1);
+                VyIntSlices(1) = shift(1, VyIntSlices(0), -1);
 
                 /* Interpolation of data - Vz ---> Pc
                  * Interpolation types:
@@ -409,7 +383,7 @@ void field::setInterpolationSlices() {
                  **/
                 VzIntSlices.resize(2);
                 VzIntSlices(0) = fCore;
-                VzIntSlices(1) = zDim.shift(VzIntSlices(0), -1);
+                VzIntSlices(1) = shift(2, VzIntSlices(0), -1);
 
                 /* Interpolation of data - Pc ---> Pc
                  * Interpolation types:
@@ -432,9 +406,9 @@ void field::setInterpolationSlices() {
                  **/
                 VxIntSlices.resize(4);
                 VxIntSlices(0) = fCore;
-                VxIntSlices(1) = xDim.shift(VxIntSlices(0), -1);
-                VxIntSlices(2) = zDim.shift(VxIntSlices(0), 1);
-                VxIntSlices(3) = xDim.shift(VxIntSlices(2), -1);
+                VxIntSlices(1) = shift(0, VxIntSlices(0), -1);
+                VxIntSlices(2) = shift(2, VxIntSlices(0), 1);
+                VxIntSlices(3) = shift(0, VxIntSlices(2), -1);
 
                 /* Interpolation of data - Vy ---> Vz
                  * Interpolation types:
@@ -444,9 +418,9 @@ void field::setInterpolationSlices() {
                  **/
                 VyIntSlices.resize(4);
                 VyIntSlices(0) = fCore;
-                VyIntSlices(1) = yDim.shift(VyIntSlices(0), -1);
-                VyIntSlices(2) = zDim.shift(VyIntSlices(0), 1);
-                VyIntSlices(3) = yDim.shift(VyIntSlices(2), -1);
+                VyIntSlices(1) = shift(1, VyIntSlices(0), -1);
+                VyIntSlices(2) = shift(2, VyIntSlices(0), 1);
+                VyIntSlices(3) = shift(1, VyIntSlices(2), -1);
 
                 /* Interpolation of data - Vz ---> Vz
                  * Interpolation types:
@@ -465,7 +439,7 @@ void field::setInterpolationSlices() {
                  **/
                 PcIntSlices.resize(2);
                 PcIntSlices(0) = fCore;
-                PcIntSlices(1) = zDim.shift(PcIntSlices(0), 1);
+                PcIntSlices(1) = shift(2, PcIntSlices(0), 1);
 
             }
         } else {
@@ -481,9 +455,9 @@ void field::setInterpolationSlices() {
                  **/
                 VxIntSlices.resize(4);
                 VxIntSlices(0) = fCore;
-                VxIntSlices(1) = xDim.shift(VxIntSlices(0), -1);
-                VxIntSlices(2) = yDim.shift(VxIntSlices(0), 1);
-                VxIntSlices(3) = xDim.shift(VxIntSlices(2), -1);
+                VxIntSlices(1) = shift(0, VxIntSlices(0), -1);
+                VxIntSlices(2) = shift(1, VxIntSlices(0), 1);
+                VxIntSlices(3) = shift(0, VxIntSlices(2), -1);
 
                 /* Interpolation of data - Vy ---> Vy
                  * Interpolation types:
@@ -502,9 +476,9 @@ void field::setInterpolationSlices() {
                  **/
                 VzIntSlices.resize(4);
                 VzIntSlices(0) = fCore;
-                VzIntSlices(1) = zDim.shift(VzIntSlices(0), -1);
-                VzIntSlices(2) = yDim.shift(VzIntSlices(0), 1);
-                VzIntSlices(3) = zDim.shift(VzIntSlices(2), -1);
+                VzIntSlices(1) = shift(2, VzIntSlices(0), -1);
+                VzIntSlices(2) = shift(1, VzIntSlices(0), 1);
+                VzIntSlices(3) = shift(2, VzIntSlices(2), -1);
 
                 /* Interpolation of data - Pc ---> Vy
                  * Interpolation types:
@@ -514,7 +488,7 @@ void field::setInterpolationSlices() {
                  **/
                 PcIntSlices.resize(2);
                 PcIntSlices(0) = fCore;
-                PcIntSlices(1) = yDim.shift(PcIntSlices(0), 1);
+                PcIntSlices(1) = shift(1, PcIntSlices(0), 1);
 
             } else {
                 /* stag coll coll */
@@ -553,150 +527,6 @@ void field::setInterpolationSlices() {
 #endif
 }
 
-/**
- ********************************************************************************************************************************************
- * \brief   Function to calculate the first derivative along X direction
- *
- *          The first derivative of the field values are calculated using functions from the \ref differ class.
- *          The corresponding \ref differ object has already been initialized in the constructor.
- *
- ********************************************************************************************************************************************
- */
-inline void field::x1Deriv() {
-    xDim.D1D(F, d1F_dx1, fCore);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to calculate the first derivative along Y direction
- *
- *          The first derivative of the field values are calculated using functions from the \ref differ class.
- *          The corresponding \ref differ object has already been initialized in the constructor.
- *
- ********************************************************************************************************************************************
- */
-inline void field::y1Deriv() {
-    yDim.D1D(F, d1F_dy1, fCore);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to calculate the first derivative along Z direction
- *
- *          The first derivative of the field values are calculated using functions from the \ref differ class.
- *          The corresponding \ref differ object has already been initialized in the constructor.
- *
- ********************************************************************************************************************************************
- */
-inline void field::z1Deriv() {
-    zDim.D1D(F, d1F_dz1, fCore);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to calculate the second derivative along X direction
- *
- *          The first derivative of the field values are calculated using functions from the \ref differ class.
- *          The corresponding \ref differ object has already been initialized in the constructor.
- *
- ********************************************************************************************************************************************
- */
-inline void field::x2Deriv() {
-    xDim.D2D(F, d2F_dx2, fCore);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to calculate the second derivative along Y direction
- *
- *          The first derivative of the field values are calculated using functions from the \ref differ class.
- *          The corresponding \ref differ object has already been initialized in the constructor.
- *
- ********************************************************************************************************************************************
- */
-inline void field::y2Deriv() {
-    yDim.D2D(F, d2F_dy2, fCore);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to calculate the second derivative along Z direction
- *
- *          The first derivative of the field values are calculated using functions from the \ref differ class.
- *          The corresponding \ref differ object has already been initialized in the constructor.
- *
- ********************************************************************************************************************************************
- */
-inline void field::z2Deriv() {
-    zDim.D2D(F, d2F_dz2, fCore);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to compute the first derivatives of the scalar field along all the three directions
- *
- *          This function must be called before using the values contained in the arrays d1F_dx1, d1F_dy1 and d1F_dz1.
- *          The values of these arrays are updated by this function in each call.
- ********************************************************************************************************************************************
- */
-void field::calcDerivatives1() {
-    blitz::firstIndex i;
-    blitz::secondIndex j;
-    blitz::thirdIndex k;
-
-    x1Deriv();
-    d1F_dx1 = x_Metric(i)*d1F_dx1(i,j,k);
-
-#ifndef PLANAR
-    y1Deriv();
-    d1F_dy1 = y_Metric(j)*d1F_dy1(i,j,k);
-#endif
-
-    z1Deriv();
-    d1F_dz1 = z_Metric(k)*d1F_dz1(i,j,k);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to compute the second derivatives of the scalar field
- *
- *          This function must be called before using the values contained in the arrays d2F_dx2, d2F_dy2 and d2F_dz2.
- *          The values of these arrays are updated by this function in each call.
- *          <B>This function changes the values contained in the arrays d1F_dx1, d1F_dy1 and d1F_dz1</B>.
- *          As a result, these arrays must be appropriately updated with call to calcDerivatives1 before using them again.
- ********************************************************************************************************************************************
- */
-void field::calcDerivatives2() {
-    blitz::firstIndex i;
-    blitz::secondIndex j;
-    blitz::thirdIndex k;
-
-    x1Deriv();
-    x2Deriv();
-    if (gridData.inputParams.iScheme == 1) {
-        d2F_dx2 = xxMetric(i)*d1F_dx1(i,j,k) + 0.5*x2Metric(i)*d2F_dx2(i,j,k);
-    } else {
-        d2F_dx2 = xxMetric(i)*d1F_dx1(i,j,k) + x2Metric(i)*d2F_dx2(i,j,k);
-    }
-
-#ifndef PLANAR
-    y1Deriv();
-    y2Deriv();
-    if (gridData.inputParams.iScheme == 1) {
-        d2F_dy2 = yyMetric(j)*d1F_dy1(i,j,k) + 0.5*y2Metric(j)*d2F_dy2(i,j,k);
-    } else {
-        d2F_dy2 = yyMetric(j)*d1F_dy1(i,j,k) + y2Metric(j)*d2F_dy2(i,j,k);
-    }
-#endif
-
-    z1Deriv();
-    z2Deriv();
-    if (gridData.inputParams.iScheme == 1) {
-        d2F_dz2 = zzMetric(k)*d1F_dz1(i,j,k) + 0.5*z2Metric(k)*d2F_dz2(i,j,k);
-    } else {
-        d2F_dz2 = zzMetric(k)*d1F_dz1(i,j,k) + z2Metric(k)*d2F_dz2(i,j,k);
-    }
-}
 
 /**
  ********************************************************************************************************************************************
