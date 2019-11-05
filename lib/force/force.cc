@@ -26,7 +26,7 @@ force::force(vfield &U, const parser &solParams, parallel &mpiParam):
 }
 
 
-void force::add_VForce(vfield &Hv)
+void force::add_VForce(plainvf &Hv)
 {
     if (inputParams.Force==0){ //No forcing
     }    
@@ -45,7 +45,7 @@ void force::add_VForce(vfield &Hv)
         }
     }
 
-    else { //
+    else {
         if (mpiData.rank==0){
             std::cout<<"Invalid Forcing. Program aborting..."<<std::endl;
             exit(0);
@@ -55,7 +55,7 @@ void force::add_VForce(vfield &Hv)
     
 }
 
-void force::add_VForce(vfield &Hv, sfield &T)
+void force::add_VForce(plainvf &Hv, sfield &T)
 {
     if (inputParams.Force==0){ //No forcing
     }
@@ -77,7 +77,7 @@ void force::add_VForce(vfield &Hv, sfield &T)
         add_Coriolis(Hv);
     }
 
-    else { //
+    else {
         if (mpiData.rank==0){
             std::cout<<"Invalid Forcing. Program aborting..."<<std::endl;
             exit(0);
@@ -85,37 +85,37 @@ void force::add_VForce(vfield &Hv, sfield &T)
     }
 }
 
-void force::add_RandomForce(vfield &Hv){
-
+void force::add_RandomForce(plainvf &Hv){
     blitz::Array<double, 3> Force_x, Force_y, Force_z;
+
     Force_x.resize(V.Vx.fSize);
     Force_x.reindexSelf(V.Vx.flBound);
     Force_x = 0; //Needs to be developed; currently set to zero
-    Hv.Vx.F += Force_x;
+    Hv.Vx += Force_x;
 
 #ifndef PLANAR
     Force_y.resize(V.Vy.fSize);
     Force_y.reindexSelf(V.Vy.flBound);
     Force_y = 0; //Needs to be developed; currently set to zero
-    Hv.Vy.F += Force_y;
+    Hv.Vy += Force_y;
 #endif
     Force_z.resize(V.Vz.fSize);
     Force_z.reindexSelf(V.Vz.flBound);
     Force_z = 0; //Needs to be developed; currently set to zero
-    Hv.Vz.F += Force_z;
-
+    Hv.Vz += Force_z;
 }
 
-void force::add_Buoyancy(vfield &Hv, sfield &T) {
+
+void force::add_Buoyancy(plainvf &Hv, sfield &T) {
     V.interPc2Vz = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
         V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }   
     V.interPc2Vz /= V.Vz.PcIntSlices.size();
-    Hv.Vz.F += Fb*V.interPc2Vz;
+    Hv.Vz += Fb*V.interPc2Vz;
 }
 
-void force::add_Coriolis(vfield &Hv){
+void force::add_Coriolis(plainvf &Hv){
 #ifndef PLANAR
     //ADD THE ROTATING TERM IN THE Vx COMPONENT OF Hv
     V.interVy2Vx = 0.0;
@@ -124,7 +124,7 @@ void force::add_Coriolis(vfield &Hv){
     }   
     V.interVy2Vx /= V.Vx.VyIntSlices.size();
 
-    Hv.Vx.F += Fr*V.interVy2Vx;
+    Hv.Vx += Fr*V.interVy2Vx;
 
     //SUBTRACT THE ROTATING TERM IN THE Vy COMPONENT of Hv
     V.interVx2Vy = 0.0;
@@ -133,14 +133,12 @@ void force::add_Coriolis(vfield &Hv){
     }   
     V.interVx2Vy /= V.Vy.VxIntSlices.size();
 
-    Hv.Vy.F -= Fr*V.interVx2Vy;
+    Hv.Vy -= Fr*V.interVx2Vy;
 #endif
 }
 
-void::force::add_SForce(sfield &Ht) {
-    Ht.F.F += 0; //Scalar forcing needs to be implemented
+void::force::add_SForce(plainsf &Ht) {
+    Ht.F += 0; //Scalar forcing needs to be implemented
 }
 
-force::~force()
-{}
-
+force::~force() { }

@@ -16,23 +16,21 @@
  ********************************************************************************************************************************************
  */
 hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
+            V(mesh, "V"),
+            P(mesh, "P"),
+            Force(V, solParam, mpiParam),
             mesh(mesh),
             inputParams(solParam),
             inverseRe(1.0/inputParams.Re),
             mpiData(mpiParam),
-            Pp(mesh, "Pp", false),
-            mgRHS(mesh, "MG", false),
-            Hv(mesh, "Hv", false),
-            Fv(mesh, "Fv", false),
-            guessedVelocity(mesh, "JAC_V", false),
-            velocityLaplacian(mesh, "LAP_V", false),
-            pressureGradient(mesh, "GRAD_P", false),
-            P(mesh, "P", true),
-            V(mesh, "V", true),
-            Force(V, solParam, mpiParam)
+            Pp(mesh, P),
+            mgRHS(mesh, P),
+            nseRHS(mesh, V),
+            velocityLaplacian(mesh, V),
+            pressureGradient(mesh, V),
+            guessedVelocity(mesh, V)
 {
     maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
-
 }
 
 /**

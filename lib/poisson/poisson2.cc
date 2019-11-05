@@ -42,13 +42,13 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     createMGSubArrays();
 }
 
-void multigrid_d2::mgSolve(sfield &inFn, const sfield &rhs) {
+void multigrid_d2::mgSolve(plainsf &inFn, const plainsf &rhs) {
     pressureData = 0.0;
     residualData = 0.0;
     inputRHSData = 0.0;
 
     // TRANSFER DATA FROM THE INPUT SCALAR FIELD INTO THE DATA-STRUCTURES USED BY poisson
-    inputRHSData(stagCore) = rhs.F.F(stagCore);
+    inputRHSData(stagCore) = rhs.F(stagCore);
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
@@ -60,7 +60,7 @@ void multigrid_d2::mgSolve(sfield &inFn, const sfield &rhs) {
     }
 
     // RETURN CALCULATED PRESSURE DATA
-    inFn.F.F = pressureData(blitz::RectDomain<3>(inFn.F.F.lbound(), inFn.F.F.ubound()));
+    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 }
 
 void multigrid_d2::vCycle() {

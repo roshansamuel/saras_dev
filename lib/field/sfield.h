@@ -3,7 +3,10 @@
 
 #include "field.h"
 
-class vfield;       // FORWARD DECLARATION
+class plainsf;       // FORWARD DECLARATION
+class plainvf;       // FORWARD DECLARATION
+
+class vfield;        // FORWARD DECLARATION
 
 class sfield {
     private:
@@ -18,20 +21,26 @@ class sfield {
         // Attempting to use these arrays of an sfield with allocDerivatives set to false may give seg-fault!
         blitz::Array<double, 3> interVx, interVy, interVz;
 
-        sfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
+        sfield(const grid &gridData, std::string fieldName);
 
-        void computeDiff(sfield &H);
-        void computeNLin(const vfield &V, sfield &H);
+        void computeDiff(plainsf &H);
+        void computeNLin(const vfield &V, plainsf &H);
 
-        void gradient(vfield &gradF);
+        void gradient(plainvf &gradF, const vfield &V);
 
         void syncData();
 
+        sfield& operator += (plainsf &a);
+        sfield& operator -= (plainsf &a);
+
         sfield& operator += (sfield &a);
         sfield& operator -= (sfield &a);
+
         sfield& operator *= (double a);
 
+        void operator = (plainsf &a);
         void operator = (sfield &a);
+
         void operator = (double a);
 
         ~sfield() { };

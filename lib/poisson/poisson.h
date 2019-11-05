@@ -5,7 +5,7 @@
 #include <sys/time.h>
 #include <math.h>
 
-#include "sfield.h"
+#include "plainsf.h"
 #include "parser.h"
 #include "grid.h"
 
@@ -82,7 +82,7 @@ class poisson {
 
         poisson(const grid &mesh, const parser &solParam);
 
-        virtual void mgSolve(sfield &inFn, const sfield &rhs);
+        virtual void mgSolve(plainsf &inFn, const plainsf &rhs);
 
         virtual double testTransfer();
         virtual double testProlong();
@@ -136,7 +136,7 @@ class multigrid_d2: public poisson {
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
 
-        void mgSolve(sfield &inFn, const sfield &rhs);
+        void mgSolve(plainsf &inFn, const plainsf &rhs);
 
         double testTransfer();
         double testProlong();
@@ -180,7 +180,7 @@ class multigrid_d3: public poisson {
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
 
-        void mgSolve(sfield &inFn, const sfield &rhs);
+        void mgSolve(plainsf &inFn, const plainsf &rhs);
 
         double testTransfer();
         double testProlong();

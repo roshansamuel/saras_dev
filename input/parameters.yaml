@@ -25,8 +25,8 @@
 
     "Reynolds Number": 800
     "Rossby Number": 12
-    "Rayleigh Number": 6000
-    "Prandtl Number": 1.0
+    "Rayleigh Number": 10000
+    "Prandtl Number": 0.71
     "Taylor Number": 100.0
 
     # Dimensions of the domain
@@ -74,8 +74,8 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 6
-    "X Number of Procs": 2
-    "Y Number of Procs": 2
+    "X Number of Procs": 4
+    "Y Number of Procs": 1
 
 
 # Solver parameters
@@ -91,10 +91,10 @@
     # If flag is true, solver will read the last written solution file in output directory for restart
     "Restart Run": false
 
-    "Time-Step": 0.01
+    "Time-Step": 0.005
     "Use CFL Condition": true
-    "Courant Number": 1.0
-    "Final Time": 10.0
+    "Courant Number": 0.1
+    "Final Time": 0.1
 
     # No of iterations to display output to standard I/O
     "I/O Count": 1

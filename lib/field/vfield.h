@@ -2,11 +2,11 @@
 #define VFIELD_H
 
 #include "field.h"
-#include "parallel.h"
-#include "grid.h"
-#include <math.h>
 
-class sfield;       // FORWARD DECLARATION
+class plainsf;       // FORWARD DECLARATION
+class plainvf;       // FORWARD DECLARATION
+
+class sfield;        // FORWARD DECLARATION
 
 class vfield {
     private:
@@ -24,21 +24,27 @@ class vfield {
         blitz::Array<double, 3> interVx2Vz, interVy2Vz, interVz2Vz;
         blitz::Array<double, 3> interPc2Vz;
 
-        vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
+        vfield(const grid &gridData, std::string fieldName);
 
-        void computeDiff(vfield &H);
+        void computeDiff(plainvf &H);
+        void computeNLin(const vfield &V, plainvf &H);
         void computeTStp(double &dt_out, double Courant_no);
-        void computeNLin(const vfield &V, vfield &H);
 
-        void divergence(sfield &divV);
+        void divergence(plainsf &divV, const sfield &P);
 
         void syncData();
 
+        vfield& operator += (plainvf &a);
+        vfield& operator -= (plainvf &a);
+
         vfield& operator += (vfield &a);
         vfield& operator -= (vfield &a);
+
         vfield& operator *= (double a);
 
+        void operator = (plainvf &a);
         void operator = (vfield &a);
+
         void operator = (double a);
 
         ~vfield() { };
@@ -49,8 +55,8 @@ class vfield {
  *  \class vfield vfield.h "lib/vfield.h"
  *  \brief Vector field class to store and operate on vector fields
  *
- *  The class stores vector fields in the form of three instances of the sfield class defined in <B>sfield.h</B>.
- *  The vector field is stored in such a way that the components are face-centered scalar fields, with:
+ *  The class stores vector fields in the form of three instances of the field class defined in <B>field.h</B>.
+ *  The vector field is stored in such a way that the components are face-centered, with:
  *      - x-component located at the face centers along the yz-plane
  *      - y-component located at the face centers along the zx-plane
  *      - z-component located at the face centers along the xy-plane

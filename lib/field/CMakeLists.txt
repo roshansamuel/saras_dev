@@ -3,4 +3,6 @@ add_library (field
              sfield.cc
              vfield.cc
              differ.cc
+             plainsf.cc
+             plainvf.cc
 )

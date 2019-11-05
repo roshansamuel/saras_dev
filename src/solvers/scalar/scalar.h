@@ -7,16 +7,6 @@
 #include <math.h>
 
 class scalar: public hydro {
-    protected:
-        boundary *tempBC;
-
-        sfield guessedScalar;
-        sfield scalarLaplacian;
-
-        sfield Ht;
-
-        virtual void solveT();
-
     public:
         sfield T;
 
@@ -25,6 +15,16 @@ class scalar: public hydro {
         scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         virtual ~scalar() { };
+
+    protected:
+        boundary *tempBC;
+
+        plainsf tmpRHS;
+
+        plainsf guessedScalar;
+        plainsf scalarLaplacian;
+
+        virtual void solveT();
 };
 
 /**
@@ -41,6 +41,14 @@ class scalar: public hydro {
  */
 
 class scalar_d2: public scalar {
+    public:
+        scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
+
+        void solvePDE();
+        double testPeriodic();
+
+        ~scalar_d2();
+
     private:
         multigrid_d2 mgSolver;
 
@@ -57,14 +65,6 @@ class scalar_d2: public scalar {
         void setCoefficients();
 
         void computeTimeStep();
-
-    public:
-        scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        double testPeriodic();
-
-        ~scalar_d2();
 };
 
 /**
@@ -79,6 +79,14 @@ class scalar_d2: public scalar {
  */
 
 class scalar_d3: public scalar {
+    public:
+        scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
+
+        void solvePDE();
+        double testPeriodic();
+
+        ~scalar_d3();
+
     private:
         multigrid_d3 mgSolver;
 
@@ -101,14 +109,6 @@ class scalar_d3: public scalar {
         void setCoefficients();
 
         void computeTimeStep();
-
-    public:
-        scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        double testPeriodic();
-
-        ~scalar_d3();
 };
 
 /**

@@ -1,6 +1,9 @@
+#include "plainsf.h"
+#include "plainvf.h"
 #include "sfield.h"
 #include "vfield.h"
 #include <math.h>
+
 /**
  ********************************************************************************************************************************************
  * \brief   Constructor of the vfield class
@@ -13,48 +16,46 @@
  * \param   fieldName is a string value set by the user to name and identify the vector field
  ********************************************************************************************************************************************
  */
-vfield::vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives):
+vfield::vfield(const grid &gridData, std::string fieldName):
                gridData(gridData),
-               Vx(gridData, "Vx", false, true, true, allocDerivatives),
-               Vy(gridData, "Vy", true, false, true, allocDerivatives),
-               Vz(gridData, "Vz", true, true, false, allocDerivatives)
+               Vx(gridData, "Vx", false, true, true),
+               Vy(gridData, "Vy", true, false, true),
+               Vz(gridData, "Vz", true, true, false)
 {
     this->fieldName = fieldName;
 
-    if (allocDerivatives) {
-        interVx2Vx.resize(Vx.fSize);
-        interVx2Vx.reindexSelf(Vx.flBound);
+    interVx2Vx.resize(Vx.fSize);
+    interVx2Vx.reindexSelf(Vx.flBound);
 
-        interVx2Vy.resize(Vy.fSize);
-        interVx2Vy.reindexSelf(Vy.flBound);
+    interVx2Vy.resize(Vy.fSize);
+    interVx2Vy.reindexSelf(Vy.flBound);
 
-        interVx2Vz.resize(Vz.fSize);
-        interVx2Vz.reindexSelf(Vz.flBound);
+    interVx2Vz.resize(Vz.fSize);
+    interVx2Vz.reindexSelf(Vz.flBound);
 
 #ifndef PLANAR
-        interVy2Vx.resize(Vx.fSize);
-        interVy2Vx.reindexSelf(Vx.flBound);
+    interVy2Vx.resize(Vx.fSize);
+    interVy2Vx.reindexSelf(Vx.flBound);
 
-        interVy2Vy.resize(Vy.fSize);
-        interVy2Vy.reindexSelf(Vy.flBound);
+    interVy2Vy.resize(Vy.fSize);
+    interVy2Vy.reindexSelf(Vy.flBound);
 
-        interVy2Vz.resize(Vz.fSize);
-        interVy2Vz.reindexSelf(Vz.flBound);
+    interVy2Vz.resize(Vz.fSize);
+    interVy2Vz.reindexSelf(Vz.flBound);
 #endif
 
-        interVz2Vx.resize(Vx.fSize);
-        interVz2Vx.reindexSelf(Vx.flBound);
+    interVz2Vx.resize(Vx.fSize);
+    interVz2Vx.reindexSelf(Vx.flBound);
 
-        interVz2Vy.resize(Vy.fSize);
-        interVz2Vy.reindexSelf(Vy.flBound);
+    interVz2Vy.resize(Vy.fSize);
+    interVz2Vy.reindexSelf(Vy.flBound);
 
-        interVz2Vz.resize(Vz.fSize);
-        interVz2Vz.reindexSelf(Vz.flBound);
+    interVz2Vz.resize(Vz.fSize);
+    interVz2Vz.reindexSelf(Vz.flBound);
 
-        // Below array is used only in scalar solvers
-        interPc2Vz.resize(Vz.fSize);
-        interPc2Vz.reindexSelf(Vz.flBound);
-    }
+    // Below array is used only in scalar solvers
+    interPc2Vz.resize(Vz.fSize);
+    interPc2Vz.reindexSelf(Vz.flBound);
 }
 
 /**
@@ -67,19 +68,19 @@ vfield::vfield(const grid &gridData, std::string fieldName, const bool allocDeri
  * \param   H is a pointer to a vector field (vfield) to which the output of the function is to be written
  ********************************************************************************************************************************************
  */
-void vfield::computeDiff(vfield &H) {
+void vfield::computeDiff(plainvf &H) {
     Vx.calcDerivatives2();
     Vy.calcDerivatives2();
     Vz.calcDerivatives2();
 
 #ifdef PLANAR
-    H.Vx.F = Vx.d2F_dx2 + Vx.d2F_dz2;
-    H.Vy.F = Vy.d2F_dx2 + Vy.d2F_dz2;
-    H.Vz.F = Vz.d2F_dx2 + Vz.d2F_dz2;
+    H.Vx = Vx.d2F_dx2 + Vx.d2F_dz2;
+    H.Vy = Vy.d2F_dx2 + Vy.d2F_dz2;
+    H.Vz = Vz.d2F_dx2 + Vz.d2F_dz2;
 #else
-    H.Vx.F = Vx.d2F_dx2 + Vx.d2F_dy2 + Vx.d2F_dz2;
-    H.Vy.F = Vy.d2F_dx2 + Vy.d2F_dy2 + Vy.d2F_dz2;
-    H.Vz.F = Vz.d2F_dx2 + Vz.d2F_dy2 + Vz.d2F_dz2;
+    H.Vx = Vx.d2F_dx2 + Vx.d2F_dy2 + Vx.d2F_dz2;
+    H.Vy = Vy.d2F_dx2 + Vy.d2F_dy2 + Vy.d2F_dz2;
+    H.Vz = Vz.d2F_dx2 + Vz.d2F_dy2 + Vz.d2F_dz2;
 #endif
 }
 
@@ -98,7 +99,7 @@ void vfield::computeDiff(vfield &H) {
  * \param   H is a pointer to a vector field (vfield) to which the output of the function is to be written
  ********************************************************************************************************************************************
  */
-void vfield::computeNLin(const vfield &V, vfield &H) {
+void vfield::computeNLin(const vfield &V, plainvf &H) {
     // Compute non-linear term for the Vx component
     Vx.calcDerivatives1();
 
@@ -118,10 +119,10 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     }
 
 #ifdef PLANAR
-    H.Vx.F(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
+    H.Vx(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
                         interVz2Vx(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
 #else
-    H.Vx.F(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
+    H.Vx(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
                         interVy2Vx(Vx.fCore)*Vx.d1F_dy1(Vx.fCore)/Vx.VyIntSlices.size() +
                         interVz2Vx(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
 #endif
@@ -143,7 +144,7 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
         interVz2Vy(Vy.fCore) += V.Vz.F(Vy.VzIntSlices(i));
     }
 
-    H.Vy.F(Vy.fCore) -= interVx2Vy(Vy.fCore)*Vy.d1F_dx1(Vy.fCore)/Vy.VxIntSlices.size() +
+    H.Vy(Vy.fCore) -= interVx2Vy(Vy.fCore)*Vy.d1F_dx1(Vy.fCore)/Vy.VxIntSlices.size() +
                         interVy2Vy(Vy.fCore)*Vy.d1F_dy1(Vy.fCore)/Vy.VyIntSlices.size() +
                         interVz2Vy(Vy.fCore)*Vy.d1F_dz1(Vy.fCore)/Vy.VzIntSlices.size();
 #endif
@@ -167,10 +168,10 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     }
 
 #ifdef PLANAR
-    H.Vz.F(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
+    H.Vz(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
                         interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
 #else
-    H.Vz.F(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
+    H.Vz(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
                         interVy2Vz(Vz.fCore)*Vz.d1F_dy1(Vz.fCore)/Vz.VyIntSlices.size() +
                         interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
 #endif
@@ -185,11 +186,8 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
 */
 
 void vfield::computeTStp(double &dt_out, double Courant_no) {
-    //double Courant_no;
     double Umax, Vmax, Wmax;
     double delx, dely, delz; 
-
-    //Courant_no = 0.10;
 
     double localUmax, localVmax, localWmax;
 
@@ -243,26 +241,26 @@ void vfield::computeTStp(double &dt_out, double Courant_no) {
  * \param   divV is a pointer to a scalar field (sfield) into which the computed divergence must be written.
  ********************************************************************************************************************************************
  */
-void vfield::divergence(sfield &divV) {
+void vfield::divergence(plainsf &divV, const sfield &P) {
     blitz::firstIndex i;
     blitz::secondIndex j;
     blitz::thirdIndex k;
 
     blitz::Range xStag, yStag, zStag;
 
-    xStag = blitz::Range(divV.F.fCore.lbound(0), divV.F.fCore.ubound(0));
-    yStag = blitz::Range(divV.F.fCore.lbound(1), divV.F.fCore.ubound(1));
-    zStag = blitz::Range(divV.F.fCore.lbound(2), divV.F.fCore.ubound(2));
+    xStag = blitz::Range(P.F.fCore.lbound(0), P.F.fCore.ubound(0));
+    yStag = blitz::Range(P.F.fCore.lbound(1), P.F.fCore.ubound(1));
+    zStag = blitz::Range(P.F.fCore.lbound(2), P.F.fCore.ubound(2));
 
-    divV.F.F = 0.0;
+    divV = 0.0;
 
 #ifdef PLANAR
-    divV.F.F(divV.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(divV.F.fCore) - Vx.F(divV.F.fCLft))/gridData.dXi + 
-                             gridData.zt_zStaggr(zStag)(k)*(Vz.F(divV.F.fCore) - Vz.F(divV.F.fCBot))/gridData.dZt;
+    divV.F(P.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(P.F.fCore) - Vx.F(P.F.fCLft))/gridData.dXi + 
+                        gridData.zt_zStaggr(zStag)(k)*(Vz.F(P.F.fCore) - Vz.F(P.F.fCBot))/gridData.dZt;
 #else
-    divV.F.F(divV.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(divV.F.fCore) - Vx.F(divV.F.fCLft))/gridData.dXi + 
-                             gridData.et_yStaggr(yStag)(j)*(Vy.F(divV.F.fCore) - Vy.F(divV.F.fCFrt))/gridData.dEt + 
-                             gridData.zt_zStaggr(zStag)(k)*(Vz.F(divV.F.fCore) - Vz.F(divV.F.fCBot))/gridData.dZt;
+    divV.F(P.F.fCore) = gridData.xi_xStaggr(xStag)(i)*(Vx.F(P.F.fCore) - Vx.F(P.F.fCLft))/gridData.dXi + 
+                        gridData.et_yStaggr(yStag)(j)*(Vy.F(P.F.fCore) - Vy.F(P.F.fCFrt))/gridData.dEt + 
+                        gridData.zt_zStaggr(zStag)(k)*(Vz.F(P.F.fCore) - Vz.F(P.F.fCBot))/gridData.dZt;
 #endif
 }
 
@@ -279,6 +277,46 @@ void vfield::syncData() {
     Vx.syncData();
     Vy.syncData();
     Vz.syncData();
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to add a given plain vector field
+ *
+ *          The unary operator += adds a given plain vector field to the entire field stored as vfield and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a reference to a plainvf to be deducted from the member fields
+ *
+ * \return  A pointer to itself is returned by the vector field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+vfield& vfield::operator += (plainvf &a) {
+    Vx.F += a.Vx;
+    Vy.F += a.Vy;
+    Vz.F += a.Vz;
+
+    return *this;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to subtract a given plain vector field
+ *
+ *          The unary operator -= subtracts a given plain vector field from the entire field stored as vfield and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a reference to a plainvf to be deducted from the member fields
+ *
+ * \return  A pointer to itself is returned by the vector field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+vfield& vfield::operator -= (plainvf &a) {
+    Vx.F -= a.Vx;
+    Vy.F -= a.Vy;
+    Vz.F -= a.Vz;
+
+    return *this;
 }
 
 /**
@@ -343,17 +381,17 @@ vfield& vfield::operator *= (double a) {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Overloaded operator to assign a scalar value to the vector field
+ * \brief   Overloaded operator to assign a plain vector field to the vector field
  *
- *          The operator = assigns a double precision value to all the fields (Vx, Vy and Vz) stored in vfield.
+ *          The operator = assigns all the three scalar sub-fields of a vfield to all the corresponding fields (Vx, Vy and Vz).
  *
- * \param   a is a double precision number to be assigned to the vector field
+ * \param   a is a plainvf to be assigned to the vector field
  ********************************************************************************************************************************************
  */
-void vfield::operator = (double a) {
-    Vx.F = a;
-    Vy.F = a;
-    Vz.F = a;
+void vfield::operator = (plainvf &a) {
+    Vx.F = a.Vx;
+    Vy.F = a.Vy;
+    Vz.F = a.Vz;
 }
 
 /**
@@ -369,4 +407,19 @@ void vfield::operator = (vfield &a) {
     Vx.F = a.Vx.F;
     Vy.F = a.Vy.F;
     Vz.F = a.Vz.F;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to assign a scalar value to the vector field
+ *
+ *          The operator = assigns a double precision value to all the fields (Vx, Vy and Vz) stored in vfield.
+ *
+ * \param   a is a double precision number to be assigned to the vector field
+ ********************************************************************************************************************************************
+ */
+void vfield::operator = (double a) {
+    Vx.F = a;
+    Vy.F = a;
+    Vz.F = a;
 }

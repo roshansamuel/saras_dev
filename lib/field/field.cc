@@ -18,12 +18,10 @@
  * \param   zStag is a const boolean value that is <B>true</B> when the grid is staggered along the z-direction and <B>false</B> when it is not
  ********************************************************************************************************************************************
  */
-field::field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag, const bool allocDerivatives):
+field::field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag):
              gridData(gridData),
              xStag(xStag), yStag(yStag), zStag(zStag),
-             xDim(0, gridData.dXi), 
-             yDim(1, gridData.dEt), 
-             zDim(2, gridData.dZt)
+             xDim(0, gridData.dXi), yDim(1, gridData.dEt), zDim(2, gridData.dZt)
 {
     this->fieldName = fieldName;
 
@@ -74,25 +72,23 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
 
     mpiHandle = new mpidata(F, gridData.rankData);
 
-    if (allocDerivatives) {
-        d1F_dx1.resize(fSize);
-        d1F_dx1.reindexSelf(flBound);
+    d1F_dx1.resize(fSize);
+    d1F_dx1.reindexSelf(flBound);
 
-        d1F_dy1.resize(fSize);
-        d1F_dy1.reindexSelf(flBound);
+    d1F_dy1.resize(fSize);
+    d1F_dy1.reindexSelf(flBound);
 
-        d1F_dz1.resize(fSize);
-        d1F_dz1.reindexSelf(flBound);
+    d1F_dz1.resize(fSize);
+    d1F_dz1.reindexSelf(flBound);
 
-        d2F_dx2.resize(fSize);
-        d2F_dx2.reindexSelf(flBound);
+    d2F_dx2.resize(fSize);
+    d2F_dx2.reindexSelf(flBound);
 
-        d2F_dy2.resize(fSize);
-        d2F_dy2.reindexSelf(flBound);
+    d2F_dy2.resize(fSize);
+    d2F_dy2.reindexSelf(flBound);
 
-        d2F_dz2.resize(fSize);
-        d2F_dz2.reindexSelf(flBound);
-    }
+    d2F_dz2.resize(fSize);
+    d2F_dz2.reindexSelf(flBound);
 
     setCoreSlice();
     setBulkSlice();

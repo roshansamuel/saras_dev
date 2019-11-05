@@ -17,10 +17,10 @@
  */
 scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
             hydro(mesh, solParam, mpiParam),
-            guessedScalar(mesh, "JAC_T", false),
-            scalarLaplacian(mesh, "LAP_T", false),
-            Ht(mesh, "Ht", false),
-            T(mesh, "T", true)
+            T(mesh, "T"),
+            tmpRHS(mesh, T),
+            guessedScalar(mesh, T),
+            scalarLaplacian(mesh, T)
 {
     // Below flags may be turned on for debugging/dignostic runs only
     bool viscSwitch = false;
