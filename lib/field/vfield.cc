@@ -185,10 +185,9 @@ void vfield::computeNLin(const vfield &V, plainvf &H) {
 *********************************************************************************************************************************************
 */
 
-void vfield::computeTStp(double &dt_out, double Courant_no) {
+void vfield::computeTStp(double &dt_out) {
     double Umax, Vmax, Wmax;
     double delx, dely, delz; 
-
     double localUmax, localVmax, localWmax;
 
     delx = gridData.dXi;
@@ -225,7 +224,7 @@ void vfield::computeTStp(double &dt_out, double Courant_no) {
     //if (gridData.rankData.rank == 0) std::cout << Vmax << std::endl;
     //if (gridData.rankData.rank == 0) std::cout << Wmax << std::endl;
 
-    dt_out = double(Courant_no*(delx/Umax + dely/Vmax + delz/Wmax));
+    dt_out = double(gridData.inputParams.courantNumber*(delx/Umax + dely/Vmax + delz/Wmax));
 }
 
 /**

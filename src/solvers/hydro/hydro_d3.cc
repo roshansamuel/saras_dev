@@ -245,7 +245,7 @@ void hydro_d3::solvePDE() {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
         if (inputParams.useCFL) {
-            V.computeTStp(dt, inputParams.courantNumber);
+            V.computeTStp(dt);
             if (dt > inputParams.tStp) {
                 dt = inputParams.tStp;
             }

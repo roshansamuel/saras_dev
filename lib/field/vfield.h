@@ -3,10 +3,10 @@
 
 #include "field.h"
 
-class plainsf;       // FORWARD DECLARATION
-class plainvf;       // FORWARD DECLARATION
-
-class sfield;        // FORWARD DECLARATION
+// Forward declarations of relevant classes
+class plainsf;
+class plainvf;
+class sfield;
 
 class vfield {
     private:
@@ -28,7 +28,7 @@ class vfield {
 
         void computeDiff(plainvf &H);
         void computeNLin(const vfield &V, plainvf &H);
-        void computeTStp(double &dt_out, double Courant_no);
+        void computeTStp(double &dt_out);
 
         void divergence(plainsf &divV, const sfield &P);
 
@@ -44,7 +44,6 @@ class vfield {
 
         void operator = (plainvf &a);
         void operator = (vfield &a);
-
         void operator = (double a);
 
         ~vfield() { };

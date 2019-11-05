@@ -33,7 +33,6 @@ class plainsf {
 
         void operator = (plainsf &a);
         void operator = (sfield &a);
-
         void operator = (double a);
 
 /**

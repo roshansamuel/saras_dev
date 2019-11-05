@@ -25,7 +25,6 @@ class plainvf {
 
         void operator = (plainvf &a);
         void operator = (vfield &a);
-
         void operator = (double a);
 
 /**

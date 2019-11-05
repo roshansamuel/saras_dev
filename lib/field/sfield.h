@@ -40,7 +40,6 @@ class sfield {
 
         void operator = (plainsf &a);
         void operator = (sfield &a);
-
         void operator = (double a);
 
         ~sfield() { };
