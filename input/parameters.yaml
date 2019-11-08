@@ -102,8 +102,11 @@
     # No of iterations to display output to standard I/O
     "I/O Count": 1
 
-    # Time interval at which output file must be written
-    "File Write Interval": 0.5
+    # Time interval at which solution file must be written
+    "Solution Write Interval": 0.5
+
+    # Time interval at which restart file must be written
+    "Restart Write Interval": 0.1
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false

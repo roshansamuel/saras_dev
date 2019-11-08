@@ -33,11 +33,13 @@ class writer {
         void initLimits();
 
         void copyData(field &outField);
+        void interpolateData(field &outField);
 
     public:
         writer(const grid &mesh, std::vector<field> &wFields);
 
-        void writeData(double time);
+        void writeSolution(double time);
+        void writeRestart(double time);
 
         ~writer();
 };

@@ -89,7 +89,7 @@ void hydro_d2::solvePDE() {
 
     double dVol;
     double maxDivergence;
-    double fwTime, prTime;
+    double fwTime, prTime, rsTime;
     double totalEnergy, localEnergy;
 
     // Scalar field to compute divergence
@@ -119,6 +119,9 @@ void hydro_d2::solvePDE() {
 
     // FIELD PROBING TIME
     prTime = time;
+
+    // RESTART FILE WRITING TIME
+    rsTime = time;
 
     timeStepCount = 0;
 
@@ -165,7 +168,7 @@ void hydro_d2::solvePDE() {
 
     // WRITE DATA AT t = 0
     if (not inputParams.restartFlag) {
-        dataWriter.writeData(time);
+        dataWriter.writeSolution(time);
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
@@ -173,6 +176,7 @@ void hydro_d2::solvePDE() {
     }
     fwTime += inputParams.fwInt;
     prTime += inputParams.prInt;
+    rsTime += inputParams.rsInt;
 
     dt = inputParams.tStp;
     // TIME-INTEGRATION LOOP
@@ -220,8 +224,13 @@ void hydro_d2::solvePDE() {
         }
 
         if (std::abs(fwTime - time) < 0.5*dt) {
-            dataWriter.writeData(time);
+            dataWriter.writeSolution(time);
             fwTime += inputParams.fwInt;
+        }
+
+        if (std::abs(rsTime - time) < 0.5*dt) {
+            dataWriter.writeRestart(time);
+            rsTime += inputParams.rsInt;
         }
 
         if (std::abs(inputParams.tMax - time) < 0.5*dt) {

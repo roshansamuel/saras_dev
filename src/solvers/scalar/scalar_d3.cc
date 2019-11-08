@@ -76,7 +76,7 @@ void scalar_d3::solvePDE() {
 
     double dVol;
     double maxDivergence;
-    double fwTime, prTime;
+    double fwTime, prTime, rsTime;
     double totalEnergy, localEnergy;
     double totalUzT, localUzT, totalCount, localCount, NusseltNo;
 
@@ -119,6 +119,9 @@ void scalar_d3::solvePDE() {
 
     // FIELD PROBING TIME
     prTime = time;
+
+    // RESTART FILE WRITING TIME
+    rsTime = time;
 #endif
 
     timeStepCount = 0;
@@ -191,7 +194,7 @@ void scalar_d3::solvePDE() {
 
     // WRITE DATA AT t = 0
     if (not inputParams.restartFlag) {
-        dataWriter.writeData(time);
+        dataWriter.writeSolution(time);
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
@@ -199,6 +202,7 @@ void scalar_d3::solvePDE() {
     }
     fwTime += inputParams.fwInt;
     prTime += inputParams.prInt;
+    rsTime += inputParams.rsInt;
 #endif
 
     // TIME-INTEGRATION LOOP
@@ -266,8 +270,13 @@ void scalar_d3::solvePDE() {
         }
 
         if (std::abs(fwTime - time) < 0.5*dt) {
-            dataWriter.writeData(time);
+            dataWriter.writeSolution(time);
             fwTime += inputParams.fwInt;
+        }
+
+        if (std::abs(rsTime - time) < 0.5*dt) {
+            dataWriter.writeRestart(time);
+            rsTime += inputParams.rsInt;
         }
 #endif
 

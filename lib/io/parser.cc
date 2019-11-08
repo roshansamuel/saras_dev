@@ -81,7 +81,8 @@ void parser::parseYAML() {
     yamlNode["Solver"]["Final Time"] >> tMax;
 
     yamlNode["Solver"]["I/O Count"] >> ioCnt;
-    yamlNode["Solver"]["File Write Interval"] >> fwInt;
+    yamlNode["Solver"]["Solution Write Interval"] >> fwInt;
+    yamlNode["Solver"]["Restart Write Interval"] >> rsInt;
 
     yamlNode["Solver"]["Record Probes"] >> readProbes;
     yamlNode["Solver"]["Probe Time Interval"] >> prInt;
