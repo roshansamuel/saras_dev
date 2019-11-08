@@ -4,6 +4,7 @@
 #include "field.h"
 #include "parallel.h"
 #include "grid.h"
+#include "derivative.h"
 #include <math.h>
 
 class sfield;       // FORWARD DECLARATION
@@ -11,9 +12,11 @@ class sfield;       // FORWARD DECLARATION
 class vfield {
     private:
         const grid &gridData;
+        blitz::Array<double, 3> tempMatX, tempMatY, tempMatZ;
 
     public:
         field Vx, Vy, Vz;
+        derivative derVx, derVy, derVz;
 
         std::string fieldName;
 
@@ -23,6 +26,8 @@ class vfield {
         blitz::Array<double, 3> interVx2Vy, interVy2Vy, interVz2Vy;
         blitz::Array<double, 3> interVx2Vz, interVy2Vz, interVz2Vz;
         blitz::Array<double, 3> interPc2Vz;
+
+
 
         vfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
 

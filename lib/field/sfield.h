@@ -2,21 +2,25 @@
 #define SFIELD_H
 
 #include "field.h"
+#include "derivative.h"
 
 class vfield;       // FORWARD DECLARATION
 
 class sfield {
     private:
         const grid &gridData;
-
+        blitz::Array<double, 3> tempMat;
+        
     public:
         field F;
+        derivative derS;
 
         std::string fieldName;
 
         // The following public arrays for getting interpolated values of variables are available *only if allocDerivatives flag is set to true*
         // Attempting to use these arrays of an sfield with allocDerivatives set to false may give seg-fault!
         blitz::Array<double, 3> interVx, interVy, interVz;
+        
 
         sfield(const grid &gridData, std::string fieldName, const bool allocDerivatives);
 
