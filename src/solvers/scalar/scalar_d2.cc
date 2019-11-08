@@ -43,29 +43,7 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
         time = 0.0;
     }
 
-    // Disable periodic data transfer by setting neighbouring ranks of boundary sub-domains to NULL
-    // Left and right walls
-    if (not inputParams.xPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along X Direction" << std::endl;
-            std::cout << std::endl;
-        }
-
-        if (mpiData.xRank == 0)             mpiData.nearRanks(0) = MPI_PROC_NULL;
-        if (mpiData.xRank == mpiData.npX-1) mpiData.nearRanks(1) = MPI_PROC_NULL;
-    }
-
-    // Front and rear walls are by default non-periodic for 2D simulations
-    if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
-    if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
-
-    // Inform user about BC along top and bottom walls
-    if (not inputParams.zPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along Z Direction" << std::endl;
-            std::cout << std::endl;
-        }
-    }
+    checkPeriodic();
 
     tempBC = new boundary(mesh, T);
 
@@ -411,9 +389,9 @@ void scalar_d2::solveVx() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vx not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
 }
@@ -462,9 +440,9 @@ void scalar_d2::solveVz() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vz not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
 }
@@ -512,21 +490,11 @@ void scalar_d2::solveT() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of T not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
-}
-
-void scalar_d2::setCoefficients() {
-    hx = mesh.dXi;
-    hz = mesh.dZt;
-
-    hx2 = pow(mesh.dXi, 2.0);
-    hz2 = pow(mesh.dZt, 2.0);
-
-    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
 }
 
 /**

@@ -62,8 +62,6 @@ class scalar_d2: public scalar {
         void imposeUBCs();
         void imposeWBCs();
 
-        void setCoefficients();
-
         void computeTimeStep();
 };
 
@@ -105,8 +103,6 @@ class scalar_d3: public scalar {
         void imposeUBCs();
         void imposeVBCs();
         void imposeWBCs();
-
-        void setCoefficients();
 
         void computeTimeStep();
 };

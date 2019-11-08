@@ -35,6 +35,57 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to enable/disable periodic data transfer as per the problem
+ *
+ *          The function checks the xPer, yPer and zPer flags in the parser class
+ *          and enables/disables MPI data transfer at boundaries accordingly
+ *          By default, the MPI neighbours at boundaries are set for periodic data-transfer.
+ *          This has to be disabled if the problem has non-periodic boundaries.
+ *
+ ********************************************************************************************************************************************
+ */
+void hydro::checkPeriodic() {
+    // Disable periodic data transfer by setting neighbouring ranks of boundary sub-domains to NULL
+    // Left and right walls
+    if (not inputParams.xPer) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-periodic boundary conditions along X Direction" << std::endl;
+            std::cout << std::endl;
+        }
+
+        if (mpiData.xRank == 0)             mpiData.nearRanks(0) = MPI_PROC_NULL;
+        if (mpiData.xRank == mpiData.npX-1) mpiData.nearRanks(1) = MPI_PROC_NULL;
+    }
+
+    // Front and rear walls
+#ifdef PLANAR
+    // Front and rear walls are by default non-periodic for 2D simulations
+    if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
+    if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
+
+#else
+    if (not inputParams.yPer) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-periodic boundary conditions along Y Direction" << std::endl;
+            std::cout << std::endl;
+        }
+
+        if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
+        if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
+    }
+#endif
+
+    // Inform user about BC along top and bottom walls
+    if (not inputParams.zPer) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-periodic boundary conditions along Z Direction" << std::endl;
+            std::cout << std::endl;
+        }
+    }
+};
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to solve the implicit equation for x-velocity
  *
  *          The implicit equation for \f$ u_x' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
@@ -98,7 +149,25 @@ void hydro::solveVz() { };
  *          These coefficients are repeatedly used at many places in the Poisson solver for implicit calculation of velocities.
  ********************************************************************************************************************************************
  */
-void hydro::setCoefficients() { };
+void hydro::setCoefficients() {
+    hx = mesh.dXi;
+    hz = mesh.dZt;
+
+    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
+
+#ifdef PLANAR
+    hx2 = pow(mesh.dXi, 2.0);
+    hz2 = pow(mesh.dZt, 2.0);
+
+#else
+    hy = mesh.dEt;
+
+    hx2hy2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
+    hy2hz2 = pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+
+    hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+#endif
+};
 
 /**
  ********************************************************************************************************************************************

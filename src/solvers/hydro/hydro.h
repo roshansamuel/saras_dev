@@ -7,14 +7,15 @@
 #include "parallel.h"
 #include "poisson.h"
 #include "plainvf.h"
+#include "initial.h"
 #include "writer.h"
 #include "reader.h"
 #include "probes.h"
 #include "sfield.h"
 #include "vfield.h"
 #include "parser.h"
-#include "grid.h"
 #include "force.h"
+#include "grid.h"
 
 class hydro {
     public:
@@ -38,6 +39,8 @@ class hydro {
         double time, dt;
 
         double hx, hy, hz;
+        double hx2, hz2, hz2hx2;
+        double hx2hy2, hy2hz2, hx2hy2hz2;
 
         const grid &mesh;
         const parser &inputParams;
@@ -45,6 +48,7 @@ class hydro {
         const double inverseRe;
 
         probes *dataProbe;
+        initial *initCond;
 
         parallel &mpiData;
 
@@ -56,11 +60,12 @@ class hydro {
         plainvf pressureGradient;
         plainvf guessedVelocity;
 
+        void checkPeriodic();
+        void setCoefficients();
+
         virtual void solveVx();
         virtual void solveVy();
         virtual void solveVz();
-
-        virtual void setCoefficients();
 
         virtual void computeTimeStep();
 };
@@ -89,15 +94,11 @@ class hydro_d2: public hydro {
     private:
         multigrid_d2 mgSolver;
 
-        double hx2, hz2, hz2hx2;
-
         void solveVx();
         void solveVz();
 
         void imposeUBCs();
         void imposeWBCs();
-
-        void setCoefficients();
 
         void computeTimeStep();
 };
@@ -125,8 +126,6 @@ class hydro_d3: public hydro {
     private:
         multigrid_d3 mgSolver;
 
-        double hx2hy2, hy2hz2, hz2hx2, hx2hy2hz2;
-
 #ifdef TIME_RUN
         double visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
@@ -138,8 +137,6 @@ class hydro_d3: public hydro {
         void imposeUBCs();
         void imposeVBCs();
         void imposeWBCs();
-
-        void setCoefficients();
 
         void computeTimeStep();
 };

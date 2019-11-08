@@ -34,10 +34,11 @@ class parser {
         int iScheme;
         int probType;
 
+        bool useCFL;
+        bool nonHgBC;
         bool readProbes;
         bool restartFlag;
         bool xPer, yPer, zPer;
-        bool useCFL;
 
         double Re;
         double Ra;
@@ -60,6 +61,8 @@ class parser {
         std::vector<blitz::TinyVector<int, 3> > probesList;
 
         parser();
+
+        void writeParams();
 };
 
 /**

@@ -32,45 +32,62 @@ void parser::parseYAML() {
     YAML::Parser parser(inFile);
 
     parser.GetNextDocument(yamlNode);
+
+    /********** Problem parameters **********/
     yamlNode["Program"]["Problem Type"] >> probType;
     yamlNode["Program"]["Domain Type"] >> domainType;
     yamlNode["Program"]["RBC Type"] >> rbcType;
+
     yamlNode["Program"]["Reynolds Number"] >> Re;
     yamlNode["Program"]["Rossby Number"] >> Ro;
     yamlNode["Program"]["Rayleigh Number"] >> Ra;
     yamlNode["Program"]["Prandtl Number"] >> Pr;
     yamlNode["Program"]["Taylor Number"] >> Ta;
+
     yamlNode["Program"]["X Length"] >> Lx;
     yamlNode["Program"]["Y Length"] >> Ly;
     yamlNode["Program"]["Z Length"] >> Lz;
+
     yamlNode["Program"]["Force"] >> Force;
+
+    yamlNode["Program"]["Heating Plate"] >> nonHgBC;
     yamlNode["Program"]["Patch Radius"] >> patchRadius;
 
+    /********** Mesh parameters **********/
     yamlNode["Mesh"]["Mesh Type"] >> meshType;
+
     yamlNode["Mesh"]["X Beta"] >> betaX;
     yamlNode["Mesh"]["Y Beta"] >> betaY;
     yamlNode["Mesh"]["Z Beta"] >> betaZ;
+
     yamlNode["Mesh"]["X Index"] >> xInd;
     yamlNode["Mesh"]["Y Index"] >> yInd;
     yamlNode["Mesh"]["Z Index"] >> zInd;
 
+    /********** Parallelization parameters **********/
     yamlNode["Parallel"]["Number of OMP threads"] >> nThreads;
+
     yamlNode["Parallel"]["X Number of Procs"] >> npX;
     yamlNode["Parallel"]["Y Number of Procs"] >> npY;
 
+    /********** Solver parameters **********/
     yamlNode["Solver"]["Differentiation Scheme"] >> dScheme;
     yamlNode["Solver"]["Integration Scheme"] >> iScheme;
     yamlNode["Solver"]["Restart Run"] >> restartFlag;
+
+    yamlNode["Solver"]["Use CFL Condition"] >> useCFL;
+    yamlNode["Solver"]["Courant Number"] >> courantNumber;
     yamlNode["Solver"]["Time-Step"] >> tStp;
     yamlNode["Solver"]["Final Time"] >> tMax;
+
     yamlNode["Solver"]["I/O Count"] >> ioCnt;
     yamlNode["Solver"]["File Write Interval"] >> fwInt;
+
     yamlNode["Solver"]["Record Probes"] >> readProbes;
     yamlNode["Solver"]["Probe Time Interval"] >> prInt;
     yamlNode["Solver"]["Probes"] >> probeCoords;
-    yamlNode["Solver"]["Use CFL Condition"] >> useCFL;
-    yamlNode["Solver"]["Courant Number"] >> courantNumber;
 
+    /********** Multigrid parameters **********/
     yamlNode["Multigrid"]["Jacobi Tolerance"] >> tolerance;
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
@@ -102,6 +119,7 @@ void parser::checkData() {
 #else
     if (yInd == 0) {
         std::cout << "ERROR: Y Index parameter of YAML file is 0 for 3D simulation. ABORTING" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 #endif
@@ -121,18 +139,30 @@ void parser::checkData() {
     // CHECK IF DOMAIN TYPE STRING IS OF CORRECT LENGTH
     if (domainType.length() != 3) {
         std::cout << "ERROR: Domain type string is not correct. Aborting" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 
     // CHECK IF THE TIME-STEP SET BY USER IS LESS THAN THE MAXIMUM TIME SPECIFIED FOR SIMULATION.
     if (tStp > tMax) {
         std::cout << "ERROR: Time step is larger than the maximum duration assigned for simulation. Aborting" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 
     // CHECK IF MORE THAN 1 PROCESSOR IS ASKED FOR ALONG Y-DIRECTION FOR A 2D SIMULATION
     if (yInd == 0 and npY > 1) {
         std::cout << "ERROR: More than 1 processor is specified along Y-direction, but the yInd parameter is set to 0. Aborting" << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
+
+    // CHECK IF THE LENGTH OF ARRAY interSmooth IS LESS THAN vcDepth
+    // THE SIZE OF interSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
+    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
+    if (int(interSmooth.size()) < vcDepth) {
+        std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 
@@ -143,6 +173,7 @@ void parser::checkData() {
     coarsestSize = int(pow(2, vcDepth+1));
     if (localSize < coarsestSize) {
         std::cout << "ERROR: The grid size and domain decomposition along X-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 
@@ -153,6 +184,7 @@ void parser::checkData() {
     coarsestSize = int(pow(2, vcDepth+1));
     if (yInd > 0 and localSize < coarsestSize) {
         std::cout << "ERROR: The grid size and domain decomposition along Y-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 #endif
@@ -162,6 +194,7 @@ void parser::checkData() {
     coarsestSize = int(pow(2, vcDepth+1));
     if (gridSize < coarsestSize) {
         std::cout << "ERROR: The grid size along Z-direction is too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
+        MPI_Finalize();
         exit(0);
     }
 }
@@ -180,17 +213,9 @@ void parser::setPeriodicity() {
     yPer = true;
     zPer = true;
 
-    if (domainType[0] == 'N') {
-        xPer = false;
-    }
-
-    if (domainType[1] == 'N') {
-        yPer = false;
-    }
-
-    if (domainType[2] == 'N') {
-        zPer = false;
-    }
+    if (domainType[0] == 'N') xPer = false;
+    if (domainType[1] == 'N') yPer = false;
+    if (domainType[2] == 'N') zPer = false;
 }
 
 /**
@@ -310,6 +335,7 @@ void parser::parseProbes() {
             }
         } else {
             std::cout << "ERROR: Number of indices for the probe(s) [" << errorProbe << "] does not match dimensionality of problem. ABORTING" << std::endl;
+            MPI_Finalize();
             exit(0);
         }
 #endif
@@ -333,19 +359,47 @@ void parser::testProbes() {
     for (unsigned int i = 0; i < probesList.size(); i++) {
         if (probesList[i][0] < 0 or probesList[i][0] > int(pow(2, xInd)) + 1) {
             std::cout << "ERROR: The X index of the probe " << probesList[i] << " lies outside the bounds of the domain. ABORTING" << std::endl;
+            MPI_Finalize();
             exit(0);
         }
 
 #ifndef PLANAR
         if (probesList[i][1] < 0 or probesList[i][1] > int(pow(2, yInd)) + 1) {
             std::cout << "ERROR: The Y index of the probe " << probesList[i] << " lies outside the bounds of the domain. ABORTING" << std::endl;
+            MPI_Finalize();
             exit(0);
         }
 #endif
 
         if (probesList[i][2] < 0 or probesList[i][2] > int(pow(2, zInd)) + 1) {
             std::cout << "ERROR: The Z index of the probe " << probesList[i] << " lies outside the bounds of the domain. ABORTING" << std::endl;
+            MPI_Finalize();
             exit(0);
         }
     }
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to write all the parameter values to I/O
+ *
+ *          All the user set parameters have to be written to I/O so that the runlog or any out file
+ *          contains all the relevant information about the case that was run.
+ *          This public function has to be called from the solver by one rank only.
+ ********************************************************************************************************************************************
+ */
+void parser::writeParams() {
+    std::cout << std::endl << "Writing all parameters from the YAML input file for reference" << std::endl << std::endl;
+    std::cout << "\t****************** START OF parameters.yaml ******************" << std::endl << std::endl;
+
+    std::ifstream inFile;
+    inFile.open("parameters.yaml", std::ifstream::in);
+    std::string line;
+    while (std::getline(inFile, line)) {
+        std::cout << line << std::endl;
+    }
+    inFile.close();
+
+    std::cout << std::endl << "\t******************* END OF parameters.yaml *******************" << std::endl;
+    std::cout << std::endl;
 }

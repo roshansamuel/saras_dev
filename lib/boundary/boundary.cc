@@ -13,7 +13,6 @@
  */
 boundary::boundary(const grid &mesh, sfield &inField): mesh(mesh),
                                                        dField(inField) {
-    nonHgBC = false;
     setXYZ();
 }
 
@@ -79,7 +78,7 @@ void boundary::imposeBC() {
         // NON PERIODIC BCS
         // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
         if (mesh.inputParams.probType == 5 || mesh.inputParams.probType == 8) {
-            if (nonHgBC) {
+            if (mesh.inputParams.nonHgBC) {
                 // First impose Neumann BC everywhere for adiabatic wall
                 dField.F.F(dField.F.fWalls(4)) = dField.F.F(dField.F.zDim.shift(dField.F.fWalls(4), 1));
 
@@ -126,15 +125,14 @@ void boundary::imposeBC() {
  ********************************************************************************************************************************************
  */
 void boundary::createPatch(int wallNum) {
-    // FOLLOWING CRUDE IMPLEMENTATION IS A TEST FOR NON-HOMOGENEOUS BCs
-    // IT WORKS FOR ONLY SINGLE CORE FOR NOW
-    //
     // wallNum is the number of the wall on which the BC is implemented
 
-    blitz::TinyVector<int, 3> centPt;
+    double patchCentX, patchCentY, patchCentZ;
 
-    centPt = mesh.globalSize/2;
-    centPt(2) = dField.F.fWalls(wallNum).lbound()(2);
+    patchCentX = mesh.xLen/2.0;
+    patchCentY = mesh.yLen/2.0;
+    patchCentZ = 0.0;
+
     wallData.resize(blitz::TinyVector<int, 3>(dField.F.fWalls(wallNum).ubound() - dField.F.fWalls(wallNum).lbound() + 1));
     wallData.reindexSelf(dField.F.fWalls(wallNum).lbound());
     wallData = 0.0;
@@ -146,7 +144,7 @@ void boundary::createPatch(int wallNum) {
     for (int iX = dField.F.fWalls(wallNum).lbound(0); iX <= dField.F.fWalls(wallNum).ubound(0); iX++) {
         for (int iY = dField.F.fWalls(wallNum).lbound(1); iY <= dField.F.fWalls(wallNum).ubound(1); iY++) {
             for (int iZ = dField.F.fWalls(wallNum).lbound(2); iZ <= dField.F.fWalls(wallNum).ubound(2); iZ++) {
-                double ptRadius = sqrt(pow((x(iX) - xGlo(centPt(0))), 2) + pow((y(iY) - yGlo(centPt(1))), 2) + pow((z(iZ) - zGlo(centPt(2))), 2));
+                double ptRadius = sqrt(pow((x(iX) - patchCentX), 2) + pow((y(iY) - patchCentY), 2) + pow((z(iZ) - patchCentZ), 2));
                 if (ptRadius <= mesh.inputParams.patchRadius) {
                     wallData(iX, iY, iZ) = 1.0;
                     wallMask(iX, iY, iZ) = false;
@@ -154,8 +152,6 @@ void boundary::createPatch(int wallNum) {
             }
         }
     }
-
-    nonHgBC = true;
 }
 
 
@@ -169,27 +165,7 @@ void boundary::createPatch(int wallNum) {
  ********************************************************************************************************************************************
  */
 void boundary::setXYZ() {
-    if (dField.F.xStag) {
-        x.reference(mesh.xStaggr);
-        xGlo.reference(mesh.xStaggrGlobal);
-    } else {
-        x.reference(mesh.xColloc);
-        xGlo.reference(mesh.xCollocGlobal);
-    }
-
-    if (dField.F.yStag) {
-        y.reference(mesh.yStaggr);
-        yGlo.reference(mesh.yStaggrGlobal);
-    } else {
-        y.reference(mesh.yColloc);
-        yGlo.reference(mesh.yCollocGlobal);
-    }
-
-    if (dField.F.zStag) {
-        z.reference(mesh.zStaggr);
-        zGlo.reference(mesh.zStaggrGlobal);
-    } else {
-        z.reference(mesh.zColloc);
-        zGlo.reference(mesh.zCollocGlobal);
-    }
+    dField.F.xStag ? x.reference(mesh.xStaggr) : x.reference(mesh.xColloc);
+    dField.F.yStag ? y.reference(mesh.yStaggr) : y.reference(mesh.yColloc);
+    dField.F.zStag ? z.reference(mesh.zStaggr) : z.reference(mesh.zColloc);
 }

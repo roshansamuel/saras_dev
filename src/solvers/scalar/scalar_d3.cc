@@ -47,44 +47,21 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
         time = 0.0;
     }
 
-    // Disable periodic data transfer by setting neighbouring ranks of boundary sub-domains to NULL
-    // Left and right walls
-    if (not inputParams.xPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along X Direction" << std::endl;
-            std::cout << std::endl;
-        }
-
-        if (mpiData.xRank == 0)             mpiData.nearRanks(0) = MPI_PROC_NULL;
-        if (mpiData.xRank == mpiData.npX-1) mpiData.nearRanks(1) = MPI_PROC_NULL;
-    }
-
-    // Front and rear walls
-    if (not inputParams.yPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along Y Direction" << std::endl;
-            std::cout << std::endl;
-        }
-
-        if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
-        if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
-    }
-
-    // Inform user about BC along top and bottom walls
-    if (not inputParams.zPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along Z Direction" << std::endl;
-            std::cout << std::endl;
-        }
-    }
+    checkPeriodic();
 
     tempBC = new boundary(mesh, T);
 
-    // The following line must be uncommented only when using non-homogeneous BC
-    //tempBC->createPatch(4);
+    // Create heating patch if the user set parameter for heating plate is true
+    if (inputParams.nonHgBC) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-homogeneous boundary condition (heating plate) on bottom wall" << std::endl;
+            std::cout << std::endl;
+        }
+
+        tempBC->createPatch(4);
+    }
 
     imposeUBCs();
-
     imposeVBCs();
     imposeWBCs();
 
@@ -494,9 +471,9 @@ void scalar_d3::solveVx() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vx not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
 }
@@ -551,9 +528,9 @@ void scalar_d3::solveVy() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vy not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
 }
@@ -608,9 +585,9 @@ void scalar_d3::solveVz() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vz not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
 }
@@ -665,23 +642,11 @@ void scalar_d3::solveT() {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of T not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
-}
-
-void scalar_d3::setCoefficients() {
-    hx = mesh.dXi;
-    hy = mesh.dEt;
-    hz = mesh.dZt;
-
-    hx2hy2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
-    hy2hz2 = pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
-
-    hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
 }
 
 /**
