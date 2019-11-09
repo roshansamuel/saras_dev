@@ -772,6 +772,42 @@ field& field::operator -= (field &a) {
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Overloaded operator to add a given scalar value
+ *
+ *          The unary operator += adds a given constant scalar value to the field stored by the class and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a double precision number to be added to the field
+ *
+ * \return  A pointer to itself is returned by the field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+field& field::operator += (double a) {
+    F += a;
+
+    return *this;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded operator to subtract a given scalar value
+ *
+ *          The unary operator -= subtracts a given constant scalar value from the field stored by the class and returns
+ *          a pointer to itself.
+ *
+ * \param   a is a double precision number to be subtracted from the field
+ *
+ * \return  A pointer to itself is returned by the field class to which the operator belongs
+ ********************************************************************************************************************************************
+ */
+field& field::operator -= (double a) {
+    F -= a;
+
+    return *this;
+}
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Overloaded operator to assign a scalar value to the field
  *
  *          The operator = assigns a double precision value to the entire field.

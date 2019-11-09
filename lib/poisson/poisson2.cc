@@ -74,8 +74,9 @@ void multigrid_d2::vCycle() {
     // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
 
     // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
+    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+        for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
             residualData(iX, iY, iZ) =  inputRHSData(iX, iY, iZ) -
                                        (xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
                                         xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
@@ -119,8 +120,8 @@ void multigrid_d2::smooth(const int smoothCount) {
 
         int iY = 0;
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                 iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
                                             hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
                                             hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
@@ -144,8 +145,8 @@ void multigrid_d2::solve() {
 
     while (true) {
         // GAUSS-SEIDEL ITERATIVE SOLVER - FASTEST IN BENCHMARKS
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                 iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
                                             hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
                                             hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
@@ -171,8 +172,8 @@ void multigrid_d2::solve() {
         // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
         // abs in the STL which **rounds off** the number.
         // In this case, abs has to be replaced with fabs.
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                 tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
                                   xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
                                   ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
@@ -194,9 +195,9 @@ void multigrid_d2::solve() {
         if (iterCount > maxCount) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution at coarsest level not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
     }
 }
@@ -319,6 +320,17 @@ void multigrid_d2::initMeshRanges() {
         xMeshRange(i) = blitz::Range(stagCore.lbound(0), stagCore.ubound(0), strideValues(i));
         zMeshRange(i) = blitz::Range(stagCore.lbound(2), stagCore.ubound(2), strideValues(i));
     }
+
+    // SET THE LIMTS FOR ARRAY LOOPS IN solve AND smooth FUNCTIONS, AND A FEW OTHER PLACES
+    // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN solve, smooth AND vCycle.
+    // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
+    xStr = stagCore.lbound(0);
+    zStr = stagCore.lbound(2);
+
+    xEnd = stagCore.ubound(0);
+    zEnd = stagCore.ubound(2);
+
+    if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) xEnd -= 1;
 }
 
 void multigrid_d2::createMGSubArrays() {

@@ -23,7 +23,7 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     // GET THE localSizeIndex AS IT WILL BE USED TO SET THE FULL AND CORE LIMITS OF THE STAGGERED POINTS
     setLocalSizeIndex();
 
-    // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIBLE SET ABOVE
+    // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIABLE SET ABOVE
     setStagBounds();
 
     // USING THE FULL AND CORE LIMTS SET ABOVE, CREATE ALL Range OBJECTS
@@ -73,9 +73,10 @@ void multigrid_d3::vCycle() {
     // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
 
     // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+#pragma omp parallel for num_threads(inputParams.nThreads) default(none)
+    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+        for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                 residualData(iX, iY, iZ) =  inputRHSData(iX, iY, iZ) -
                                            (xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
                                             xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
@@ -136,9 +137,9 @@ void multigrid_d3::smooth(const int smoothCount) {
 #endif
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-            for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-                for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                     iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
                                                 hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
                                                 hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))*2.0 +
@@ -176,7 +177,6 @@ void multigrid_d3::solve() {
     struct timeval begin, end;
 #endif
 
-
     int iterCount = 0;
     double tempValue;
     double localMax, globalMax;
@@ -189,9 +189,9 @@ void multigrid_d3::solve() {
 #endif
 
         // GAUSS-SEIDEL ITERATIVE SOLVER - FASTEST IN BENCHMARKS
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-            for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-                for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                     iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
                                                 hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
                                                 hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + iteratorTemp(iX, iY - strideValues(vLevel), iZ))*2.0 +
@@ -234,9 +234,9 @@ void multigrid_d3::solve() {
         // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
         // abs in the STL which **rounds off** the number.
         // In this case, abs has to be replaced with fabs.
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-            for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-                for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                     tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
                                       xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
                                       ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
@@ -261,9 +261,9 @@ void multigrid_d3::solve() {
         if (iterCount > maxCount) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution at coarsest level not converging. Aborting" << std::endl;
-                exit(0);
             }
-            break;
+            MPI_Finalize();
+            exit(0);
         }
 
 #ifdef TIME_RUN
@@ -281,7 +281,7 @@ void multigrid_d3::prolong() {
 
     vLevel -= 1;
 
-    // NOTE: Currently interpolting along X first, then Y and finally Z.
+    // NOTE: Currently interpolating along X first, then Y and finally Z.
     // Test and see if this order is better or the other order, with Z first, then Y and X is better
     // Depending on the order of variables in memory, one of these will give better performance
 
@@ -441,6 +441,21 @@ void multigrid_d3::initMeshRanges() {
         yMeshRange(i) = blitz::Range(stagCore.lbound(1), stagCore.ubound(1), strideValues(i));
         zMeshRange(i) = blitz::Range(stagCore.lbound(2), stagCore.ubound(2), strideValues(i));
     }
+
+    // SET THE LIMTS FOR ARRAY LOOPS IN solve AND smooth FUNCTIONS, AND A FEW OTHER PLACES
+    // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN solve, smooth AND vCycle.
+    // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
+    xStr = stagCore.lbound(0);
+    yStr = stagCore.lbound(1);
+    zStr = stagCore.lbound(2);
+
+    xEnd = stagCore.ubound(0);
+    yEnd = stagCore.ubound(1);
+    zEnd = stagCore.ubound(2);
+
+    if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) xEnd -= 1;
+
+    if (inputParams.yPer and mesh.rankData.yRank == mesh.rankData.npY - 1) yEnd -= 1;
 }
 
 void multigrid_d3::createMGSubArrays() {

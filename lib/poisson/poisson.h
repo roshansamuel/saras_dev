@@ -12,6 +12,8 @@
 class poisson {
     protected:
         int vLevel, maxCount;
+        int xStr, yStr, zStr;
+        int xEnd, yEnd, zEnd;
 
 #ifdef TIME_RUN
         double solveTimeComp;

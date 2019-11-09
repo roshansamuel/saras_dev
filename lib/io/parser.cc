@@ -445,7 +445,7 @@ void parser::writeParams() {
     std::cout << "\t****************** START OF parameters.yaml ******************" << std::endl << std::endl;
 
     std::ifstream inFile;
-    inFile.open("parameters.yaml", std::ifstream::in);
+    inFile.open("input/parameters.yaml", std::ifstream::in);
     std::string line;
     while (std::getline(inFile, line)) {
         std::cout << line << std::endl;

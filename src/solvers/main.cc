@@ -17,6 +17,10 @@ int main() {
     // INITIALIZE PARALLELIZATION DATA
     parallel mpi(inputParams);
 
+    if (mpi.rank == 0) {
+        inputParams.writeParams();
+    }
+
     grid gridData(inputParams, mpi);
 
     gettimeofday(&runStart, NULL);

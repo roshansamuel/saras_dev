@@ -73,6 +73,9 @@ class field {
         field& operator += (field &a);
         field& operator -= (field &a);
 
+        field& operator += (double a);
+        field& operator -= (double a);
+
         void operator = (field &a);
         void operator = (double a);
 
