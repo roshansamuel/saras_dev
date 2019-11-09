@@ -31,6 +31,9 @@ parallel::parallel(const parser &iDat): npX(iDat.npX), npY(iDat.npY) {
 
     // GET AND STORE THE RANKS OF ALL NEIGHBOURING PROCESSES FOR FUTURE DATA TRANSFER
     getNeighbours();
+
+    // CREATE ROW AND COLUMN COMMUNICATORS *AFTER* THE xRanks AND yRanks HAVE BEEN ASSIGNED
+    createComms();
 }
 
 /**
@@ -70,4 +73,18 @@ void parallel::getNeighbours() {
     nearRanks(2) = findRank(xRank, yRank - 1);
     nearRanks(3) = findRank(xRank, yRank + 1);
 #endif
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to create row and column communicators
+ *
+ *          Row and column communicators are used in the grid class for getting global grid data.
+ *          The function uses xRank and yRank defined within this class to assign the color and key to MPI_Comm_split.
+ *          Hence this function should be called *only after* assignRanks has been called.
+ ********************************************************************************************************************************************
+ */
+inline void parallel::createComms() {
+    MPI_Comm_split(MPI_COMM_WORLD, yRank, xRank, &MPI_ROW_COMM);
+    MPI_Comm_split(MPI_COMM_WORLD, xRank, yRank, &MPI_COL_COMM);
 }

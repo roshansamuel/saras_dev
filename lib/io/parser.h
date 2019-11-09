@@ -19,6 +19,7 @@ class parser {
         void testProbes();
         void parseProbes();
 
+        void setGrids();
         void setPeriodicity();
 
     public:
@@ -26,13 +27,14 @@ class parser {
         int rbcType;
         int nThreads;
         int npY, npX;
+        int forceType;
         int xInd, yInd, zInd;
         int vcDepth, vcCount;
         int preSmooth, postSmooth;
-        int Force;
 
         int iScheme;
         int probType;
+        int xGrid, yGrid, zGrid;
 
         bool useCFL;
         bool nonHgBC;
@@ -56,8 +58,8 @@ class parser {
         double betaX, betaY, betaZ;
         double courantNumber;
 
-        std::string meshType;
         std::string dScheme;
+        std::string meshType;
 
         std::vector<int> interSmooth;
         std::vector<blitz::TinyVector<int, 3> > probesList;

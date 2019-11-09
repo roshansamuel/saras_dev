@@ -52,10 +52,13 @@
 
 # Mesh parameters
 "Mesh":
-    # Choose from following list of mesh types:
-    # Uniform - grid with uniformly spaced points
-    # TanHyp - tangent-hyperbolically stretched mesh which is fine near boundaries and coarse in the bulk
-    "Mesh Type": "Uniform"
+    # The grid spacing along each direction can be set according to one of the following:
+    # U - Uniform spacing
+    # S - Single sided tangent-hyperbolic stretching (finest near one edge and coarsest at the opposite edge)
+    # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
+    # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
+    # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
+    "Mesh Type": "UUU"
 
     # Stretching factor to be used for tangent-hyperbolic grids - considered only when Mesh Type is TanHyp
     "X Beta": 1.0

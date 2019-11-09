@@ -30,8 +30,6 @@ class reader {
 
         std::vector< blitz::TinyVector<int, 3> > localSize;
 
-        double getLastFile();
-
         void initLimits();
 
         void copyData(field &outField);

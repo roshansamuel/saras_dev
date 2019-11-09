@@ -114,6 +114,7 @@ void reader::initLimits() {
             if (mesh.rankData.rank == 0) {
                 std::cout << "Error in creating hyperslab while writing data. Aborting" << std::endl;
             }
+            MPI_Finalize();
             exit(0);
         }
 
@@ -149,6 +150,7 @@ void reader::initLimits() {
             if (mesh.rankData.rank == 0) {
                 std::cout << "Error in creating hyperslab while writing data. Aborting" << std::endl;
             }
+            MPI_Finalize();
             exit(0);
         }
 
@@ -156,53 +158,6 @@ void reader::initLimits() {
         sourceDSpace.push_back(sDSpace);
         targetDSpace.push_back(tDSpace);
     }
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to scan files in the output folder and identify the last written file
- *
- *          This function uses dirent.h for POSIX systems to list all files in the directory.
- *          This part of the code may restrict cross-platform capabilities
- *
- ********************************************************************************************************************************************
- */
-double reader::getLastFile() {
-    DIR *dir;
-    struct stat info;
-    struct dirent *dirp;
-    std::vector<double> timeArray;
-    std::vector<double>::iterator pos;
-
-    // Check if output directory exists
-    if (stat("output", &info) != 0) {
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Error output directory does not exist for solver in restart mode. Aborting" << std::endl;
-        }
-        exit(0);
-    }
-
-    dir = opendir("output/");
-
-    while ((dirp = readdir(dir))!=NULL) {
-        std::string fName(dirp->d_name);
-
-        if (fName.find("Soln_") != std::string::npos) {
-            double timeVal = std::atof(fName.substr(5, 9).c_str());
-            timeArray.push_back(timeVal);
-        }
-    }
-
-    if (timeArray.empty()) {
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Output directory has no solution files (Soln_XXXX.XXXX.h5 files) to read in restart mode. Aborting" << std::endl;
-        }
-        exit(0);
-    }
-
-    pos = std::max_element(timeArray.begin(), timeArray.end());
-
-    return *pos;
 }
 
 /**
@@ -222,31 +177,28 @@ double reader::readData() {
 
     herr_t status;
 
-    std::ostringstream constFile;
-
-    char* fileName;
-
     double time;
-
-    time = getLastFile();
 
     // Create a property list for collectively opening a file by all processors
     plist_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
 
-    // Generate the filename corresponding to the solution file
-    fileName = new char[100];
-    constFile.str(std::string());
-    constFile << "output/Soln_" << std::fixed << std::setfill('0') << std::setw(9) << std::setprecision(4) << time << ".h5";
-    strcpy(fileName, constFile.str().c_str());
-
     // First create a file handle with the path to the input file
-    fileHandle = H5Fopen(fileName, H5F_ACC_RDONLY, plist_id);
+    fileHandle = H5Fopen("output/restartFile.h5", H5F_ACC_RDONLY, plist_id);
 
     // Close the property list for later reuse
     H5Pclose(plist_id);
 
-    // Create a property list to use collective data write
+    // Read the scalar value containing the time from the restart file
+    hid_t timeDSpace = H5Screate(H5S_SCALAR);
+    dataSet = H5Dopen2(fileHandle, "Time", H5P_DEFAULT);
+    status = H5Dread(dataSet, H5T_NATIVE_DOUBLE, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
+
+    // Close dataset for future use and dataspace for clearing resources
+    H5Dclose(dataSet);
+    H5Sclose(timeDSpace);
+
+    // Create a property list to use collective data read
     plist_id = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
 
@@ -273,6 +225,7 @@ double reader::readData() {
             if (mesh.rankData.rank == 0) {
                 std::cout << "Error in reading input from HDF file. Aborting" << std::endl;
             }
+            MPI_Finalize();
             exit(0);
         }
 
@@ -285,8 +238,6 @@ double reader::readData() {
     // CLOSE/RELEASE RESOURCES
     H5Pclose(plist_id);
     H5Fclose(fileHandle);
-
-    delete fileName;
 
     return time;
 }

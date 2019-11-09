@@ -11,12 +11,8 @@
 
 class grid {
     private:
-        /** Grid stretching parameter for tangent-hyperbolic function along x direction */
-        double xBeta;
-        /** Grid stretching parameter for tangent-hyperbolic function along y direction */
-        double yBeta;
-        /** Grid stretching parameter for tangent-hyperbolic function along z direction */
-        double zBeta;
+        /** Grid stretching parameter for tangent-hyperbolic function along x, y and z directions */
+        blitz::TinyVector<double, 3> thBeta;
 
         /** Array of the local values of \f$ \xi \f$ within the MPI-decomposed sub-domains in the transformed plane */
         blitz::Array<double, 1> xi;
@@ -37,8 +33,10 @@ class grid {
         void setDomainSizes();
         void globalXiEtaZeta();
 
-        void createTanHypGrid();
         void createUniformGrid();
+        void createTanHypGrid(int dim);
+
+        void gatherGlobal();
 
         void computeGlobalLimits();
 

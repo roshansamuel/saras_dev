@@ -6,6 +6,7 @@ parser::parser() {
     parseYAML();
     checkData();
 
+    setGrids();
     setPeriodicity();
 
     if (readProbes) {
@@ -48,7 +49,7 @@ void parser::parseYAML() {
     yamlNode["Program"]["Y Length"] >> Ly;
     yamlNode["Program"]["Z Length"] >> Lz;
 
-    yamlNode["Program"]["Force"] >> Force;
+    yamlNode["Program"]["Force"] >> forceType;
 
     yamlNode["Program"]["Heating Plate"] >> nonHgBC;
     yamlNode["Program"]["Patch Radius"] >> patchRadius;
@@ -144,6 +145,13 @@ void parser::checkData() {
         exit(0);
     }
 
+    // CHECK IF MESH TYPE STRING IS OF CORRECT LENGTH
+    if (meshType.length() != 3) {
+        std::cout << "ERROR: Mesh type string is not correct. Aborting" << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
+
     // CHECK IF THE TIME-STEP SET BY USER IS LESS THAN THE MAXIMUM TIME SPECIFIED FOR SIMULATION.
     if (tStp > tMax) {
         std::cout << "ERROR: Time step is larger than the maximum duration assigned for simulation. Aborting" << std::endl;
@@ -197,6 +205,49 @@ void parser::checkData() {
         std::cout << "ERROR: The grid size along Z-direction is too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);
+    }
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to set the grid types along each direction based on meshType variable
+ *
+ *          The user specifies mesh type as a single string.
+ *          This string has to be parsed to set the integer values xGrid, yGrid and zGrid.
+ *          The values of these variables will determine the grid stretching along each direction appropriately.
+ ********************************************************************************************************************************************
+ */
+void parser::setGrids() {
+    // The integer values xGrid, yGrid and zGrid are set as below:
+    // 0 - uniform grid
+    // 1 - single-sided tangent-hyperbolic stretching
+    // 2 - double-sided tangent-hyperbolic stretching
+    xGrid = 0;
+    yGrid = 0;
+    zGrid = 0;
+
+    char charMTypes[4];
+    std::strcpy(charMTypes, meshType.c_str());
+
+    switch (charMTypes[0]) {
+        case 'S': xGrid = 1;
+            break;
+        case 'D': xGrid = 2;
+            break;
+    }
+
+    switch (charMTypes[1]) {
+        case 'S': yGrid = 1;
+            break;
+        case 'D': yGrid = 2;
+            break;
+    }
+
+    switch (charMTypes[2]) {
+        case 'S': zGrid = 1;
+            break;
+        case 'D': zGrid = 2;
+            break;
     }
 }
 

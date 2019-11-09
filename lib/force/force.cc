@@ -28,17 +28,17 @@ force::force(vfield &U, const parser &solParams, parallel &mpiParam):
 
 void force::add_VForce(plainvf &Hv)
 {
-    if (inputParams.Force==0){ //No forcing
+    if (inputParams.forceType==0){ //No forcing
     }    
-    else if (inputParams.Force==1){ //Random forcing
+    else if (inputParams.forceType==1){ //Random forcing
         add_RandomForce(Hv);
     } 
 
-    else if (inputParams.Force==2){ //Coriolis forcing
+    else if (inputParams.forceType==2){ //Coriolis forcing
         add_Coriolis(Hv);
     }
 
-    else if (inputParams.Force <= 4) { // Throw error message, since forcing 3 and 4 are not allowed for hydrodynamic flows
+    else if (inputParams.forceType <= 4) { // Throw error message, since forcing 3 and 4 are not allowed for hydrodynamic flows
         if (mpiData.rank==0){
             std::cout<<"This forcing is not allowed for the given problem type. Aborting..."<<std::endl;
             exit(0);
@@ -57,22 +57,22 @@ void force::add_VForce(plainvf &Hv)
 
 void force::add_VForce(plainvf &Hv, sfield &T)
 {
-    if (inputParams.Force==0){ //No forcing
+    if (inputParams.forceType==0){ //No forcing
     }
 
-    else if (inputParams.Force==1){ //Random forcing
+    else if (inputParams.forceType==1){ //Random forcing
         add_RandomForce(Hv);
     } 
 
-    else if (inputParams.Force==2){ //Coriolis forcing
+    else if (inputParams.forceType==2){ //Coriolis forcing
         add_Coriolis(Hv);
     }
 
-    else if (inputParams.Force==3){ //Buoyancy forcing
+    else if (inputParams.forceType==3){ //Buoyancy forcing
         add_Buoyancy(Hv, T);
     }
     
-    else if (inputParams.Force==4){ //Buoyancy and Coriolis forcing
+    else if (inputParams.forceType==4){ //Buoyancy and Coriolis forcing
         add_Buoyancy(Hv, T);
         add_Coriolis(Hv);
     }

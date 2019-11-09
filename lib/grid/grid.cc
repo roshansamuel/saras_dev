@@ -12,7 +12,7 @@
  *          transformation derivatives are also computed and stored.
  *
  * \param   solParam is a const reference to the global data contained in the parser class
- * \param   parallelData is a reference to the global data contained in the paralle class
+ * \param   parallelData is a reference to the global data contained in the parallel class
  ********************************************************************************************************************************************
  */
 grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam),
@@ -24,6 +24,7 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
         if (rankData.rank == 0) {
             std::cout << "Undefined finite differencing scheme in YAML file. ABORTING" << std::endl;
         }
+        MPI_Finalize();
         exit(0);
     }
 
@@ -37,9 +38,7 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     yLen = inputParams.Ly;
     zLen = inputParams.Lz;
 
-    xBeta = inputParams.betaX;
-    yBeta = inputParams.betaY;
-    zBeta = inputParams.betaZ;
+    thBeta = inputParams.betaX, inputParams.betaY, inputParams.betaZ;
 
     dXi = 1.0/double(globalSize(0) - 1);
     dEt = 1.0/double(globalSize(1) - 1);
@@ -68,29 +67,25 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     et = etGlo(blitz::Range(subarrayStarts(1) - padWidths(1), subarrayEnds(1) + padWidths(1)));
     zt = ztGlo(blitz::Range(subarrayStarts(2) - padWidths(2), subarrayEnds(2) + padWidths(2)));
 
-    if (inputParams.meshType == "TanHyp") {
-#ifndef TEST_RUN
-        if (rankData.rank == 0) {
-            std::cout << "Generating tangent hyperbolic grid" << std::endl;
-        }
-#endif
+    // CREATE UNIFORM GRID WHICH IS DEFAULT ALONG ALL THREE DIRECTIONS
+    createUniformGrid();
 
-        createTanHypGrid();
-    } else if (inputParams.meshType == "Uniform") {
-#ifndef TEST_RUN
-        if (rankData.rank == 0) {
-            std::cout << "Generating uniformly spaced grid" << std::endl;
-        }
-#endif
-
-        createUniformGrid();
-    } else {
-        if (rankData.rank == 0) {
-            std::cout << "ERROR: Unknown mesh type encountered in input parameters file. Aborting" << std::endl;
-        }
-        exit(0);
+    // DEPENDING ON THE USER-SET PARAMETERS, SWITCH TO TAN-HYP ALONG SELECTED DIRECTIONS
+    if (inputParams.xGrid == 2) {
+        createTanHypGrid(0);
     }
+
+    if (inputParams.yGrid == 2) {
+        createTanHypGrid(1);
+    }
+
+    if (inputParams.zGrid == 2) {
+        createTanHypGrid(2);
+    }
+
+    gatherGlobal();
 }
+
 
 /**
  ********************************************************************************************************************************************
@@ -118,6 +113,7 @@ void grid::makeSizeArray() {
 
     sizeArray(0) = 1;
 }
+
 
 /**
  ********************************************************************************************************************************************
@@ -169,6 +165,7 @@ void grid::computeGlobalLimits() {
     subarrayEnds = xiEn, etEn, ztEn;
 }
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to set all the TinyVector and RectDomain variables for all future references throughout the solver
@@ -207,6 +204,7 @@ void grid::setDomainSizes() {
     upBound = staggrCoreSize + padWidths - 1;
     staggrFullDomain = blitz::RectDomain<3>(loBound, upBound);
 }
+
 
 /**
  ********************************************************************************************************************************************
@@ -273,6 +271,7 @@ void grid::resizeGrid() {
     zt_zStaggr = 1.0;          ztzzStaggr = 0.0;          ztz2Staggr = 1.0;
 }
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to compute global values of xi, eta and zeta in transformed plane
@@ -303,80 +302,6 @@ void grid::globalXiEtaZeta() {
     }
 }
 
-/**
- ********************************************************************************************************************************************
- * \brief   Function to generate grid with tangent-hyperbolic stretching
- *
- *          The local collocated grids, \ref xColloc, \ref yColloc, and \ref zColloc are initialized from their corresponding
- *          transformed plane coordinates, \ref xi, \ref et, and \ref zt respectively using the tangent hyperbolic function.
- *          The corresponding grid derivative terms, \ref xi_xColloc, \ref xixxColloc, \ref ety2Colloc, etc are computed
- *          using analytical expressions for the tangent hyperbolic function.
- *
- *          Similarly, the staggered grids, \ref xStaggr, \ref yStaggr, and \ref zStaggr are initialized from the mid-point
- *          averaged values of the nodes in their corresponding transformed plane coordinates, \ref xi, \ref et, and \ref zt
- *          respectively using the tangent hyperbolic function.
- *          As before, the grid derivative terms for the staggered points are also computed using analytical expressions.
- ********************************************************************************************************************************************
- */
-void grid::createTanHypGrid() {
-    int i;
-
-    // STAGGERED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
-    for (i = 0; i < staggrCoreSize(0); i++) {
-        xStaggr(i) = xLen*(1.0 - tanh(xBeta*(1.0 - 2.0*xi(i)))/tanh(xBeta))/2.0;
-
-        xi_xStaggr(i) = tanh(xBeta)/(xBeta*xLen*(1.0 - pow((1.0 - 2.0*xStaggr(i)/xLen)*tanh(xBeta), 2)));
-        xixxStaggr(i) = -4.0*pow(tanh(xBeta), 3)*(1.0 - 2.0*xStaggr(i)/xLen)/(xBeta*xLen*xLen*pow(1.0 - pow(tanh(xBeta)*(1.0 - 2.0*xStaggr(i)/xLen), 2), 2));
-        xix2Staggr(i) = pow(xi_xStaggr(i), 2.0);
-    }
-
-    // COLLOCATED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
-    for (i = 0; i < collocCoreSize(0); i++) {
-        xColloc(i) = xLen*(1.0 - tanh(xBeta*(1.0 - (xi(i) + xi(i + 1))))/tanh(xBeta))/2.0;
-
-        xi_xColloc(i) = tanh(xBeta)/(xBeta*xLen*(1.0 - pow((1.0 - 2.0*xColloc(i)/xLen)*tanh(xBeta), 2)));
-        xixxColloc(i) = -4.0*pow(tanh(xBeta), 3)*(1.0 - 2.0*xColloc(i)/xLen)/(xBeta*xLen*xLen*pow(1.0 - pow(tanh(xBeta)*(1.0 - 2.0*xColloc(i)/xLen), 2), 2));
-        xix2Colloc(i) = pow(xi_xColloc(i), 2.0);
-    }
-
-#ifndef PLANAR
-    // STAGGERED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
-    for (i = 0; i < staggrCoreSize(1); i++) {
-        yStaggr(i) = yLen*(1.0 - tanh(yBeta*(1.0 - 2.0*et(i)))/tanh(yBeta))/2.0;
-
-        et_yStaggr(i) = tanh(yBeta)/(yBeta*yLen*(1.0 - pow((1.0 - 2.0*yStaggr(i)/yLen)*tanh(yBeta), 2)));
-        etyyStaggr(i) = -4.0*pow(tanh(yBeta), 3)*(1.0 - 2.0*yStaggr(i)/yLen)/(yBeta*yLen*yLen*pow(1.0 - pow(tanh(yBeta)*(1.0 - 2.0*yStaggr(i)/yLen), 2), 2));
-        ety2Staggr(i) = pow(et_yStaggr(i), 2.0);
-    }
-
-    // COLLOCATED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
-    for (i = 0; i < collocCoreSize(1); i++) {
-        yColloc(i) = yLen*(1.0 - tanh(yBeta*(1.0 - (et(i) + et(i + 1))))/tanh(yBeta))/2.0;
-
-        et_yColloc(i) = tanh(yBeta)/(yBeta*yLen*(1.0 - pow((1.0 - 2.0*yColloc(i)/yLen)*tanh(yBeta), 2)));
-        etyyColloc(i) = -4.0*pow(tanh(yBeta), 3)*(1.0 - 2.0*yColloc(i)/yLen)/(yBeta*yLen*yLen*pow(1.0 - pow(tanh(yBeta)*(1.0 - 2.0*yColloc(i)/yLen), 2), 2));
-        ety2Colloc(i) = pow(et_yColloc(i), 2.0);
-    }
-#endif
-
-    // STAGGERED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
-    for (i = 0; i < staggrCoreSize(2); i++) {
-        zStaggr(i) = zLen*(1.0 - tanh(zBeta*(1.0 - 2.0*zt(i)))/tanh(zBeta))/2.0;
-
-        zt_zStaggr(i) = tanh(zBeta)/(zBeta*zLen*(1.0 - pow((1.0 - 2.0*zStaggr(i)/zLen)*tanh(zBeta), 2)));
-        ztzzStaggr(i) = -4.0*pow(tanh(zBeta), 3)*(1.0 - 2.0*zStaggr(i)/zLen)/(zBeta*zLen*zLen*pow(1.0 - pow(tanh(zBeta)*(1.0 - 2.0*zStaggr(i)/zLen), 2), 2));
-        ztz2Staggr(i) = pow(zt_zStaggr(i), 2.0);
-    }
-
-    // COLLOCATED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
-    for (i = 0; i < collocCoreSize(2); i++) {
-        zColloc(i) = zLen*(1.0 - tanh(zBeta*(1.0 - (zt(i) + zt(i + 1))))/tanh(zBeta))/2.0;
-
-        zt_zColloc(i) = tanh(zBeta)/(zBeta*zLen*(1.0 - pow((1.0 - 2.0*zColloc(i)/zLen)*tanh(zBeta), 2)));
-        ztzzColloc(i) = -4.0*pow(tanh(zBeta), 3)*(1.0 - 2.0*zColloc(i)/zLen)/(zBeta*zLen*zLen*pow(1.0 - pow(tanh(zBeta)*(1.0 - 2.0*zColloc(i)/zLen), 2), 2));
-        ztz2Colloc(i) = pow(zt_zColloc(i), 2.0);
-    }
-}
 
 /**
  ********************************************************************************************************************************************
@@ -445,9 +370,124 @@ void grid::createUniformGrid() {
 
     zt_zColloc = 1.0/zLen;
     ztz2Colloc = pow(zt_zColloc, 2.0);
+}
 
 
-    // CREATE THE CORRESPONDING GLOBAL GRIDS AS WELL
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to generate grid with tangent-hyperbolic stretching
+ *
+ *          The local collocated grids, \ref xColloc, \ref yColloc, and \ref zColloc are initialized from their corresponding
+ *          transformed plane coordinates, \ref xi, \ref et, and \ref zt respectively using the tangent hyperbolic function.
+ *          The corresponding grid derivative terms, \ref xi_xColloc, \ref xixxColloc, \ref ety2Colloc, etc are computed
+ *          using analytical expressions for the tangent hyperbolic function.
+ *
+ *          Similarly, the staggered grids, \ref xStaggr, \ref yStaggr, and \ref zStaggr are initialized from the mid-point
+ *          averaged values of the nodes in their corresponding transformed plane coordinates, \ref xi, \ref et, and \ref zt
+ *          respectively using the tangent hyperbolic function.
+ *          As before, the grid derivative terms for the staggered points are also computed using analytical expressions.
+ *
+ * \param   dim is an integer value that defines the direction along which tan-hyp grid is to be generated: 0 -> X, 1 -> Y, 2 -> Z
+ ********************************************************************************************************************************************
+ */
+void grid::createTanHypGrid(int dim) {
+    int i;
+
+#ifndef TEST_RUN
+    if (rankData.rank == 0) {
+        switch (dim) {
+            case 0: std::cout << "Generating tangent hyperbolic grid along X direction" << std::endl;
+                    break;
+            case 1: std::cout << "Generating tangent hyperbolic grid along Y direction" << std::endl;
+                    break;
+            case 2: std::cout << "Generating tangent hyperbolic grid along Z direction" << std::endl;
+                    break;
+        }
+    }
+#endif
+
+    if (dim == 0) {
+        // STAGGERED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
+        for (i = 0; i < staggrCoreSize(0); i++) {
+            xStaggr(i) = xLen*(1.0 - tanh(thBeta[0]*(1.0 - 2.0*xi(i)))/tanh(thBeta[0]))/2.0;
+
+            xi_xStaggr(i) = tanh(thBeta[0])/(thBeta[0]*xLen*(1.0 - pow((1.0 - 2.0*xStaggr(i)/xLen)*tanh(thBeta[0]), 2)));
+            xixxStaggr(i) = -4.0*pow(tanh(thBeta[0]), 3)*(1.0 - 2.0*xStaggr(i)/xLen)/(thBeta[0]*xLen*xLen*pow(1.0 - pow(tanh(thBeta[0])*(1.0 - 2.0*xStaggr(i)/xLen), 2), 2));
+            xix2Staggr(i) = pow(xi_xStaggr(i), 2.0);
+        }
+
+        // COLLOCATED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
+        for (i = 0; i < collocCoreSize(0); i++) {
+            xColloc(i) = xLen*(1.0 - tanh(thBeta[0]*(1.0 - (xi(i) + xi(i + 1))))/tanh(thBeta[0]))/2.0;
+
+            xi_xColloc(i) = tanh(thBeta[0])/(thBeta[0]*xLen*(1.0 - pow((1.0 - 2.0*xColloc(i)/xLen)*tanh(thBeta[0]), 2)));
+            xixxColloc(i) = -4.0*pow(tanh(thBeta[0]), 3)*(1.0 - 2.0*xColloc(i)/xLen)/(thBeta[0]*xLen*xLen*pow(1.0 - pow(tanh(thBeta[0])*(1.0 - 2.0*xColloc(i)/xLen), 2), 2));
+            xix2Colloc(i) = pow(xi_xColloc(i), 2.0);
+        }
+    }
+
+#ifndef PLANAR
+    if (dim == 1) {
+        // STAGGERED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
+        for (i = 0; i < staggrCoreSize(1); i++) {
+            yStaggr(i) = yLen*(1.0 - tanh(thBeta[1]*(1.0 - 2.0*et(i)))/tanh(thBeta[1]))/2.0;
+
+            et_yStaggr(i) = tanh(thBeta[1])/(thBeta[1]*yLen*(1.0 - pow((1.0 - 2.0*yStaggr(i)/yLen)*tanh(thBeta[1]), 2)));
+            etyyStaggr(i) = -4.0*pow(tanh(thBeta[1]), 3)*(1.0 - 2.0*yStaggr(i)/yLen)/(thBeta[1]*yLen*yLen*pow(1.0 - pow(tanh(thBeta[1])*(1.0 - 2.0*yStaggr(i)/yLen), 2), 2));
+            ety2Staggr(i) = pow(et_yStaggr(i), 2.0);
+        }
+
+        // COLLOCATED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
+        for (i = 0; i < collocCoreSize(1); i++) {
+            yColloc(i) = yLen*(1.0 - tanh(thBeta[1]*(1.0 - (et(i) + et(i + 1))))/tanh(thBeta[1]))/2.0;
+
+            et_yColloc(i) = tanh(thBeta[1])/(thBeta[1]*yLen*(1.0 - pow((1.0 - 2.0*yColloc(i)/yLen)*tanh(thBeta[1]), 2)));
+            etyyColloc(i) = -4.0*pow(tanh(thBeta[1]), 3)*(1.0 - 2.0*yColloc(i)/yLen)/(thBeta[1]*yLen*yLen*pow(1.0 - pow(tanh(thBeta[1])*(1.0 - 2.0*yColloc(i)/yLen), 2), 2));
+            ety2Colloc(i) = pow(et_yColloc(i), 2.0);
+        }
+    }
+#endif
+
+    if (dim == 2) {
+        // STAGGERED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
+        for (i = 0; i < staggrCoreSize(2); i++) {
+            zStaggr(i) = zLen*(1.0 - tanh(thBeta[2]*(1.0 - 2.0*zt(i)))/tanh(thBeta[2]))/2.0;
+
+            zt_zStaggr(i) = tanh(thBeta[2])/(thBeta[2]*zLen*(1.0 - pow((1.0 - 2.0*zStaggr(i)/zLen)*tanh(thBeta[2]), 2)));
+            ztzzStaggr(i) = -4.0*pow(tanh(thBeta[2]), 3)*(1.0 - 2.0*zStaggr(i)/zLen)/(thBeta[2]*zLen*zLen*pow(1.0 - pow(tanh(thBeta[2])*(1.0 - 2.0*zStaggr(i)/zLen), 2), 2));
+            ztz2Staggr(i) = pow(zt_zStaggr(i), 2.0);
+        }
+
+        // COLLOCATED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
+        for (i = 0; i < collocCoreSize(2); i++) {
+            zColloc(i) = zLen*(1.0 - tanh(thBeta[2]*(1.0 - (zt(i) + zt(i + 1))))/tanh(thBeta[2]))/2.0;
+
+            zt_zColloc(i) = tanh(thBeta[2])/(thBeta[2]*zLen*(1.0 - pow((1.0 - 2.0*zColloc(i)/zLen)*tanh(thBeta[2]), 2)));
+            ztzzColloc(i) = -4.0*pow(tanh(thBeta[2]), 3)*(1.0 - 2.0*zColloc(i)/zLen)/(thBeta[2]*zLen*zLen*pow(1.0 - pow(tanh(thBeta[2])*(1.0 - 2.0*zColloc(i)/zLen), 2), 2));
+            ztz2Colloc(i) = pow(zt_zColloc(i), 2.0);
+        }
+    }
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to gather global data about the grid into every rank
+ *
+ *          In certain cases, for example, implementation of non-homogeneous boundary conditions,
+ *          the data regarding the global extents of the grid and the global coordinates are necessary.
+ *          For this reason, the global grid data is made available to each rank through an MPI_Allgather call.
+ *
+ ********************************************************************************************************************************************
+ */
+void grid::gatherGlobal() {
+    int i;
+    int locSize, locDisp;
+    int maxRank = std::max(rankData.npX, rankData.npY);
+
+    int arrSize[maxRank];
+    int arrDisp[maxRank];
+
     blitz::TinyVector<int, 3> collocGlobalSize;
     blitz::TinyVector<int, 3> staggrGlobalSize;
     blitz::TinyVector<int, 3> globalReIndexVal;
@@ -467,35 +507,55 @@ void grid::createUniformGrid() {
     zCollocGlobal.resize(collocGlobalSize(2));     zCollocGlobal.reindexSelf(globalReIndexVal(2));        zCollocGlobal = 0.0;
     zStaggrGlobal.resize(staggrGlobalSize(2));     zStaggrGlobal.reindexSelf(globalReIndexVal(2));        zStaggrGlobal = 0.0;
 
-    // COLLOCATED X-GRID POINTS FROM UNIFORM XI-GRID POINTS
-    for (i = -padWidths(0); i < globalSize(0) + padWidths(0); i++) {
-        xStaggrGlobal(i) = xLen*xiGlo(i);
+    // GATHERING THE STAGGERED GRID ALONG X-DIRECTION
+    locSize = xStaggr.size() - 2*padWidths(0);
+    locDisp = subarrayStarts(0);
+    if (rankData.xRank == rankData.npX-1) {
+        locSize += 2*padWidths(0);
     }
+    MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_ROW_COMM);
+    MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_ROW_COMM);
+    MPI_Allgatherv(xStaggr.dataFirst(), locSize, MPI_DOUBLE, xStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_ROW_COMM);
 
-    // STAGGERED X-GRID POINTS FROM UNIFORM XI-GRID POINTS
-    for (i = -padWidths(0); i < globalSize(0) + padWidths(0) - 1; i++) {
-        xCollocGlobal(i) = xLen*(xiGlo(i) + xiGlo(i + 1))/2.0;
+    // GATHERING THE COLLOCATED GRID ALONG X-DIRECTION
+    locSize = xColloc.size() - 2*padWidths(0);
+    locDisp = rankData.xRank*locSize;
+    if (rankData.xRank == rankData.npX-1) {
+        locSize += 2*padWidths(0);
     }
+    MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_ROW_COMM);
+    MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_ROW_COMM);
+    MPI_Allgatherv(xColloc.dataFirst(), locSize, MPI_DOUBLE, xCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_ROW_COMM);
 
 #ifndef PLANAR
-    // COLLOCATED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS
-    for (i = -padWidths(1); i < globalSize(1) + padWidths(1); i++) {
-        yStaggrGlobal(i) = yLen*etGlo(i);
+    // GATHERING THE STAGGERED GRID ALONG Y-DIRECTION
+    locSize = yStaggr.size() - 2*padWidths(1);
+    locDisp = subarrayStarts(1);
+    if (rankData.yRank == rankData.npY-1) {
+        locSize += 2*padWidths(1);
     }
+    MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_COL_COMM);
+    MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_COL_COMM);
+    MPI_Allgatherv(yStaggr.dataFirst(), locSize, MPI_DOUBLE, yStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_COL_COMM);
 
-    // STAGGERED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS
-    for (i = -padWidths(1); i < globalSize(1) + padWidths(1) - 1; i++) {
-        yCollocGlobal(i) = yLen*(etGlo(i) + etGlo(i + 1))/2.0;
+    // GATHERING THE COLLOCATED GRID ALONG Y-DIRECTION
+    locSize = yColloc.size() - 2*padWidths(1);
+    locDisp = rankData.yRank*locSize;
+    if (rankData.yRank == rankData.npY-1) {
+        locSize += 2*padWidths(1);
     }
+    MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_COL_COMM);
+    MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_COL_COMM);
+    MPI_Allgatherv(yColloc.dataFirst(), locSize, MPI_DOUBLE, yCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_COL_COMM);
 #endif
 
-    // COLLOCATED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS
+    // GLOBAL AND LOCAL STAGGERED GRIDS ALONG Z-DIRECTION ARE SAME FOR ALL RANKS
     for (i = -padWidths(2); i < globalSize(2) + padWidths(2); i++) {
-        zStaggrGlobal(i) = zLen*ztGlo(i);
+        zStaggrGlobal(i) = zStaggr(i);
     }
 
-    // STAGGERED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS
+    // GLOBAL AND LOCAL COLLOCATED GRIDS ALONG Z-DIRECTION ARE SAME FOR ALL RANKS
     for (i = -padWidths(2); i < globalSize(2) + padWidths(2) - 1; i++) {
-        zCollocGlobal(i) = zLen*(ztGlo(i) + ztGlo(i + 1))/2.0;
+        zCollocGlobal(i) = zColloc(i);
     }
 }
