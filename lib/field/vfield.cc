@@ -159,7 +159,7 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     H.Vx.F(Vx.fCore) -= interVx2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VxIntSlices.size();
     tempMatX=0.0;
 
-#ifdef PLANAR
+#ifndef PLANAR
     derVx.calcDerivative1_y(tempMatX);
     H.Vx.F(Vx.fCore) -= interVy2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VyIntSlices.size();
     tempMatX=0.0;
@@ -218,7 +218,7 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     H.Vz.F(Vz.fCore) -= interVx2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VxIntSlices.size();
     tempMatZ=0.0;
 
-#ifdef PLANAR
+#ifndef PLANAR
     derVz.calcDerivative1_y(tempMatZ);
     H.Vz.F(Vz.fCore) -= interVy2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VyIntSlices.size();
     tempMatZ=0.0;

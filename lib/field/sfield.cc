@@ -101,7 +101,7 @@ void sfield::computeNLin(const vfield &V, sfield &H) {
     H.F.F(F.fCore) -= interVx(F.fCore)*tempMat(F.fCore)/F.VxIntSlices.size();
     tempMat=0.0;
 
-#ifdef PLANAR
+#ifndef PLANAR
     derS.calcDerivative1_y(tempMat);
     H.F.F(F.fCore) -= interVy(F.fCore)*tempMat(F.fCore)/F.VyIntSlices.size();
     tempMat=0.0;
