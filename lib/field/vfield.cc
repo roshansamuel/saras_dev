@@ -61,12 +61,14 @@ vfield::vfield(const grid &gridData, std::string fieldName, const bool allocDeri
 
     tempMatX.resize(Vx.fSize);
     tempMatX.reindexSelf(Vx.flBound);
+    tempMatX=0.0;
+#ifndef PLANAR
     tempMatY.resize(Vy.fSize);
     tempMatY.reindexSelf(Vy.flBound);
+    tempMatY=0.0;
+#endif
     tempMatZ.resize(Vz.fSize);
     tempMatZ.reindexSelf(Vz.flBound);
-    tempMatX=0.0;
-    tempMatY=0.0;
     tempMatZ=0.0;
 }
 
@@ -83,20 +85,23 @@ vfield::vfield(const grid &gridData, std::string fieldName, const bool allocDeri
 void vfield::computeDiff(vfield &H) {
     
     derVx.calcDerivative2_xx(tempMatX);
-    H.Vx.F(Vx.fCore) = tempMatX(Vx.fCore);
+    H.Vx.F(Vx.fCore) += tempMatX(Vx.fCore);
     tempMatX=0.0;
 
+#ifndef PLANAR
     derVx.calcDerivative2_yy(tempMatX);
     H.Vx.F(Vx.fCore) += tempMatX(Vx.fCore);
     tempMatX=0.0;
+#endif
 
     derVx.calcDerivative2_zz(tempMatX);
     H.Vx.F(Vx.fCore) += tempMatX(Vx.fCore);
     tempMatX=0.0;
 
-#ifdef PLANAR
+
+#ifndef PLANAR
     derVy.calcDerivative2_xx(tempMatY);
-    H.Vy.F(Vy.fCore) = tempMatY(Vy.fCore);
+    H.Vy.F(Vy.fCore) += tempMatY(Vy.fCore);
     tempMatY=0.0;
 
     derVy.calcDerivative2_yy(tempMatY);
@@ -108,13 +113,16 @@ void vfield::computeDiff(vfield &H) {
     tempMatY=0.0;
 #endif
 
+
     derVz.calcDerivative2_xx(tempMatZ);
-    H.Vz.F(Vz.fCore) = tempMatZ(Vz.fCore);
+    H.Vz.F(Vz.fCore) += tempMatZ(Vz.fCore);
     tempMatZ=0.0;
 
+#ifndef PLANAR
     derVz.calcDerivative2_yy(tempMatZ);
     H.Vz.F(Vz.fCore) += tempMatZ(Vz.fCore);
     tempMatZ=0.0;
+#endif
 
     derVz.calcDerivative2_zz(tempMatZ);
     H.Vz.F(Vz.fCore) += tempMatZ(Vz.fCore);
@@ -186,15 +194,15 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     }
 
     derVy.calcDerivative1_x(tempMatY);
-    H.Vy.F(Vy.fCore) -= interVy2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VxIntSlices.size();
+    H.Vy.F(Vy.fCore) -= interVx2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VxIntSlices.size();
     tempMatY=0.0;
 
     derVy.calcDerivative1_y(tempMatY);
     H.Vy.F(Vy.fCore) -= interVy2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VyIntSlices.size();
     tempMatY=0.0;
 
-    derVy.calcDerivative1_z(tempMat);
-    H.Vy.F(Vy.fCore) -= interVz2Vy(Vy.fCore)*tempMat(Vy.fCore)/Vz.VzIntSlices.size();
+    derVy.calcDerivative1_z(tempMatY);
+    H.Vy.F(Vy.fCore) -= interVz2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vz.VzIntSlices.size();
     tempMatY=0.0;    
 #endif
 

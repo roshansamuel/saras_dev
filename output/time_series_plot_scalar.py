@@ -113,7 +113,7 @@ while (1) :
 	#Sub-Plot 4=============================================================
 	f_ax4.plot(t, Div, "b", lw=2.0)
 	
-	plt.pause(5)
+	plt.pause(2)
 	plt.show()
 	
 

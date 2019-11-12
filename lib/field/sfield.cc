@@ -55,10 +55,10 @@ sfield::sfield(const grid &gridData, std::string fieldName, const bool allocDeri
 void sfield::computeDiff(sfield &H) {
     
     derS.calcDerivative2_xx(tempMat);
-    H.F.F(F.fCore) = tempMat(F.fCore);
+    H.F.F(F.fCore) += tempMat(F.fCore);
     tempMat=0.0;
     
-#ifdef PLANAR
+#ifndef PLANAR
     derS.calcDerivative2_yy(tempMat);
     H.F.F(F.fCore) += tempMat(F.fCore);
     tempMat=0.0;
