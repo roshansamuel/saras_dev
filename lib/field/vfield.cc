@@ -202,7 +202,7 @@ void vfield::computeNLin(const vfield &V, vfield &H) {
     tempMatY=0.0;
 
     derVy.calcDerivative1_z(tempMatY);
-    H.Vy.F(Vy.fCore) -= interVz2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vz.VzIntSlices.size();
+    H.Vy.F(Vy.fCore) -= interVz2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VzIntSlices.size();
     tempMatY=0.0;    
 #endif
 
