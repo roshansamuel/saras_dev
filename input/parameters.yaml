@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 2
+    "Problem Type": 5
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
@@ -47,7 +47,7 @@
     # 2 = Coriolis force 
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
     # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
-    "Force": 0
+    "Force": 3
 
 
 # Mesh parameters

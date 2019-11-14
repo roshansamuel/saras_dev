@@ -52,8 +52,6 @@ class scalar_d2: public scalar {
     private:
         multigrid_d2 mgSolver;
 
-        double hx2, hz2, hz2hx2;
-
         void solveVx();
         void solveVz();
 
@@ -87,8 +85,6 @@ class scalar_d3: public scalar {
 
     private:
         multigrid_d3 mgSolver;
-
-        double hx2hy2, hy2hz2, hz2hx2, hx2hy2hz2;
 
 #ifdef TIME_RUN
         double visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;

@@ -235,6 +235,7 @@ void scalar_d3::solvePDE() {
             V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
         }
         V.interPc2Vz /= V.Vz.PcIntSlices.size();
+
         for (int iX = xLow; iX <= xTop; iX++) {
             for (int iY = yLow; iY <= yTop; iY++) {
                 for (int iZ = zLow; iZ <= zTop; iZ++) {
@@ -335,7 +336,7 @@ void scalar_d3::computeTimeStep() {
     gettimeofday(&begin, NULL);
 #endif
 
-    //ADD FORCING TO THE RHS
+    //ADD VELOCITY FORCING TO THE RHS
     Force.add_VForce(nseRHS, T);
 
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
@@ -410,8 +411,10 @@ void scalar_d3::computeTimeStep() {
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN tmpRHS
     T.computeNLin(V, tmpRHS);
 
+    // ADD SCALAR FORCING TO THE TEMPERATURE EQUATION
     Force.add_SForce(tmpRHS);
 
+    // MULTIPLY WITH TIME-STEP AND ADD THE CALCULATED VALUE TO THE TEMPERATURE AT START OF TIME-STEP
     tmpRHS *= dt;
     tmpRHS += T;
 

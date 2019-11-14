@@ -198,6 +198,7 @@ void scalar_d2::solvePDE() {
             V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
         }
         V.interPc2Vz /= V.Vz.PcIntSlices.size();
+
         for (int iX = xLow; iX <= xTop; iX++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
                 localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
@@ -251,7 +252,7 @@ void scalar_d2::solvePDE() {
 void scalar_d2::computeTimeStep() {
     // BELOW FLAG MAY BE TURNED OFF FOR DEBUGGING/DIGNOSTIC RUNS ONLY
     // IT IS USED TO TURN OFF COMPUTATION OF NON-LINEAR TERMS
-    // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D scalar SOLVER
+    // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D SCALAR SOLVER
     bool nlinSwitch = true;
 
     nseRHS = 0.0;
@@ -264,7 +265,7 @@ void scalar_d2::computeTimeStep() {
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
     V.computeNLin(V, nseRHS);
 
-    // ADD FORCING TO THE RHS
+    //ADD VELOCITY FORCING TO THE RHS
     Force.add_VForce(nseRHS, T);
     
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
@@ -332,11 +333,11 @@ void scalar_d2::computeTimeStep() {
             tmpRHS.F += T.interVx/T.F.VxIntSlices.size();
         }
     }
-    // BELOW STEP IS USED ONLY WHEN SOLVING THETA EQUATION - VERIFY!
-    //tmpRHS = V.Vz;
 
+    // ADD SCALAR FORCING TO THE TEMPERATURE EQUATION
     Force.add_SForce(tmpRHS);
 
+    // MULTIPLY WITH TIME-STEP AND ADD THE CALCULATED VALUE TO THE TEMPERATURE AT START OF TIME-STEP
     tmpRHS *= dt;
     tmpRHS += T;
 
