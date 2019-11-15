@@ -25,9 +25,9 @@
 
     "Reynolds Number": 800
     "Rossby Number": 12
-    "Rayleigh Number": 4000
+    "Rayleigh Number": 10000
     "Prandtl Number": 0.71
-    "Taylor Number": 100.0
+    "Taylor Number": 0.0
 
     # Dimensions of the domain
     "X Length": 1.0
@@ -99,8 +99,8 @@
     "Use CFL Condition": false
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
-    "Time-Step": 0.005
-    "Final Time": 0.1
+    "Time-Step": 0.001
+    "Final Time": 0.01
 
     # No of iterations to display output to standard I/O
     "I/O Count": 1

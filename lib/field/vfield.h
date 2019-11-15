@@ -1,7 +1,9 @@
 #ifndef VFIELD_H
 #define VFIELD_H
 
+#include <math.h>
 #include "field.h"
+#include "derivative.h"
 
 // Forward declarations of relevant classes
 class plainsf;
@@ -11,9 +13,11 @@ class sfield;
 class vfield {
     private:
         const grid &gridData;
+        blitz::Array<double, 3> tempMatX, tempMatY, tempMatZ;
 
     public:
         field Vx, Vy, Vz;
+        derivative derVx, derVy, derVz;
 
         std::string fieldName;
 

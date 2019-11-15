@@ -20,7 +20,8 @@
  */
 sfield::sfield(const grid &gridData, std::string fieldName):
                gridData(gridData),
-               F(gridData, fieldName, true, true, true)
+               F(gridData, fieldName, true, true, true),
+               derS(gridData, F)
 {
     this->fieldName = fieldName;
 
@@ -34,6 +35,11 @@ sfield::sfield(const grid &gridData, std::string fieldName):
 
     interVz.resize(F.fSize);
     interVz.reindexSelf(F.flBound);
+
+    tempMat.resize(F.fSize);
+    tempMat.reindexSelf(F.flBound);
+
+    tempMat = 0.0;
 }
 
 /**
@@ -47,13 +53,19 @@ sfield::sfield(const grid &gridData, std::string fieldName):
  ********************************************************************************************************************************************
  */
 void sfield::computeDiff(plainsf &H) {
-    F.calcDerivatives2();
-
-#ifdef PLANAR
-    H.F = F.d2F_dx2 + F.d2F_dz2;
-#else
-    H.F = F.d2F_dx2 + F.d2F_dy2 + F.d2F_dz2;
+    derS.calcDerivative2xx(tempMat);
+    H.F(F.fCore) += tempMat(F.fCore);
+    tempMat = 0.0;
+    
+#ifndef PLANAR
+    derS.calcDerivative2yy(tempMat);
+    H.F(F.fCore) += tempMat(F.fCore);
+    tempMat = 0.0;
 #endif
+
+    derS.calcDerivative2zz(tempMat);
+    H.F(F.fCore) += tempMat(F.fCore);
+    tempMat = 0.0;
 }
 
 /**
@@ -68,8 +80,6 @@ void sfield::computeDiff(plainsf &H) {
  ********************************************************************************************************************************************
  */
 void sfield::computeNLin(const vfield &V, plainsf &H) {
-    F.calcDerivatives1();
-
     interVx = 0.0;
     for (unsigned int i=0; i < F.VxIntSlices.size(); i++) {
         interVx(F.fCore) += V.Vx.F(F.VxIntSlices(i));
@@ -85,14 +95,19 @@ void sfield::computeNLin(const vfield &V, plainsf &H) {
         interVz(F.fCore) += V.Vz.F(F.VzIntSlices(i));
     }
 
-#ifdef PLANAR
-    H.F(F.fCore) -= interVx(F.fCore)*F.d1F_dx1(F.fCore)/F.VxIntSlices.size() +
-                    interVz(F.fCore)*F.d1F_dz1(F.fCore)/F.VzIntSlices.size();
-#else
-    H.F(F.fCore) -= interVx(F.fCore)*F.d1F_dx1(F.fCore)/F.VxIntSlices.size() +
-                    interVy(F.fCore)*F.d1F_dy1(F.fCore)/F.VyIntSlices.size() +
-                    interVz(F.fCore)*F.d1F_dz1(F.fCore)/F.VzIntSlices.size();
+    derS.calcDerivative1_x(tempMat);
+    H.F(F.fCore) -= interVx(F.fCore)*tempMat(F.fCore)/F.VxIntSlices.size();
+    tempMat=0.0;
+
+#ifndef PLANAR
+    derS.calcDerivative1_y(tempMat);
+    H.F(F.fCore) -= interVy(F.fCore)*tempMat(F.fCore)/F.VyIntSlices.size();
+    tempMat=0.0;
 #endif
+
+    derS.calcDerivative1_z(tempMat);
+    H.F(F.fCore) -= interVz(F.fCore)*tempMat(F.fCore)/F.VzIntSlices.size();
+    tempMat=0.0;
 }
 
 /**

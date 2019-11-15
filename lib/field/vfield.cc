@@ -20,7 +20,8 @@ vfield::vfield(const grid &gridData, std::string fieldName):
                gridData(gridData),
                Vx(gridData, "Vx", false, true, true),
                Vy(gridData, "Vy", true, false, true),
-               Vz(gridData, "Vz", true, true, false)
+               Vz(gridData, "Vz", true, true, false),
+               derVx(gridData, Vx), derVy(gridData, Vy), derVz(gridData, Vz)
 {
     this->fieldName = fieldName;
 
@@ -56,6 +57,18 @@ vfield::vfield(const grid &gridData, std::string fieldName):
     // Below array is used only in scalar solvers
     interPc2Vz.resize(Vz.fSize);
     interPc2Vz.reindexSelf(Vz.flBound);
+
+    tempMatX.resize(Vx.fSize);
+    tempMatX.reindexSelf(Vx.flBound);
+    tempMatX=0.0;
+#ifndef PLANAR
+    tempMatY.resize(Vy.fSize);
+    tempMatY.reindexSelf(Vy.flBound);
+    tempMatY=0.0;
+#endif
+    tempMatZ.resize(Vz.fSize);
+    tempMatZ.reindexSelf(Vz.flBound);
+    tempMatZ=0.0;
 }
 
 /**
@@ -69,19 +82,47 @@ vfield::vfield(const grid &gridData, std::string fieldName):
  ********************************************************************************************************************************************
  */
 void vfield::computeDiff(plainvf &H) {
-    Vx.calcDerivatives2();
-    Vy.calcDerivatives2();
-    Vz.calcDerivatives2();
+    derVx.calcDerivative2xx(tempMatX);
+    H.Vx(Vx.fCore) += tempMatX(Vx.fCore);
+    tempMatX=0.0;
 
-#ifdef PLANAR
-    H.Vx = Vx.d2F_dx2 + Vx.d2F_dz2;
-    H.Vy = Vy.d2F_dx2 + Vy.d2F_dz2;
-    H.Vz = Vz.d2F_dx2 + Vz.d2F_dz2;
-#else
-    H.Vx = Vx.d2F_dx2 + Vx.d2F_dy2 + Vx.d2F_dz2;
-    H.Vy = Vy.d2F_dx2 + Vy.d2F_dy2 + Vy.d2F_dz2;
-    H.Vz = Vz.d2F_dx2 + Vz.d2F_dy2 + Vz.d2F_dz2;
+#ifndef PLANAR
+    derVx.calcDerivative2yy(tempMatX);
+    H.Vx(Vx.fCore) += tempMatX(Vx.fCore);
+    tempMatX=0.0;
 #endif
+
+    derVx.calcDerivative2zz(tempMatX);
+    H.Vx(Vx.fCore) += tempMatX(Vx.fCore);
+    tempMatX=0.0;
+
+#ifndef PLANAR
+    derVy.calcDerivative2xx(tempMatY);
+    H.Vy(Vy.fCore) += tempMatY(Vy.fCore);
+    tempMatY=0.0;
+
+    derVy.calcDerivative2yy(tempMatY);
+    H.Vy(Vy.fCore) += tempMatY(Vy.fCore);
+    tempMatY=0.0;
+
+    derVy.calcDerivative2zz(tempMatY);
+    H.Vy(Vy.fCore) += tempMatY(Vy.fCore);
+    tempMatY=0.0;
+#endif
+
+    derVz.calcDerivative2xx(tempMatZ);
+    H.Vz(Vz.fCore) += tempMatZ(Vz.fCore);
+    tempMatZ=0.0;
+
+#ifndef PLANAR
+    derVz.calcDerivative2yy(tempMatZ);
+    H.Vz(Vz.fCore) += tempMatZ(Vz.fCore);
+    tempMatZ=0.0;
+#endif
+
+    derVz.calcDerivative2zz(tempMatZ);
+    H.Vz(Vz.fCore) += tempMatZ(Vz.fCore);
+    tempMatZ=0.0;
 }
 
 /**
@@ -101,8 +142,6 @@ void vfield::computeDiff(plainvf &H) {
  */
 void vfield::computeNLin(const vfield &V, plainvf &H) {
     // Compute non-linear term for the Vx component
-    Vx.calcDerivatives1();
-
     interVx2Vx = 0.0;
     for (unsigned int i=0; i < Vx.VxIntSlices.size(); i++) {
         interVx2Vx(Vx.fCore) += V.Vx.F(Vx.VxIntSlices(i));
@@ -118,19 +157,22 @@ void vfield::computeNLin(const vfield &V, plainvf &H) {
         interVz2Vx(Vx.fCore) += V.Vz.F(Vx.VzIntSlices(i));
     }
 
-#ifdef PLANAR
-    H.Vx(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
-                        interVz2Vx(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
-#else
-    H.Vx(Vx.fCore) -= interVx2Vx(Vx.fCore)*Vx.d1F_dx1(Vx.fCore)/Vx.VxIntSlices.size() +
-                        interVy2Vx(Vx.fCore)*Vx.d1F_dy1(Vx.fCore)/Vx.VyIntSlices.size() +
-                        interVz2Vx(Vx.fCore)*Vx.d1F_dz1(Vx.fCore)/Vx.VzIntSlices.size();
+    derVx.calcDerivative1_x(tempMatX);
+    H.Vx(Vx.fCore) -= interVx2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VxIntSlices.size();
+    tempMatX = 0.0;
+
+#ifndef PLANAR
+    derVx.calcDerivative1_y(tempMatX);
+    H.Vx(Vx.fCore) -= interVy2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VyIntSlices.size();
+    tempMatX = 0.0;
 #endif
 
-    // Compute non-linear term for the Vy component
-#ifndef PLANAR
-    Vy.calcDerivatives1();
+    derVx.calcDerivative1_z(tempMatX);
+    H.Vx(Vx.fCore) -= interVz2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VzIntSlices.size();
+    tempMatX = 0.0;    
 
+// Compute non-linear term for the Vy component
+#ifndef PLANAR
     interVx2Vy = 0.0;
     for (unsigned int i=0; i < Vy.VxIntSlices.size(); i++) {
         interVx2Vy(Vy.fCore) += V.Vx.F(Vy.VxIntSlices(i));
@@ -144,14 +186,20 @@ void vfield::computeNLin(const vfield &V, plainvf &H) {
         interVz2Vy(Vy.fCore) += V.Vz.F(Vy.VzIntSlices(i));
     }
 
-    H.Vy(Vy.fCore) -= interVx2Vy(Vy.fCore)*Vy.d1F_dx1(Vy.fCore)/Vy.VxIntSlices.size() +
-                        interVy2Vy(Vy.fCore)*Vy.d1F_dy1(Vy.fCore)/Vy.VyIntSlices.size() +
-                        interVz2Vy(Vy.fCore)*Vy.d1F_dz1(Vy.fCore)/Vy.VzIntSlices.size();
+    derVy.calcDerivative1_x(tempMatY);
+    H.Vy(Vy.fCore) -= interVx2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VxIntSlices.size();
+    tempMatY = 0.0;
+
+    derVy.calcDerivative1_y(tempMatY);
+    H.Vy(Vy.fCore) -= interVy2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VyIntSlices.size();
+    tempMatY = 0.0;
+
+    derVy.calcDerivative1_z(tempMatY);
+    H.Vy(Vy.fCore) -= interVz2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VzIntSlices.size();
+    tempMatY = 0.0;    
 #endif
 
     // Compute non-linear term for the Vz component
-    Vz.calcDerivatives1();
-
     interVx2Vz = 0.0;
     for (unsigned int i=0; i < Vz.VxIntSlices.size(); i++) {
         interVx2Vz(Vz.fCore) += V.Vx.F(Vz.VxIntSlices(i));
@@ -167,14 +215,19 @@ void vfield::computeNLin(const vfield &V, plainvf &H) {
         interVz2Vz(Vz.fCore) += V.Vz.F(Vz.VzIntSlices(i));
     }
 
-#ifdef PLANAR
-    H.Vz(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
-                        interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
-#else
-    H.Vz(Vz.fCore) -= interVx2Vz(Vz.fCore)*Vz.d1F_dx1(Vz.fCore)/Vz.VxIntSlices.size() +
-                        interVy2Vz(Vz.fCore)*Vz.d1F_dy1(Vz.fCore)/Vz.VyIntSlices.size() +
-                        interVz2Vz(Vz.fCore)*Vz.d1F_dz1(Vz.fCore)/Vz.VzIntSlices.size();
+    derVz.calcDerivative1_x(tempMatZ);
+    H.Vz(Vz.fCore) -= interVx2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VxIntSlices.size();
+    tempMatZ = 0.0;
+
+#ifndef PLANAR
+    derVz.calcDerivative1_y(tempMatZ);
+    H.Vz(Vz.fCore) -= interVy2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VyIntSlices.size();
+    tempMatZ = 0.0;
 #endif
+
+    derVz.calcDerivative1_z(tempMatZ);
+    H.Vz(Vz.fCore) -= interVz2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VzIntSlices.size();
+    tempMatZ = 0.0;    
 }
 
 /**

@@ -5,16 +5,11 @@
 #include <string>
 
 #include "mpidata.h"
-#include "differ.h"
 #include "grid.h"
 
 class field {
     private:
         const grid &gridData;
-
-        blitz::Array<double, 1> x_Metric, y_Metric, z_Metric;
-        blitz::Array<double, 1> xxMetric, yyMetric, zzMetric;
-        blitz::Array<double, 1> x2Metric, y2Metric, z2Metric;
 
         void setCoreSlice();
         void setBulkSlice();
@@ -38,11 +33,6 @@ class field {
 
         const bool xStag, yStag, zStag;
 
-        // The following public arrays for getting derivatives of variables are available *only if allocDerivatives flag is set to true*
-        // Attempting to use these arrays of a field with allocDerivatives set to false may give seg-fault!
-        blitz::Array<double, 3> d1F_dx1, d1F_dy1, d1F_dz1;
-        blitz::Array<double, 3> d2F_dx2, d2F_dy2, d2F_dz2;
-
         blitz::RectDomain<3> fCore, fBulk;
         blitz::RectDomain<3> fCLft, fCRgt;
         blitz::RectDomain<3> fCFrt, fCBak;
@@ -59,9 +49,9 @@ class field {
 
         mpidata *mpiHandle;
 
-        differ xDim, yDim, zDim;
-
         field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag);
+
+        blitz::RectDomain<3> shift(int dim, blitz::RectDomain<3> core, int steps);
 
         void calcDerivatives1();
         void calcDerivatives2();
@@ -89,7 +79,6 @@ class field {
  *
  *  The class stores the base data of both scalar and vector fields as blitz arrays.
  *  The data is stored with a uniform grid spacing as in the transformed plane.
- *  Correspondingly, the finite difference operations are also performed with constant grid spacing.
  *  The limits of the full domain and its core are also stored in a set of RectDomain and TinyVector objects.
  ********************************************************************************************************************************************
  */
