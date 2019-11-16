@@ -123,18 +123,18 @@ void scalar_d2::solvePDE() {
     localCount = 0.0;
 
     // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-    V.interPc2Vz = 0.0;
+    V.interTempZ = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }
-    V.interPc2Vz /= V.Vz.PcIntSlices.size();
+    V.interTempZ /= V.Vz.PcIntSlices.size();
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
             localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
                             pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
 
             // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-            localUzT += V.Vz.F(iX, iY, iZ) * V.interPc2Vz(iX, iY, iZ);
+            localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
             localCount += 1.0;
         }
     }
@@ -193,11 +193,11 @@ void scalar_d2::solvePDE() {
         localCount = 0.0;
 
         // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-        V.interPc2Vz = 0.0;
+        V.interTempZ = 0.0;
         for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-            V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+            V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
         }
-        V.interPc2Vz /= V.Vz.PcIntSlices.size();
+        V.interTempZ /= V.Vz.PcIntSlices.size();
 
         for (int iX = xLow; iX <= xTop; iX++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
@@ -205,7 +205,7 @@ void scalar_d2::solvePDE() {
                                 pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
 
                 // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-                localUzT += V.Vz.F(iX, iY, iZ) * V.interPc2Vz(iX, iY, iZ);
+                localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
                 localCount += 1.0;
             }
         }
@@ -317,20 +317,20 @@ void scalar_d2::computeTimeStep() {
     // THIS CONTRIBUTION IS Uz FOR RBC AND SST, BUT Ux FOR VERTICAL CONVECTION
     } else {
         if (inputParams.probType == 5 || inputParams.probType == 6) {
-            T.interVz = 0.0;
+            T.interTempF = 0.0;
             for (unsigned int i=0; i < T.F.VzIntSlices.size(); i++) {
-                T.interVz(T.F.fCore) += V.Vz.F(T.F.VzIntSlices(i));
+                T.interTempF(T.F.fCore) += V.Vz.F(T.F.VzIntSlices(i));
             }
 
-            tmpRHS.F += T.interVz/T.F.VzIntSlices.size();
+            tmpRHS.F += T.interTempF/T.F.VzIntSlices.size();
 
         } else if (inputParams.probType == 7) {
-            T.interVx = 0.0;
+            T.interTempF = 0.0;
             for (unsigned int i=0; i < T.F.VxIntSlices.size(); i++) {
-                T.interVx(T.F.fCore) += V.Vx.F(T.F.VxIntSlices(i));
+                T.interTempF(T.F.fCore) += V.Vx.F(T.F.VxIntSlices(i));
             }
 
-            tmpRHS.F += T.interVx/T.F.VxIntSlices.size();
+            tmpRHS.F += T.interTempF/T.F.VxIntSlices.size();
         }
     }
 

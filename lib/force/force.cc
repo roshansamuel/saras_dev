@@ -110,36 +110,36 @@ void force::add_RandomForce(plainvf &Hv){
 
 
 void force::add_Buoyancy(plainvf &Hv, sfield &T) {
-    V.interPc2Vz = 0.0;
+    V.interTempZ = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }
 
-    V.interPc2Vz /= V.Vz.PcIntSlices.size();
+    V.interTempZ /= V.Vz.PcIntSlices.size();
 
-    Hv.Vz += Fb*V.interPc2Vz;
+    Hv.Vz += Fb*V.interTempZ;
 }
 
 
 void force::add_Coriolis(plainvf &Hv){
 #ifndef PLANAR
     //ADD THE ROTATING TERM IN THE Vx COMPONENT OF Hv
-    V.interVy2Vx = 0.0;
+    V.interTempX = 0.0;
     for (unsigned int i=0; i < V.Vx.VyIntSlices.size(); i++) {
-        V.interVy2Vx(V.Vx.fCore) += V.Vy.F(V.Vx.VyIntSlices(i));
+        V.interTempX(V.Vx.fCore) += V.Vy.F(V.Vx.VyIntSlices(i));
     }   
-    V.interVy2Vx /= V.Vx.VyIntSlices.size();
+    V.interTempX /= V.Vx.VyIntSlices.size();
 
-    Hv.Vx += Fr*V.interVy2Vx;
+    Hv.Vx += Fr*V.interTempX;
 
     //SUBTRACT THE ROTATING TERM IN THE Vy COMPONENT of Hv
-    V.interVx2Vy = 0.0;
+    V.interTempY = 0.0;
     for (unsigned int i=0; i < V.Vy.VxIntSlices.size(); i++) {
-        V.interVx2Vy(V.Vy.fCore) += V.Vx.F(V.Vy.VxIntSlices(i));
+        V.interTempY(V.Vy.fCore) += V.Vx.F(V.Vy.VxIntSlices(i));
     }   
-    V.interVx2Vy /= V.Vy.VxIntSlices.size();
+    V.interTempY /= V.Vy.VxIntSlices.size();
 
-    Hv.Vy -= Fr*V.interVx2Vy;
+    Hv.Vy -= Fr*V.interTempY;
 #endif
 }
 

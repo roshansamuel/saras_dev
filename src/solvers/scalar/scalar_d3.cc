@@ -157,9 +157,9 @@ void scalar_d3::solvePDE() {
     localCount = 0.0;
 
     // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-    V.interPc2Vz = 0.0;
+    V.interTempZ = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iY = yLow; iY <= yTop; iY++) {
@@ -169,7 +169,7 @@ void scalar_d3::solvePDE() {
                                 pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
 
                 // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-                localUzT += V.Vz.F(iX, iY, iZ) * V.interPc2Vz(iX, iY, iZ);
+                localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
                 localCount += 1.0;
             }
         }
@@ -230,11 +230,11 @@ void scalar_d3::solvePDE() {
         localCount = 0.0;
 
         // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-        V.interPc2Vz = 0.0;
+        V.interTempZ = 0.0;
         for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-            V.interPc2Vz(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+            V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
         }
-        V.interPc2Vz /= V.Vz.PcIntSlices.size();
+        V.interTempZ /= V.Vz.PcIntSlices.size();
 
         for (int iX = xLow; iX <= xTop; iX++) {
             for (int iY = yLow; iY <= yTop; iY++) {
@@ -244,7 +244,7 @@ void scalar_d3::solvePDE() {
                                     pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
 
                     // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-                    localUzT += V.Vz.F(iX, iY, iZ) * V.interPc2Vz(iX, iY, iZ);
+                    localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
                     localCount += 1.0; 
                 }
             }

@@ -4,26 +4,25 @@
 #include "field.h"
 #include "derivative.h"
 
-class plainsf;       // FORWARD DECLARATION
-class plainvf;       // FORWARD DECLARATION
-
-class vfield;        // FORWARD DECLARATION
+// Forward declarations of relevant classes
+class plainsf;
+class plainvf;
+class vfield;
 
 class sfield {
     private:
         const grid &gridData;
-        blitz::Array<double, 3> tempMat;
+
+        blitz::Array<double, 3> derivTempF;
         
     public:
         field F;
+
         derivative derS;
 
         std::string fieldName;
 
-        // The following public arrays for getting interpolated values of variables are available *only if allocDerivatives flag is set to true*
-        // Attempting to use these arrays of an sfield with allocDerivatives set to false may give seg-fault!
-        blitz::Array<double, 3> interVx, interVy, interVz;
-        
+        blitz::Array<double, 3> interTempF;
 
         sfield(const grid &gridData, std::string fieldName);
 

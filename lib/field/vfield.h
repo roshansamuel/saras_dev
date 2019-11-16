@@ -1,7 +1,6 @@
 #ifndef VFIELD_H
 #define VFIELD_H
 
-#include <math.h>
 #include "field.h"
 #include "derivative.h"
 
@@ -13,26 +12,23 @@ class sfield;
 class vfield {
     private:
         const grid &gridData;
-        blitz::Array<double, 3> tempMatX, tempMatY, tempMatZ;
+
+        blitz::Array<double, 3> derivTempX, derivTempY, derivTempZ;
 
     public:
         field Vx, Vy, Vz;
+
         derivative derVx, derVy, derVz;
 
         std::string fieldName;
 
-        // The following public arrays for getting interpolated values of variables are available *only if allocDerivatives flag is set to true*
-        // Attempting to use these arrays of a vfield with allocDerivatives set to false may give seg-fault!
-        blitz::Array<double, 3> interVx2Vx, interVy2Vx, interVz2Vx;
-        blitz::Array<double, 3> interVx2Vy, interVy2Vy, interVz2Vy;
-        blitz::Array<double, 3> interVx2Vz, interVy2Vz, interVz2Vz;
-        blitz::Array<double, 3> interPc2Vz;
+        blitz::Array<double, 3> interTempX, interTempY, interTempZ;
 
         vfield(const grid &gridData, std::string fieldName);
 
         void computeDiff(plainvf &H);
-        void computeNLin(const vfield &V, plainvf &H);
         void computeTStp(double &dt_out);
+        void computeNLin(const vfield &V, plainvf &H);
 
         void divergence(plainsf &divV, const sfield &P);
 

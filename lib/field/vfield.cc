@@ -25,50 +25,25 @@ vfield::vfield(const grid &gridData, std::string fieldName):
 {
     this->fieldName = fieldName;
 
-    interVx2Vx.resize(Vx.fSize);
-    interVx2Vx.reindexSelf(Vx.flBound);
+    interTempX.resize(Vx.fSize);
+    interTempX.reindexSelf(Vx.flBound);
 
-    interVx2Vy.resize(Vy.fSize);
-    interVx2Vy.reindexSelf(Vy.flBound);
-
-    interVx2Vz.resize(Vz.fSize);
-    interVx2Vz.reindexSelf(Vz.flBound);
+    derivTempX.resize(Vx.fSize);
+    derivTempX.reindexSelf(Vx.flBound);
 
 #ifndef PLANAR
-    interVy2Vx.resize(Vx.fSize);
-    interVy2Vx.reindexSelf(Vx.flBound);
+    interTempY.resize(Vy.fSize);
+    interTempY.reindexSelf(Vy.flBound);
 
-    interVy2Vy.resize(Vy.fSize);
-    interVy2Vy.reindexSelf(Vy.flBound);
-
-    interVy2Vz.resize(Vz.fSize);
-    interVy2Vz.reindexSelf(Vz.flBound);
+    derivTempY.resize(Vy.fSize);
+    derivTempY.reindexSelf(Vy.flBound);
 #endif
 
-    interVz2Vx.resize(Vx.fSize);
-    interVz2Vx.reindexSelf(Vx.flBound);
+    interTempZ.resize(Vz.fSize);
+    interTempZ.reindexSelf(Vz.flBound);
 
-    interVz2Vy.resize(Vy.fSize);
-    interVz2Vy.reindexSelf(Vy.flBound);
-
-    interVz2Vz.resize(Vz.fSize);
-    interVz2Vz.reindexSelf(Vz.flBound);
-
-    // Below array is used only in scalar solvers
-    interPc2Vz.resize(Vz.fSize);
-    interPc2Vz.reindexSelf(Vz.flBound);
-
-    tempMatX.resize(Vx.fSize);
-    tempMatX.reindexSelf(Vx.flBound);
-    tempMatX=0.0;
-#ifndef PLANAR
-    tempMatY.resize(Vy.fSize);
-    tempMatY.reindexSelf(Vy.flBound);
-    tempMatY=0.0;
-#endif
-    tempMatZ.resize(Vz.fSize);
-    tempMatZ.reindexSelf(Vz.flBound);
-    tempMatZ=0.0;
+    derivTempZ.resize(Vz.fSize);
+    derivTempZ.reindexSelf(Vz.flBound);
 }
 
 /**
@@ -82,47 +57,47 @@ vfield::vfield(const grid &gridData, std::string fieldName):
  ********************************************************************************************************************************************
  */
 void vfield::computeDiff(plainvf &H) {
-    derVx.calcDerivative2xx(tempMatX);
-    H.Vx(Vx.fCore) += tempMatX(Vx.fCore);
-    tempMatX=0.0;
+    derivTempX = 0.0;
+    derVx.calcDerivative2xx(derivTempX);
+    H.Vx(Vx.fCore) += derivTempX(Vx.fCore);
 
 #ifndef PLANAR
-    derVx.calcDerivative2yy(tempMatX);
-    H.Vx(Vx.fCore) += tempMatX(Vx.fCore);
-    tempMatX=0.0;
+    derivTempX = 0.0;
+    derVx.calcDerivative2yy(derivTempX);
+    H.Vx(Vx.fCore) += derivTempX(Vx.fCore);
 #endif
 
-    derVx.calcDerivative2zz(tempMatX);
-    H.Vx(Vx.fCore) += tempMatX(Vx.fCore);
-    tempMatX=0.0;
+    derivTempX = 0.0;
+    derVx.calcDerivative2zz(derivTempX);
+    H.Vx(Vx.fCore) += derivTempX(Vx.fCore);
 
 #ifndef PLANAR
-    derVy.calcDerivative2xx(tempMatY);
-    H.Vy(Vy.fCore) += tempMatY(Vy.fCore);
-    tempMatY=0.0;
+    derivTempY = 0.0;
+    derVy.calcDerivative2xx(derivTempY);
+    H.Vy(Vy.fCore) += derivTempY(Vy.fCore);
 
-    derVy.calcDerivative2yy(tempMatY);
-    H.Vy(Vy.fCore) += tempMatY(Vy.fCore);
-    tempMatY=0.0;
+    derivTempY = 0.0;
+    derVy.calcDerivative2yy(derivTempY);
+    H.Vy(Vy.fCore) += derivTempY(Vy.fCore);
 
-    derVy.calcDerivative2zz(tempMatY);
-    H.Vy(Vy.fCore) += tempMatY(Vy.fCore);
-    tempMatY=0.0;
+    derivTempY = 0.0;
+    derVy.calcDerivative2zz(derivTempY);
+    H.Vy(Vy.fCore) += derivTempY(Vy.fCore);
 #endif
 
-    derVz.calcDerivative2xx(tempMatZ);
-    H.Vz(Vz.fCore) += tempMatZ(Vz.fCore);
-    tempMatZ=0.0;
+    derivTempZ = 0.0;
+    derVz.calcDerivative2xx(derivTempZ);
+    H.Vz(Vz.fCore) += derivTempZ(Vz.fCore);
 
 #ifndef PLANAR
-    derVz.calcDerivative2yy(tempMatZ);
-    H.Vz(Vz.fCore) += tempMatZ(Vz.fCore);
-    tempMatZ=0.0;
+    derivTempZ = 0.0;
+    derVz.calcDerivative2yy(derivTempZ);
+    H.Vz(Vz.fCore) += derivTempZ(Vz.fCore);
 #endif
 
-    derVz.calcDerivative2zz(tempMatZ);
-    H.Vz(Vz.fCore) += tempMatZ(Vz.fCore);
-    tempMatZ=0.0;
+    derivTempZ = 0.0;
+    derVz.calcDerivative2zz(derivTempZ);
+    H.Vz(Vz.fCore) += derivTempZ(Vz.fCore);
 }
 
 /**
@@ -142,102 +117,103 @@ void vfield::computeDiff(plainvf &H) {
  */
 void vfield::computeNLin(const vfield &V, plainvf &H) {
     // Compute non-linear term for the Vx component
-    interVx2Vx = 0.0;
+    interTempX = 0.0;
     for (unsigned int i=0; i < Vx.VxIntSlices.size(); i++) {
-        interVx2Vx(Vx.fCore) += V.Vx.F(Vx.VxIntSlices(i));
+        interTempX(Vx.fCore) += V.Vx.F(Vx.VxIntSlices(i));
     }
+
+    derivTempX = 0.0;
+    derVx.calcDerivative1_x(derivTempX);
+    H.Vx(Vx.fCore) -= interTempX(Vx.fCore)*derivTempX(Vx.fCore)/Vx.VxIntSlices.size();
+
 #ifndef PLANAR
-    interVy2Vx = 0.0;
+    interTempX = 0.0;
     for (unsigned int i=0; i < Vx.VyIntSlices.size(); i++) {
-        interVy2Vx(Vx.fCore) += V.Vy.F(Vx.VyIntSlices(i));
+        interTempX(Vx.fCore) += V.Vy.F(Vx.VyIntSlices(i));
     }
+
+    derivTempX = 0.0;
+    derVx.calcDerivative1_y(derivTempX);
+    H.Vx(Vx.fCore) -= interTempX(Vx.fCore)*derivTempX(Vx.fCore)/Vx.VyIntSlices.size();
 #endif
-    interVz2Vx = 0.0;
+
+    interTempX = 0.0;
     for (unsigned int i=0; i < Vx.VzIntSlices.size(); i++) {
-        interVz2Vx(Vx.fCore) += V.Vz.F(Vx.VzIntSlices(i));
+        interTempX(Vx.fCore) += V.Vz.F(Vx.VzIntSlices(i));
     }
 
-    derVx.calcDerivative1_x(tempMatX);
-    H.Vx(Vx.fCore) -= interVx2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VxIntSlices.size();
-    tempMatX = 0.0;
-
-#ifndef PLANAR
-    derVx.calcDerivative1_y(tempMatX);
-    H.Vx(Vx.fCore) -= interVy2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VyIntSlices.size();
-    tempMatX = 0.0;
-#endif
-
-    derVx.calcDerivative1_z(tempMatX);
-    H.Vx(Vx.fCore) -= interVz2Vx(Vx.fCore)*tempMatX(Vx.fCore)/Vx.VzIntSlices.size();
-    tempMatX = 0.0;    
+    derivTempX = 0.0;    
+    derVx.calcDerivative1_z(derivTempX);
+    H.Vx(Vx.fCore) -= interTempX(Vx.fCore)*derivTempX(Vx.fCore)/Vx.VzIntSlices.size();
 
 // Compute non-linear term for the Vy component
 #ifndef PLANAR
-    interVx2Vy = 0.0;
+    interTempY = 0.0;
     for (unsigned int i=0; i < Vy.VxIntSlices.size(); i++) {
-        interVx2Vy(Vy.fCore) += V.Vx.F(Vy.VxIntSlices(i));
+        interTempY(Vy.fCore) += V.Vx.F(Vy.VxIntSlices(i));
     }
-    interVy2Vy = 0.0;
+
+    derivTempY = 0.0;
+    derVy.calcDerivative1_x(derivTempY);
+    H.Vy(Vy.fCore) -= interTempY(Vy.fCore)*derivTempY(Vy.fCore)/Vy.VxIntSlices.size();
+
+    interTempY = 0.0;
     for (unsigned int i=0; i < Vy.VyIntSlices.size(); i++) {
-        interVy2Vy(Vy.fCore) += V.Vy.F(Vy.VyIntSlices(i));
+        interTempY(Vy.fCore) += V.Vy.F(Vy.VyIntSlices(i));
     }
-    interVz2Vy = 0.0;
+
+    derivTempY = 0.0;
+    derVy.calcDerivative1_y(derivTempY);
+    H.Vy(Vy.fCore) -= interTempY(Vy.fCore)*derivTempY(Vy.fCore)/Vy.VyIntSlices.size();
+
+    interTempY = 0.0;
     for (unsigned int i=0; i < Vy.VzIntSlices.size(); i++) {
-        interVz2Vy(Vy.fCore) += V.Vz.F(Vy.VzIntSlices(i));
+        interTempY(Vy.fCore) += V.Vz.F(Vy.VzIntSlices(i));
     }
 
-    derVy.calcDerivative1_x(tempMatY);
-    H.Vy(Vy.fCore) -= interVx2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VxIntSlices.size();
-    tempMatY = 0.0;
-
-    derVy.calcDerivative1_y(tempMatY);
-    H.Vy(Vy.fCore) -= interVy2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VyIntSlices.size();
-    tempMatY = 0.0;
-
-    derVy.calcDerivative1_z(tempMatY);
-    H.Vy(Vy.fCore) -= interVz2Vy(Vy.fCore)*tempMatY(Vy.fCore)/Vy.VzIntSlices.size();
-    tempMatY = 0.0;    
+    derivTempY = 0.0;
+    derVy.calcDerivative1_z(derivTempY);
+    H.Vy(Vy.fCore) -= interTempY(Vy.fCore)*derivTempY(Vy.fCore)/Vy.VzIntSlices.size();
 #endif
 
     // Compute non-linear term for the Vz component
-    interVx2Vz = 0.0;
+    interTempZ = 0.0;
     for (unsigned int i=0; i < Vz.VxIntSlices.size(); i++) {
-        interVx2Vz(Vz.fCore) += V.Vx.F(Vz.VxIntSlices(i));
+        interTempZ(Vz.fCore) += V.Vx.F(Vz.VxIntSlices(i));
     }
+
+    derivTempZ = 0.0;
+    derVz.calcDerivative1_x(derivTempZ);
+    H.Vz(Vz.fCore) -= interTempZ(Vz.fCore)*derivTempZ(Vz.fCore)/Vz.VxIntSlices.size();
+
 #ifndef PLANAR
-    interVy2Vz = 0.0;
+    interTempZ = 0.0;
     for (unsigned int i=0; i < Vz.VyIntSlices.size(); i++) {
-        interVy2Vz(Vz.fCore) += V.Vy.F(Vz.VyIntSlices(i));
+        interTempZ(Vz.fCore) += V.Vy.F(Vz.VyIntSlices(i));
     }
+
+    derivTempZ = 0.0;
+    derVz.calcDerivative1_y(derivTempZ);
+    H.Vz(Vz.fCore) -= interTempZ(Vz.fCore)*derivTempZ(Vz.fCore)/Vz.VyIntSlices.size();
 #endif
-    interVz2Vz = 0.0;
+
+    interTempZ = 0.0;
     for (unsigned int i=0; i < Vz.VzIntSlices.size(); i++) {
-        interVz2Vz(Vz.fCore) += V.Vz.F(Vz.VzIntSlices(i));
+        interTempZ(Vz.fCore) += V.Vz.F(Vz.VzIntSlices(i));
     }
 
-    derVz.calcDerivative1_x(tempMatZ);
-    H.Vz(Vz.fCore) -= interVx2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VxIntSlices.size();
-    tempMatZ = 0.0;
-
-#ifndef PLANAR
-    derVz.calcDerivative1_y(tempMatZ);
-    H.Vz(Vz.fCore) -= interVy2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VyIntSlices.size();
-    tempMatZ = 0.0;
-#endif
-
-    derVz.calcDerivative1_z(tempMatZ);
-    H.Vz(Vz.fCore) -= interVz2Vz(Vz.fCore)*tempMatZ(Vz.fCore)/Vz.VzIntSlices.size();
-    tempMatZ = 0.0;    
+    derivTempZ = 0.0;
+    derVz.calcDerivative1_z(derivTempZ);
+    H.Vz(Vz.fCore) -= interTempZ(Vz.fCore)*derivTempZ(Vz.fCore)/Vz.VzIntSlices.size();
 }
 
 /**
-********************************************************************************************************************************************
-* \brief    Operator is used to calculate time step #dt_calc for time integration using CFL Condition with desired Courant No
-*           
-*
-*********************************************************************************************************************************************
-*/
-
+ ********************************************************************************************************************************************
+ * \brief   Operator is used to calculate time step #dt_out for time integration using CFL Condition with desired Courant No
+ *           
+ * \param   dt_out is a reference to a double precision variable into which the calculated value of time-step has to be written
+ *********************************************************************************************************************************************
+ */
 void vfield::computeTStp(double &dt_out) {
     double Umax, Vmax, Wmax;
     double delx, dely, delz; 
