@@ -68,10 +68,10 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
     // INITIALIZE VARIABLES
     if (inputParams.restartFlag) {
-        // Scalar fields to be read from HDF5 file is passed to reader class as a vector
+        // Fields to be read from HDF5 file are passed to reader class as a vector
         std::vector<field> readFields;
 
-        // Populate the vector with required scalar fields
+        // Populate the vector with required fields
         readFields.push_back(V.Vx);
         readFields.push_back(V.Vy);
         readFields.push_back(V.Vz);
@@ -131,7 +131,7 @@ void hydro_d3::solvePDE() {
     double fwTime, prTime, rsTime;
     double totalEnergy, localEnergy;
 
-    // Scalar field to compute divergence
+    // Plain scalar field to compute divergence
     plainsf divV(mesh, P);
 #endif
 
@@ -144,7 +144,7 @@ void hydro_d3::solvePDE() {
     pois_time = 0.0;
 
 #else
-    // Scalar fields to be written into HDF5 file is passed to writer class as a vector
+    // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
 
     // Populate the vector with required scalar fields
@@ -225,17 +225,25 @@ void hydro_d3::solvePDE() {
                                 std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << inputParams.tStp << std::endl;
     }
 
-    // WRITE DATA AT t = 0
-    if (not inputParams.restartFlag) {
+    if (inputParams.restartFlag) {
+        // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
+        fwTime += std::fmod(time, inputParams.fwInt);
+        prTime += std::fmod(time, inputParams.prInt);
+        rsTime += std::fmod(time, inputParams.rsInt);
+
+    } else {
+        // WRITE DATA AT t = 0
         dataWriter.writeSolution(time);
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
         }
+
+        // FOR RUNS STARTING FROM t = 0, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE OUTPUT WRITE INTERVAL.
+        fwTime += inputParams.fwInt;
+        prTime += inputParams.prInt;
+        rsTime += inputParams.rsInt;
     }
-    fwTime += inputParams.fwInt;
-    prTime += inputParams.prInt;
-    rsTime += inputParams.rsInt;
 #endif
 
     // TIME-INTEGRATION LOOP

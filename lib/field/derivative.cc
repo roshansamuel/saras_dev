@@ -106,7 +106,7 @@ derivative::derivative(const grid &gridData, const field &F): gridData(gridData)
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative1_x(blitz::Array<double, 3> outputMat) {
-    outputMat(blitz::Range(0, F.F.ubound(0)-1), fullRange, fullRange) = central12n(F.F, 0);
+    outputMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central12n(F.F, 0);
     outputMat *= invDelx;
 
     outputMat = x_Metric(i)*outputMat(i, j, k);
@@ -121,7 +121,7 @@ void derivative::calcDerivative1_x(blitz::Array<double, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative1_y(blitz::Array<double, 3> outputMat) {
-    outputMat(fullRange, blitz::Range(0, F.F.ubound(1)-1), fullRange) = central12n(F.F, 1);
+    outputMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central12n(F.F, 1);
     outputMat *= invDely;
 
     outputMat = y_Metric(j)*outputMat(i, j, k);
@@ -136,7 +136,7 @@ void derivative::calcDerivative1_y(blitz::Array<double, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative1_z(blitz::Array<double, 3> outputMat) {
-    outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2)-1)) = central12n(F.F, 2);
+    outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central12n(F.F, 2);
     outputMat *= invDelz;
 
     outputMat = z_Metric(k)*outputMat(i, j, k);
@@ -151,10 +151,10 @@ void derivative::calcDerivative1_z(blitz::Array<double, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative2xx(blitz::Array<double, 3> outputMat) {
-    tempMat(blitz::Range(0, F.F.ubound(0)-1), fullRange, fullRange) = central12n(F.F, 0);
+    tempMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central12n(F.F, 0);
     tempMat *= invDelx;
 
-    outputMat(blitz::Range(0, F.F.ubound(0)-1), fullRange, fullRange) = central22n(F.F, 0);
+    outputMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central22n(F.F, 0);
     outputMat *= invDelx*invDelx;
 
     if (gridData.inputParams.iScheme == 1) {
@@ -174,10 +174,10 @@ void derivative::calcDerivative2xx(blitz::Array<double, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative2yy(blitz::Array<double, 3> outputMat) {
-    tempMat(fullRange, blitz::Range(0, F.F.ubound(1)-1), fullRange) = central12n(F.F, 1);
+    tempMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central12n(F.F, 1);
     tempMat *= invDely;
 
-    outputMat(fullRange, blitz::Range(0, F.F.ubound(1)-1), fullRange) = central22n(F.F, 1);
+    outputMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central22n(F.F, 1);
     outputMat *= invDely*invDely;
     
     if (gridData.inputParams.iScheme == 1) {
@@ -196,10 +196,10 @@ void derivative::calcDerivative2yy(blitz::Array<double, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative2zz(blitz::Array<double, 3> outputMat) {
-    tempMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2)-1)) = central12n(F.F, 2);
+    tempMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central12n(F.F, 2);
     tempMat *= invDelz;
 
-    outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2)-1)) = central22n(F.F, 2);
+    outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central22n(F.F, 2);
     outputMat *= invDelz*invDelz;
     
     if (gridData.inputParams.iScheme == 1) {

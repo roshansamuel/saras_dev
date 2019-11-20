@@ -65,10 +65,10 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
     // INITIALIZE VARIABLES
     if (inputParams.restartFlag) {
-        // Scalar fields to be read from HDF5 file is passed to reader class as a vector
+        // Fields to be read from HDF5 file are passed to reader class as a vector
         std::vector<field> readFields;
 
-        // Populate the vector with required scalar fields
+        // Populate the vector with required fields
         readFields.push_back(V.Vx);
         readFields.push_back(V.Vz);
         readFields.push_back(P.F);
@@ -85,28 +85,14 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
         P = 1.0;
 
         // INITIALIZE VARIABLES
-        //initCond = new initial(mesh);
+        initCond = new initial(mesh);
 
         if (inputParams.probType == 1) {
             // FOR LDC, SET THE X-VELOCITY OF STAGGERED POINTS ON THE LID TO 1.0
             V.Vx.F(blitz::Range::all(), blitz::Range::all(), mesh.staggrCoreDomain.ubound(2)) = 1.0;
 
         } else if (inputParams.probType == 2) {
-            // X-VELOCITY
-            for (int i=V.Vx.F.lbound(0); i <= V.Vx.F.ubound(0); i++) {
-                for (int k=V.Vx.F.lbound(2); k <= V.Vx.F.ubound(2); k++) {
-                    V.Vx.F(i, 0, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
-                                        cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
-                }
-            }
-
-            // Z-VELOCITY
-            for (int i=V.Vz.F.lbound(0); i <= V.Vz.F.ubound(0); i++) {
-                for (int k=V.Vz.F.lbound(2); k <= V.Vz.F.ubound(2); k++) {
-                    V.Vz.F(i, 0, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                         sin(2.0*M_PI*mesh.zColloc(k)/mesh.zLen);
-                }
-            }
+            initCond->initTGV(V);
         }
 
         //switch (inputParams.icType) {
@@ -134,13 +120,13 @@ void hydro_d2::solvePDE() {
     double fwTime, prTime, rsTime;
     double totalEnergy, localEnergy;
 
-    // Scalar field to compute divergence
+    // Plain scalar field to compute divergence
     plainsf divV(mesh, P);
 
-    // Scalar fields to be written into HDF5 file is passed to writer class as a vector
+    // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
 
-    // Populate the vector with required scalar fields
+    // Populate the vector with required fields
     writeFields.push_back(V.Vx);
     writeFields.push_back(V.Vz);
     writeFields.push_back(P.F);
@@ -208,17 +194,25 @@ void hydro_d2::solvePDE() {
                                 std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << inputParams.tStp << std::endl;
     }
 
-    // WRITE DATA AT t = 0
-    if (not inputParams.restartFlag) {
+    if (inputParams.restartFlag) {
+        // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
+        fwTime += std::fmod(time, inputParams.fwInt);
+        prTime += std::fmod(time, inputParams.prInt);
+        rsTime += std::fmod(time, inputParams.rsInt);
+
+    } else {
+        // WRITE DATA AT t = 0
         dataWriter.writeSolution(time);
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
         }
+
+        // FOR RUNS STARTING FROM t = 0, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE OUTPUT WRITE INTERVAL.
+        fwTime += inputParams.fwInt;
+        prTime += inputParams.prInt;
+        rsTime += inputParams.rsInt;
     }
-    fwTime += inputParams.fwInt;
-    prTime += inputParams.prInt;
-    rsTime += inputParams.rsInt;
 
     dt = inputParams.tStp;
     // TIME-INTEGRATION LOOP

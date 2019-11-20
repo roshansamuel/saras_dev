@@ -39,7 +39,7 @@
     # The radius of this plate is specified below.
     # If the radius exceeds half the domain length specifed above, the solver will run like ordinary RBC
     # Currently the solver supports this non-homogeneous BC only for 3D runs
-    "Patch Radius": 0.25
+    "Plate Radius": 0.25
 
     # Choose the type of forcing (source term)
     # 0 = No forcing
@@ -106,10 +106,10 @@
     "I/O Count": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.5
+    "Solution Write Interval": 0.02
 
     # Time interval at which restart file must be written
-    "Restart Write Interval": 0.1
+    "Restart Write Interval": 0.02
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false

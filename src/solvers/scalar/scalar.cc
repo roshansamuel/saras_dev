@@ -104,7 +104,7 @@ scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
  *          The implicit equation for \f$ \theta' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
  *          iterative method here.
  *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref sfield#fieldMax "fieldMax" function
+ *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainsf#fxMax "fxMax" function
  *          of scalar fields in sfield.h falls below the specified tolerance.
  *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
  *          aborts with an error message.

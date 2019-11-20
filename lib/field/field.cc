@@ -108,7 +108,7 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
  *          These objects are shifted along the dimension specified in the argument, by <B>dim</B>, through a number of steps,
  *          to offer offset views.
  *
- * \param   dim is the integer input to specify the dimension (direction) of the shift. [x-0	y-1		z-2] 
+ * \param   dim is the integer input to specify the dimension (direction) of the shift. (x -> 0, y -> 1, z -> 2)
  * \param   core is the input RectDomain object which is to be shifted to get the new view
  * \param   steps is the integer value by which the input view must be offset along the dimension specified by <B>dim</B>
  *
@@ -586,6 +586,7 @@ void field::syncData() {
  * \brief   Function to extract the maximum value from the field
  *
  *          The function uses the in-built blitz function to obtain the maximum value in an array.
+ *          Note that this function *takes the maximum of the absolute value* of the field.
  *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
  *          the global maximum from the entire computational domain.
  *
@@ -595,7 +596,7 @@ void field::syncData() {
 double field::fieldMax() {
     double localMax, globalMax;
 
-    localMax = blitz::max(F);
+    localMax = blitz::max(blitz::abs(F));
 
     /***************************************************************************************************************
      * DID YOU KNOW?                                                                                               *

@@ -133,7 +133,7 @@ void hydro::checkPeriodic() {
  *          The implicit equation for \f$ u_x' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
  *          iterative method here.
  *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref sfield#fieldMax "fieldMax" function
+ *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainvf#vxMax "vxMax" function
  *          of scalar fields in sfield.h falls below the specified tolerance.
  *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
  *          aborts with an error message.
@@ -152,7 +152,7 @@ void hydro::solveVx() { };
  *          The implicit equation for \f$ u_y' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
  *          iterative method here.
  *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref sfield#fieldMax "fieldMax" function
+ *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainvf#vyMax "vyMax" function
  *          of scalar fields in sfield.h falls below the specified tolerance.
  *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
  *          aborts with an error message.
@@ -171,7 +171,7 @@ void hydro::solveVy() { };
  *          The implicit equation for \f$ u_z' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
  *          iterative method here.
  *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref sfield#fieldMax "fieldMax" function
+ *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainvf#vzMax "vzMax" function
  *          of scalar fields in sfield.h falls below the specified tolerance.
  *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
  *          aborts with an error message.

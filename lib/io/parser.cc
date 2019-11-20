@@ -94,7 +94,7 @@ void parser::parseYAML() {
     yamlNode["Program"]["Force"] >> forceType;
 
     yamlNode["Program"]["Heating Plate"] >> nonHgBC;
-    yamlNode["Program"]["Patch Radius"] >> patchRadius;
+    yamlNode["Program"]["Plate Radius"] >> patchRadius;
 
     /********** Mesh parameters **********/
     yamlNode["Mesh"]["Mesh Type"] >> meshType;

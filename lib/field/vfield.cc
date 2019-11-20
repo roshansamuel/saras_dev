@@ -259,25 +259,7 @@ void vfield::computeNLin(const vfield &V, plainvf &H) {
 void vfield::computeTStp(double &dt_out) {
     double Umax, Vmax, Wmax;
     double delx, dely, delz; 
-    double localUmax, localVmax, localWmax;
 
-    delx = gridData.dXi;
-    localUmax = blitz::max(abs(Vx.F)); 
-#ifdef PLANAR
-    dely = 0.0;
-    localVmax = 1.0;
-#else
-    dely = gridData.dEt;
-    localVmax = blitz::max(abs(Vy.F));
-#endif
-    delz = gridData.dZt;
-    localWmax = blitz::max(abs(Vz.F));
-
-    MPI_Allreduce(&localUmax, &Umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&localVmax, &Vmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&localWmax, &Wmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-
-    /*
     delx = gridData.dXi;
     Umax = Vx.fieldMax();
 #ifdef PLANAR
@@ -289,11 +271,6 @@ void vfield::computeTStp(double &dt_out) {
 #endif
     delz = gridData.dZt;
     Wmax = Vz.fieldMax();
-    */
-
-    //if (gridData.rankData.rank == 0) std::cout << Umax << std::endl;
-    //if (gridData.rankData.rank == 0) std::cout << Vmax << std::endl;
-    //if (gridData.rankData.rank == 0) std::cout << Wmax << std::endl;
 
     dt_out = double(gridData.inputParams.courantNumber*(delx/Umax + dely/Vmax + delz/Wmax));
 }

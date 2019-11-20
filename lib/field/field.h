@@ -60,14 +60,6 @@ class field {
 
         void setInterpolationSlices();
 
-        inline void x1Deriv();
-        inline void y1Deriv();
-        inline void z1Deriv();
-
-        inline void x2Deriv();
-        inline void y2Deriv();
-        inline void z2Deriv();
-
     public:
         blitz::Array<double, 3> F;
 
@@ -93,14 +85,11 @@ class field {
 
         field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag);
 
-        blitz::RectDomain<3> shift(int dim, blitz::RectDomain<3> core, int steps);
-
-        void calcDerivatives1();
-        void calcDerivatives2();
-
         void syncData();
 
         double fieldMax();
+
+        blitz::RectDomain<3> shift(int dim, blitz::RectDomain<3> core, int steps);
 
         field& operator += (field &a);
         field& operator -= (field &a);

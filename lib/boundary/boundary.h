@@ -45,33 +45,39 @@
 
 #include <blitz/array.h>
 
-#include "sfield.h"
+#include "field.h"
 #include "grid.h"
 
 class boundary {
-    private:
-        const grid &mesh;
-
-        sfield &dField;
-
-        bool nonHgBC;
-
-        blitz::Array<double, 1> x, y, z;
-        blitz::Array<double, 1> xGlo, yGlo, zGlo;
-
-        void setXYZ();
-
     public:
-        blitz::Array<bool, 3> wallMask;
-        blitz::Array<double, 3> wallData;
-
-        /*****************************************************************************************************************************************************/
-
-        boundary(const grid &mesh, sfield &inField);
+        boundary(const grid &mesh, field &inField, const bool bcType, const int shiftDim);
 
         void createPatch(int wallNum);
 
         void imposeBC();
+
+    private:
+        const grid &mesh;
+
+        field &dField;
+
+        bool nonHgBC;
+        const bool drcBC;
+        const int dimVal;
+
+        // The following arrays are allocated memory only if non-homogeneous BCs are being used.
+        // Hence attempting to access these arrays in other situations will result in seg-fault.
+        blitz::Array<bool, 3> wallMask;
+        blitz::Array<double, 3> wallData;
+
+        blitz::Array<double, 1> x, y, z;
+        blitz::Array<double, 1> xGlo, yGlo, zGlo;
+
+        void imposeBC_X();
+        void imposeBC_Y();
+        void imposeBC_Z();
+
+        void setXYZ();
 };
 
 /**
