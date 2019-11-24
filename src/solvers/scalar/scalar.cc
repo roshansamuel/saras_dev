@@ -115,3 +115,69 @@ scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
  ********************************************************************************************************************************************
  */
 void scalar::solveT() { };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to initialize the boundary conditions for temperature
+ *
+ *          The boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.
+ *          Out of the different boundary conditions available in the boundary class,
+ *          the appropriate BCs are chosen according to the type of problem being solved.
+ ********************************************************************************************************************************************
+ */
+void scalar::initTBC() {
+    // ADIABATIC BC FOR RBC, SST AND RRBC
+    if (inputParams.probType == 5 || inputParams.probType == 6 || inputParams.probType == 8) {
+        tLft = new neumannCC(mesh, T.F, 0, 0.0);
+        tRgt = new neumannCC(mesh, T.F, 1, 0.0);
+
+    // CONDUCTING BC FOR VERTICAL CONVECTION
+    } else if (inputParams.probType == 7) {
+        tLft = new dirichletCC(mesh, T.F, 0, 1.0);
+        tRgt = new dirichletCC(mesh, T.F, 1, 0.0);
+    }
+#ifndef PLANAR
+    tFrn = new neumannCC(mesh, T.F, 2, 0.0);
+    tBak = new neumannCC(mesh, T.F, 3, 0.0);
+#endif
+    // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
+    if (inputParams.probType == 5 || inputParams.probType == 8) {
+        if (inputParams.nonHgBC) {
+            tBot = new hotPlateCC(mesh, T.F, 4, inputParams.patchRadius);
+        } else {
+            tBot = new dirichletCC(mesh, T.F, 4, 1.0);
+        }
+        tTop = new dirichletCC(mesh, T.F, 5, 0.0);
+
+    // COLD PLATE AT BOTTOM AND HOT PLATE AT TOP FOR SST
+    } else if (mesh.inputParams.probType == 6) {
+        tBot = new dirichletCC(mesh, T.F, 4, 0.0);
+        tTop = new dirichletCC(mesh, T.F, 5, 1.0);
+    }
+};
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions for temperature
+ *
+ *          The boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.
+ *          Out of the different boundary conditions available in the boundary class,
+ *          the appropriate BCs are chosen according to the type of problem being solved.
+ ********************************************************************************************************************************************
+ */
+void scalar::imposeTBCs() {
+    T.syncData();
+
+    if (not inputParams.xPer) {
+        tLft->imposeBC();
+        tRgt->imposeBC();
+    }
+#ifndef PLANAR
+    if (not inputParams.yPer) {
+        tFrn->imposeBC();
+        tBak->imposeBC();
+    }
+#endif
+    tTop->imposeBC();
+    tBot->imposeBC();
+};

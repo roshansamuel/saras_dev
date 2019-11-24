@@ -29,7 +29,7 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file boundary.cc
+/*! \file dirichletFC.cc
  *
  *  \brief Definitions for functions of class boundary
  *  \sa boundary.h
@@ -53,35 +53,8 @@
  * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
  ********************************************************************************************************************************************
  */
-boundary::boundary(const grid &mesh, field &inField, const int bcWall):
-                          mesh(mesh), dField(inField), wallNum(bcWall) {
-    // By default, rankFlag is true. i.e., the BC will be applied on all sub-domains.
-    // This works only for Z-direction (in pencil decomposition), or both Z and Y directions (in slab decomposition).
-    // This has to be changed appropriately.
-    rankFlag = true;
-
-    // By default, shiftVal is 1. i.e., the BC will be applied on the left wall along a given direction.
-    // This has to be changed appropriately for the wall on the other side.
-    shiftVal = 1;
-
-    if (wallNum == 0) rankFlag = mesh.rankData.xRank == 0;
-    if (wallNum == 1) {
-        rankFlag = mesh.rankData.xRank == mesh.rankData.npX - 1;
-        shiftVal = -1;
-    }
-#ifndef PLANAR
-    if (wallNum == 2) rankFlag = mesh.rankData.yRank == 0;
-    if (wallNum == 3) {
-        rankFlag = mesh.rankData.yRank == mesh.rankData.npY - 1;
-        shiftVal = -1;
-    }
-#endif
-    if (wallNum == 5) {
-        shiftVal = -1;
-    }
-
-    shiftDim = (int) wallNum/2;
-}
+dirichletFC::dirichletFC(const grid &mesh, field &inField, const int bcWall, const double bcValue):
+                            boundary(mesh, inField, bcWall), fieldValue(bcValue) { }
 
 /**
  ********************************************************************************************************************************************
@@ -93,4 +66,8 @@ boundary::boundary(const grid &mesh, field &inField, const int bcWall):
  *
  ********************************************************************************************************************************************
  */
-void boundary::imposeBC() { };
+inline void dirichletFC::imposeBC() {
+    if (rankFlag) {
+        dField.F(dField.fWalls(wallNum)) = 2.0*fieldValue - dField.F(dField.shift(shiftDim, dField.fWalls(wallNum), shiftVal));
+    }
+}

@@ -59,14 +59,17 @@ class scalar: public hydro {
         virtual ~scalar() { };
 
     protected:
-        boundary *tempBC;
-
         plainsf tmpRHS;
 
         plainsf guessedScalar;
         plainsf scalarLaplacian;
 
+        boundary *tLft, *tRgt, *tFrn, *tBak, *tTop, *tBot;
+
         virtual void solveT();
+
+        void initTBC();
+        void imposeTBCs();
 };
 
 /**
@@ -138,9 +141,9 @@ class scalar_d3: public scalar {
 
         void solveT();
 
-        void imposeUBCs();
-        void imposeVBCs();
-        void imposeWBCs();
+        //void imposeUBCs();
+        //void imposeVBCs();
+        //void imposeWBCs();
 
         void computeTimeStep();
 };

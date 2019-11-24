@@ -53,35 +53,65 @@
  * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
  ********************************************************************************************************************************************
  */
-boundary::boundary(const grid &mesh, field &inField, const int bcWall):
-                          mesh(mesh), dField(inField), wallNum(bcWall) {
-    // By default, rankFlag is true. i.e., the BC will be applied on all sub-domains.
-    // This works only for Z-direction (in pencil decomposition), or both Z and Y directions (in slab decomposition).
-    // This has to be changed appropriately.
-    rankFlag = true;
-
-    // By default, shiftVal is 1. i.e., the BC will be applied on the left wall along a given direction.
-    // This has to be changed appropriately for the wall on the other side.
-    shiftVal = 1;
-
-    if (wallNum == 0) rankFlag = mesh.rankData.xRank == 0;
-    if (wallNum == 1) {
-        rankFlag = mesh.rankData.xRank == mesh.rankData.npX - 1;
-        shiftVal = -1;
-    }
-#ifndef PLANAR
-    if (wallNum == 2) rankFlag = mesh.rankData.yRank == 0;
-    if (wallNum == 3) {
-        rankFlag = mesh.rankData.yRank == mesh.rankData.npY - 1;
-        shiftVal = -1;
-    }
-#endif
-    if (wallNum == 5) {
-        shiftVal = -1;
-    }
-
-    shiftDim = (int) wallNum/2;
+hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const double plateRad):
+                            boundary(mesh, inField, bcWall), patchRadius(plateRad) {
+    setXYZ();
+    createPatch(patchRadius);
 }
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to set the x, y and z arrays by reference to the values in grid class
+ *
+ *          Depending on whether the variable is collocated or staggered along a given direction,
+ *          the function sets the reference to each grid array, x, y and z, to either the
+ *          array of locations of collocated points or staggered points.
+ ********************************************************************************************************************************************
+ */
+void hotPlateCC::setXYZ() {
+    dField.xStag ? x.reference(mesh.xStaggr) : x.reference(mesh.xColloc);
+    dField.yStag ? y.reference(mesh.yStaggr) : y.reference(mesh.yColloc);
+    dField.zStag ? z.reference(mesh.zStaggr) : z.reference(mesh.zColloc);
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to create a heating patch for non-homogeneous boundary conditions
+ *
+ *          The current implementation if for a conducting circular heating plate surrounded by adiabatic insulated walls.
+ *          This may replaced in future with an external implementation of non-homogeneous BC.
+ *
+ ********************************************************************************************************************************************
+ */
+void hotPlateCC::createPatch(const double patchRadius) {
+    double patchCentX, patchCentY, patchCentZ;
+
+    patchCentX = mesh.xLen/2.0;
+    patchCentY = mesh.yLen/2.0;
+    patchCentZ = 0.0;
+
+    wallData.resize(blitz::TinyVector<int, 3>(dField.fWalls(wallNum).ubound() - dField.fWalls(wallNum).lbound() + 1));
+    wallData.reindexSelf(dField.fWalls(wallNum).lbound());
+    wallData = 0.0;
+
+    wallMask.resize(blitz::TinyVector<int, 3>(dField.fWalls(wallNum).ubound() - dField.fWalls(wallNum).lbound() + 1));
+    wallMask.reindexSelf(dField.fWalls(wallNum).lbound());
+    wallMask = true;
+
+    for (int iX = dField.fWalls(wallNum).lbound(0); iX <= dField.fWalls(wallNum).ubound(0); iX++) {
+        for (int iY = dField.fWalls(wallNum).lbound(1); iY <= dField.fWalls(wallNum).ubound(1); iY++) {
+            for (int iZ = dField.fWalls(wallNum).lbound(2); iZ <= dField.fWalls(wallNum).ubound(2); iZ++) {
+                double ptRadius = sqrt(pow((x(iX) - patchCentX), 2) + pow((y(iY) - patchCentY), 2) + pow((z(iZ) - patchCentZ), 2));
+                if (ptRadius <= patchRadius) {
+                    wallData(iX, iY, iZ) = 1.0;
+                    wallMask(iX, iY, iZ) = false;
+                }
+            }
+        }
+    }
+}
+
 
 /**
  ********************************************************************************************************************************************
@@ -93,4 +123,14 @@ boundary::boundary(const grid &mesh, field &inField, const int bcWall):
  *
  ********************************************************************************************************************************************
  */
-void boundary::imposeBC() { };
+void hotPlateCC::imposeBC() {
+    // First impose Neumann BC everywhere for adiabatic wall
+    dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum), 1));
+
+    // Now in the area of the circular patch, make all values 0 in order to apply conducting BC
+    dField.F(dField.fWalls(wallNum)) = dField.F(dField.fWalls(wallNum))*wallMask;
+
+    // Finally apply conducting BC in the circular patch alone
+    dField.F(dField.fWalls(wallNum)) = dField.F(dField.fWalls(wallNum)) +
+            wallData*(2.0*wallData - dField.F(dField.shift(shiftDim, dField.fWalls(wallNum), 1)));
+}

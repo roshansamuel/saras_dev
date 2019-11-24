@@ -42,4 +42,9 @@
 
 add_library (boundary
              boundary.cc
+             dirichletCC.cc
+             dirichletFC.cc
+             neumannCC.cc
+             neumannFC.cc
+             hotPlateCC.cc
 )

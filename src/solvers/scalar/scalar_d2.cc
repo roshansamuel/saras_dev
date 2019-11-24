@@ -87,12 +87,14 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
 
     checkPeriodic();
 
-    tempBC = new boundary(mesh, T.F, false, 1);
+    initTBC();
+    //tempBC = new boundary(mesh, T.F, 0);
 
     imposeUBCs();
     imposeWBCs();
 
-    tempBC->imposeBC();
+    //tempBC->imposeBC();
+    imposeTBCs();
 }
 
 void scalar_d2::solvePDE() {
@@ -402,7 +404,8 @@ void scalar_d2::computeTimeStep() {
     imposeWBCs();
 
     // IMPOSE BOUNDARY CONDITIONS ON T
-    tempBC->imposeBC();
+    //tempBC->imposeBC();
+    imposeTBCs();
 }
 
 void scalar_d2::solveVx() {
@@ -525,7 +528,8 @@ void scalar_d2::solveT() {
 
         T = guessedScalar;
 
-        tempBC->imposeBC();
+        //tempBC->imposeBC();
+        imposeTBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {

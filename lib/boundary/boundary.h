@@ -50,40 +50,119 @@
 
 class boundary {
     public:
-        boundary(const grid &mesh, field &inField, const bool bcType, const int shiftDim);
+        boundary(const grid &mesh, field &inField, const int bcWall);
 
-        void createPatch(int wallNum);
+        virtual void imposeBC();
 
-        void imposeBC();
-
-    private:
+    protected:
         const grid &mesh;
 
         field &dField;
 
-        bool nonHgBC;
-        const bool drcBC;
-        const int dimVal;
-
-        // The following arrays are allocated memory only if non-homogeneous BCs are being used.
-        // Hence attempting to access these arrays in other situations will result in seg-fault.
-        blitz::Array<bool, 3> wallMask;
-        blitz::Array<double, 3> wallData;
-
-        blitz::Array<double, 1> x, y, z;
-        blitz::Array<double, 1> xGlo, yGlo, zGlo;
-
-        void imposeBC_X();
-        void imposeBC_Y();
-        void imposeBC_Z();
-
-        void setXYZ();
+        bool rankFlag;
+        const int wallNum;
+        int shiftVal, shiftDim;
 };
 
 /**
  ********************************************************************************************************************************************
  *  \class boundary boundary.h "lib/boundary/boundary.h"
  *  \brief Contains all the global variables related to the imposing of boundary conditions, and functions to impose BCs
+ *
+ ********************************************************************************************************************************************
+ */
+
+class dirichletCC: public boundary {
+    public:
+        dirichletCC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+
+        inline void imposeBC();
+    private:
+        const double fieldValue;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class dirichletCC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply dirichlet boundary condition for a cell-centered variable.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class dirichletFC: public boundary {
+    public:
+        dirichletFC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+
+        inline void imposeBC();
+    private:
+        const double fieldValue;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class dirichletFC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply dirichlet boundary condition for a face-centered variable.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class neumannCC: public boundary {
+    public:
+        neumannCC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+
+        inline void imposeBC();
+    private:
+        const double fieldValue;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class neumannCC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply neumann boundary condition for a cell-centered variable.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class neumannFC: public boundary {
+    public:
+        neumannFC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+
+        inline void imposeBC();
+    private:
+        const double fieldValue;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class neumannFC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply neumann boundary condition for a face-centered variable.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class hotPlateCC: public boundary {
+    public:
+        hotPlateCC(const grid &mesh, field &inField, const int bcWall, const double plateRad);
+
+        void imposeBC();
+    private:
+        blitz::Array<bool, 3> wallMask;
+        blitz::Array<double, 3> wallData;
+
+        blitz::Array<double, 1> x, y, z;
+        blitz::Array<double, 1> xGlo, yGlo, zGlo;
+
+        const double patchRadius;
+
+        void setXYZ();
+
+        void createPatch(double patchRadius);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class hotPlateCC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply mixed boundary condition involving a heated plate for a cell-centered variable.
  *
  ********************************************************************************************************************************************
  */

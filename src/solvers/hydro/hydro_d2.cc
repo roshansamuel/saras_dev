@@ -442,60 +442,60 @@ void hydro_d2::solveVz() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void hydro_d2::imposeUBCs() {
-    V.Vx.syncData();
-
-    // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
-    if (not inputParams.xPer) {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        if (inputParams.probType == 1) {
-            // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-            if (mesh.rankData.xRank == 0) {
-                V.Vx.F(V.Vx.fWalls(0)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
-            }
-            // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                V.Vx.F(V.Vx.fWalls(1)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
-            }
-        // INFLOW AND OUTFLOW BCS
-        } else if (inputParams.probType == 3 or inputParams.probType == 4) {
-            // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-            if (mesh.rankData.xRank == 0) {
-                // INFLOW BOUNDARY CONDITION AT INLET - IMPOSE VELOCITY OF 1.0
-                V.Vx.F(V.Vx.fWalls(0)) = 2.0 - V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
-            }
-            // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                // OUTFLOW BOUNDARY CONDITION AT EXIT - NEUMANN BC WITH DERIVATIVE ALONG X SET TO 0
-                V.Vx.F(V.Vx.fWalls(1)) = V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
-            }
-        }
-    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT LEFT AND RIGHT WALLS
-
-    // IMPOSE BC FOR Vx ALONG TOP AND BOTTOM WALLS
-    if (inputParams.zPer) {
-        // PERIODIC BCS
-        // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z - PERIODIC BC IS IMPOSED BY AVERAGING
-        V.Vx.F(V.Vx.fWalls(4)) = 0.5*(V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(4), -1)) + V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(4), 1)));
-        // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z - PERIODIC BC IS IMPOSED BY AVERAGING
-        V.Vx.F(V.Vx.fWalls(5)) = 0.5*(V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(5), -1)) + V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(5), 1)));
-    } else {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        if (inputParams.probType == 1) {
-            // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-            V.Vx.F(V.Vx.fWalls(4)) = 0.0;
-            // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-            V.Vx.F(V.Vx.fWalls(5)) = 1.0;
-        } else if (inputParams.probType == 3 or inputParams.probType == 4) {
-            // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-            V.Vx.F(V.Vx.fWalls(4)) = 0.0;
-            // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-            V.Vx.F(V.Vx.fWalls(5)) = 0.0;
-        }
-    }
-}
+//void hydro_d2::imposeUBCs() {
+//    V.Vx.syncData();
+//
+//    // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
+//    if (not inputParams.xPer) {
+//        // NON PERIODIC BCS
+//        // NO-SLIP BCS
+//        if (inputParams.probType == 1) {
+//            // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
+//            if (mesh.rankData.xRank == 0) {
+//                V.Vx.F(V.Vx.fWalls(0)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
+//            }
+//            // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
+//            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//                V.Vx.F(V.Vx.fWalls(1)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
+//            }
+//        // INFLOW AND OUTFLOW BCS
+//        } else if (inputParams.probType == 3 or inputParams.probType == 4) {
+//            // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
+//            if (mesh.rankData.xRank == 0) {
+//                // INFLOW BOUNDARY CONDITION AT INLET - IMPOSE VELOCITY OF 1.0
+//                V.Vx.F(V.Vx.fWalls(0)) = 2.0 - V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
+//            }
+//            // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
+//            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//                // OUTFLOW BOUNDARY CONDITION AT EXIT - NEUMANN BC WITH DERIVATIVE ALONG X SET TO 0
+//                V.Vx.F(V.Vx.fWalls(1)) = V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
+//            }
+//        }
+//    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT LEFT AND RIGHT WALLS
+//
+//    // IMPOSE BC FOR Vx ALONG TOP AND BOTTOM WALLS
+//    if (inputParams.zPer) {
+//        // PERIODIC BCS
+//        // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z - PERIODIC BC IS IMPOSED BY AVERAGING
+//        V.Vx.F(V.Vx.fWalls(4)) = 0.5*(V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(4), -1)) + V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(4), 1)));
+//        // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z - PERIODIC BC IS IMPOSED BY AVERAGING
+//        V.Vx.F(V.Vx.fWalls(5)) = 0.5*(V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(5), -1)) + V.Vx.F(V.Vx.shift(2, V.Vx.fWalls(5), 1)));
+//    } else {
+//        // NON PERIODIC BCS
+//        // NO-SLIP BCS
+//        if (inputParams.probType == 1) {
+//            // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
+//            V.Vx.F(V.Vx.fWalls(4)) = 0.0;
+//            // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
+//            V.Vx.F(V.Vx.fWalls(5)) = 1.0;
+//        } else if (inputParams.probType == 3 or inputParams.probType == 4) {
+//            // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
+//            V.Vx.F(V.Vx.fWalls(4)) = 0.0;
+//            // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
+//            V.Vx.F(V.Vx.fWalls(5)) = 0.0;
+//        }
+//    }
+//}
 
 /**
  ********************************************************************************************************************************************
@@ -507,62 +507,62 @@ void hydro_d2::imposeUBCs() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void hydro_d2::imposeWBCs() {
-    V.Vz.syncData();
-
-    // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS
-    if (inputParams.xPer) {
-        // PERIODIC BCS
-        // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X - PERIODIC BC IS IMPOSED BY AVERAGING
-        if (mesh.rankData.xRank == 0) {
-            V.Vz.F(V.Vz.fWalls(0)) = 0.5*(V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(0), -1)) + V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(0), 1)));
-        }
-        // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Z - PERIODIC BC IS IMPOSED BY AVERAGING
-        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            V.Vz.F(V.Vz.fWalls(1)) = 0.5*(V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(1), -1)) + V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(1), 1)));
-        }
-    } else {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        if (inputParams.probType == 1) {
-            // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-            if (mesh.rankData.xRank == 0) {
-                V.Vz.F(V.Vz.fWalls(0)) = 0.0;
-            }
-            // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                V.Vz.F(V.Vz.fWalls(1)) = 0.0;
-            }
-        } else if (inputParams.probType == 3 or inputParams.probType == 4) {
-            // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-            if (mesh.rankData.xRank == 0) {
-                // INFLOW BOUNDARY CONDITION AT INLET - IMPOSE VELOCITY OF 0.0
-                V.Vz.F(V.Vz.fWalls(0)) = 0.0;
-            }
-            // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                // OUTFLOW BOUNDARY CONDITION AT EXIT - NEUMANN BC WITH DERIVATIVE ALONG X SET TO 0
-                V.Vz.F(V.Vz.fWalls(1)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(1), -1));
-            }
-        }
-    }
-
-    // IMPOSE BC FOR Vz ALONG TOP AND BOTTOM WALLS
-    if (inputParams.zPer) {
-        // PERIODIC BCS
-        V.Vz.F(V.Vz.fWalls(4)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-        V.Vz.F(V.Vz.fWalls(5)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-    } else {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        if (inputParams.probType == 1 or inputParams.probType == 3 or inputParams.probType == 4) {
-            // Vz LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-            V.Vz.F(V.Vz.fWalls(4)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-            // Vz LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-            V.Vz.F(V.Vz.fWalls(5)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-        }
-    }
-}
+//void hydro_d2::imposeWBCs() {
+//    V.Vz.syncData();
+//
+//    // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS
+//    if (inputParams.xPer) {
+//        // PERIODIC BCS
+//        // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X - PERIODIC BC IS IMPOSED BY AVERAGING
+//        if (mesh.rankData.xRank == 0) {
+//            V.Vz.F(V.Vz.fWalls(0)) = 0.5*(V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(0), -1)) + V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(0), 1)));
+//        }
+//        // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Z - PERIODIC BC IS IMPOSED BY AVERAGING
+//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//            V.Vz.F(V.Vz.fWalls(1)) = 0.5*(V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(1), -1)) + V.Vz.F(V.Vz.shift(0, V.Vz.fWalls(1), 1)));
+//        }
+//    } else {
+//        // NON PERIODIC BCS
+//        // NO-SLIP BCS
+//        if (inputParams.probType == 1) {
+//            // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
+//            if (mesh.rankData.xRank == 0) {
+//                V.Vz.F(V.Vz.fWalls(0)) = 0.0;
+//            }
+//            // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
+//            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//                V.Vz.F(V.Vz.fWalls(1)) = 0.0;
+//            }
+//        } else if (inputParams.probType == 3 or inputParams.probType == 4) {
+//            // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
+//            if (mesh.rankData.xRank == 0) {
+//                // INFLOW BOUNDARY CONDITION AT INLET - IMPOSE VELOCITY OF 0.0
+//                V.Vz.F(V.Vz.fWalls(0)) = 0.0;
+//            }
+//            // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
+//            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//                // OUTFLOW BOUNDARY CONDITION AT EXIT - NEUMANN BC WITH DERIVATIVE ALONG X SET TO 0
+//                V.Vz.F(V.Vz.fWalls(1)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(1), -1));
+//            }
+//        }
+//    }
+//
+//    // IMPOSE BC FOR Vz ALONG TOP AND BOTTOM WALLS
+//    if (inputParams.zPer) {
+//        // PERIODIC BCS
+//        V.Vz.F(V.Vz.fWalls(4)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
+//        V.Vz.F(V.Vz.fWalls(5)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
+//    } else {
+//        // NON PERIODIC BCS
+//        // NO-SLIP BCS
+//        if (inputParams.probType == 1 or inputParams.probType == 3 or inputParams.probType == 4) {
+//            // Vz LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
+//            V.Vz.F(V.Vz.fWalls(4)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
+//            // Vz LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
+//            V.Vz.F(V.Vz.fWalls(5)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
+//        }
+//    }
+//}
 
 double hydro_d2::testPeriodic() {
     int iY = 0;

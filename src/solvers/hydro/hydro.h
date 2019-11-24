@@ -91,6 +91,9 @@ class hydro {
 
         probes *dataProbe;
         initial *initCond;
+        boundary *uLft, *uRgt, *uFrn, *uBak, *uTop, *uBot;
+        boundary *vLft, *vRgt, *vFrn, *vBak, *vTop, *vBot;
+        boundary *wLft, *wRgt, *wFrn, *wBak, *wTop, *wBot;
 
         parallel &mpiData;
 
@@ -104,6 +107,11 @@ class hydro {
 
         void checkPeriodic();
         void setCoefficients();
+
+        void initVBC();
+        void imposeUBCs();
+        void imposeVBCs();
+        void imposeWBCs();
 
         virtual void solveVx();
         virtual void solveVy();
@@ -139,8 +147,8 @@ class hydro_d2: public hydro {
         void solveVx();
         void solveVz();
 
-        void imposeUBCs();
-        void imposeWBCs();
+        //void imposeUBCs();
+        //void imposeWBCs();
 
         void computeTimeStep();
 };
@@ -175,10 +183,6 @@ class hydro_d3: public hydro {
         void solveVx();
         void solveVy();
         void solveVz();
-
-        void imposeUBCs();
-        void imposeVBCs();
-        void imposeWBCs();
 
         void computeTimeStep();
 };

@@ -91,7 +91,9 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
 
     checkPeriodic();
 
-    tempBC = new boundary(mesh, T.F, false, 1);
+    initVBC();
+    initTBC();
+    //tempBC = new boundary(mesh, T.F, 1);
 
     // Create heating patch if the user set parameter for heating plate is true
     if (inputParams.nonHgBC) {
@@ -100,14 +102,15 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
             std::cout << std::endl;
         }
 
-        tempBC->createPatch(4);
+        //tempBC->createPatch(inputParams.patchRadius);
     }
 
     imposeUBCs();
     imposeVBCs();
     imposeWBCs();
 
-    tempBC->imposeBC();
+    //tempBC->imposeBC();
+    imposeTBCs();
 }
 
 void scalar_d3::solvePDE() {
@@ -480,7 +483,8 @@ void scalar_d3::computeTimeStep() {
     imposeWBCs();
 
     // IMPOSE BOUNDARY CONDITIONS ON T
-    tempBC->imposeBC();
+    //tempBC->imposeBC();
+    imposeTBCs();
 }
 
 void scalar_d3::solveVx() {
@@ -676,7 +680,8 @@ void scalar_d3::solveT() {
 
         T = guessedScalar;
 
-        tempBC->imposeBC();
+        //tempBC->imposeBC();
+        imposeTBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
@@ -721,44 +726,44 @@ void scalar_d3::solveT() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void scalar_d3::imposeUBCs() {
-    V.Vx.syncData();
-
-    // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
-    if (not inputParams.xPer) {
-        // NO-SLIP BCS
-        // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-        if (mesh.rankData.xRank == 0) {
-            V.Vx.F(V.Vx.fWalls(0)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
-        }
-        // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            V.Vx.F(V.Vx.fWalls(1)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
-        }
-    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT LEFT AND RIGHT WALLS
-
-    // IMPOSE BC FOR Vx ALONG FRONT AND BACK WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-    if (not inputParams.yPer) {
-        // NO-SLIP BCS
-        // Vx LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Y
-        if (mesh.rankData.yRank == 0) {
-            V.Vx.F(V.Vx.fWalls(2)) = 0.0;
-        }
-        // Vx LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Y
-        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            V.Vx.F(V.Vx.fWalls(3)) = 0.0;
-        }
-    }
-
-    // IMPOSE BC FOR Vx ALONG TOP AND BOTTOM WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-    if (not inputParams.zPer) {
-        // NO-SLIP BCS
-        // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-        V.Vx.F(V.Vx.fWalls(4)) = 0.0;
-        // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-        V.Vx.F(V.Vx.fWalls(5)) = 0.0;
-    }
-}
+//void scalar_d3::imposeUBCs() {
+//    V.Vx.syncData();
+//
+//    // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
+//    if (not inputParams.xPer) {
+//        // NO-SLIP BCS
+//        // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
+//        if (mesh.rankData.xRank == 0) {
+//            V.Vx.F(V.Vx.fWalls(0)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
+//        }
+//        // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
+//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//            V.Vx.F(V.Vx.fWalls(1)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
+//        }
+//    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT LEFT AND RIGHT WALLS
+//
+//    // IMPOSE BC FOR Vx ALONG FRONT AND BACK WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
+//    if (not inputParams.yPer) {
+//        // NO-SLIP BCS
+//        // Vx LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Y
+//        if (mesh.rankData.yRank == 0) {
+//            V.Vx.F(V.Vx.fWalls(2)) = 0.0;
+//        }
+//        // Vx LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Y
+//        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
+//            V.Vx.F(V.Vx.fWalls(3)) = 0.0;
+//        }
+//    }
+//
+//    // IMPOSE BC FOR Vx ALONG TOP AND BOTTOM WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
+//    if (not inputParams.zPer) {
+//        // NO-SLIP BCS
+//        // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
+//        V.Vx.F(V.Vx.fWalls(4)) = 0.0;
+//        // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
+//        V.Vx.F(V.Vx.fWalls(5)) = 0.0;
+//    }
+//}
 
 /**
  ********************************************************************************************************************************************
@@ -770,44 +775,44 @@ void scalar_d3::imposeUBCs() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void scalar_d3::imposeVBCs() {
-    V.Vy.syncData();
-
-    // IMPOSE BC FOR Vy ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-    if (not inputParams.xPer) {
-        // NO-SLIP BCS
-        // Vy LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG X
-        if (mesh.rankData.xRank == 0) {
-            V.Vy.F(V.Vy.fWalls(0)) = 0.0;
-        }
-        // Vy LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG X
-        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            V.Vy.F(V.Vy.fWalls(1)) = 0.0;
-        }
-    }
-
-    // IMPOSE BC FOR Vy ALONG FRONT AND BACK WALLS
-    if (not inputParams.yPer) {
-        // NO-SLIP BCS
-        // Vy LIES ON EITHER SIDE OF THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS COLLOCATED ALONG Y
-        if (mesh.rankData.yRank == 0) {
-            V.Vy.F(V.Vy.fWalls(2)) = -V.Vy.F(V.Vy.shift(1, V.Vy.fWalls(2), 1));
-        }
-        // Vy LIES ON EITHER SIDE OF THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS COLLOCATED ALONG Y
-        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            V.Vy.F(V.Vy.fWalls(3)) = -V.Vy.F(V.Vy.shift(1, V.Vy.fWalls(3), -1));
-        }
-    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT FRONT AND BACK WALLS
-
-    // IMPOSE BC FOR Vy ALONG TOP AND BOTTOM WALLS
-    if (not inputParams.zPer) {
-        // NO-SLIP BCS
-        // Vy LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG Z
-        V.Vy.F(V.Vy.fWalls(4)) = 0.0;
-        // Vy LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG Z
-        V.Vy.F(V.Vy.fWalls(5)) = 0.0;
-    }
-}
+//void scalar_d3::imposeVBCs() {
+//    V.Vy.syncData();
+//
+//    // IMPOSE BC FOR Vy ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
+//    if (not inputParams.xPer) {
+//        // NO-SLIP BCS
+//        // Vy LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG X
+//        if (mesh.rankData.xRank == 0) {
+//            V.Vy.F(V.Vy.fWalls(0)) = 0.0;
+//        }
+//        // Vy LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG X
+//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//            V.Vy.F(V.Vy.fWalls(1)) = 0.0;
+//        }
+//    }
+//
+//    // IMPOSE BC FOR Vy ALONG FRONT AND BACK WALLS
+//    if (not inputParams.yPer) {
+//        // NO-SLIP BCS
+//        // Vy LIES ON EITHER SIDE OF THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS COLLOCATED ALONG Y
+//        if (mesh.rankData.yRank == 0) {
+//            V.Vy.F(V.Vy.fWalls(2)) = -V.Vy.F(V.Vy.shift(1, V.Vy.fWalls(2), 1));
+//        }
+//        // Vy LIES ON EITHER SIDE OF THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS COLLOCATED ALONG Y
+//        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
+//            V.Vy.F(V.Vy.fWalls(3)) = -V.Vy.F(V.Vy.shift(1, V.Vy.fWalls(3), -1));
+//        }
+//    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT FRONT AND BACK WALLS
+//
+//    // IMPOSE BC FOR Vy ALONG TOP AND BOTTOM WALLS
+//    if (not inputParams.zPer) {
+//        // NO-SLIP BCS
+//        // Vy LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG Z
+//        V.Vy.F(V.Vy.fWalls(4)) = 0.0;
+//        // Vy LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG Z
+//        V.Vy.F(V.Vy.fWalls(5)) = 0.0;
+//    }
+//}
 
 /**
  ********************************************************************************************************************************************
@@ -819,49 +824,49 @@ void scalar_d3::imposeVBCs() {
  *          The corner values are not being imposed specifically and is thus dependent on the above order.
  ********************************************************************************************************************************************
  */
-void scalar_d3::imposeWBCs() {
-    V.Vz.syncData();
-
-    // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-    if (not inputParams.xPer) {
-        // NO-SLIP BCS
-        // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-        if (mesh.rankData.xRank == 0) {
-            V.Vz.F(V.Vz.fWalls(0)) = 0.0;
-        }
-        // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            V.Vz.F(V.Vz.fWalls(1)) = 0.0;
-        }
-    }
-
-    // IMPOSE BC FOR Vz ALONG FRONT AND BACK WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-    if (not inputParams.yPer) {
-        // NO-SLIP BCS
-        // Vz LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Y
-        if (mesh.rankData.yRank == 0) {
-            V.Vz.F(V.Vz.fWalls(2)) = 0.0;
-        }
-        // Vz LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Y
-        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            V.Vz.F(V.Vz.fWalls(3)) = 0.0;
-        }
-    }
-
-    // IMPOSE BC FOR Vz ALONG TOP AND BOTTOM WALLS
-    if (inputParams.zPer) {
-        // PERIODIC BCS
-        V.Vz.F(V.Vz.fWalls(4)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-        V.Vz.F(V.Vz.fWalls(5)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-    } else {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        // Vz LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-        V.Vz.F(V.Vz.fWalls(4)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-        // Vz LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-        V.Vz.F(V.Vz.fWalls(5)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-    }
-}
+//void scalar_d3::imposeWBCs() {
+//    V.Vz.syncData();
+//
+//    // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
+//    if (not inputParams.xPer) {
+//        // NO-SLIP BCS
+//        // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
+//        if (mesh.rankData.xRank == 0) {
+//            V.Vz.F(V.Vz.fWalls(0)) = 0.0;
+//        }
+//        // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
+//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+//            V.Vz.F(V.Vz.fWalls(1)) = 0.0;
+//        }
+//    }
+//
+//    // IMPOSE BC FOR Vz ALONG FRONT AND BACK WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
+//    if (not inputParams.yPer) {
+//        // NO-SLIP BCS
+//        // Vz LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Y
+//        if (mesh.rankData.yRank == 0) {
+//            V.Vz.F(V.Vz.fWalls(2)) = 0.0;
+//        }
+//        // Vz LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Y
+//        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
+//            V.Vz.F(V.Vz.fWalls(3)) = 0.0;
+//        }
+//    }
+//
+//    // IMPOSE BC FOR Vz ALONG TOP AND BOTTOM WALLS
+//    if (inputParams.zPer) {
+//        // PERIODIC BCS
+//        V.Vz.F(V.Vz.fWalls(4)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
+//        V.Vz.F(V.Vz.fWalls(5)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
+//    } else {
+//        // NON PERIODIC BCS
+//        // NO-SLIP BCS
+//        // Vz LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
+//        V.Vz.F(V.Vz.fWalls(4)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
+//        // Vz LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
+//        V.Vz.F(V.Vz.fWalls(5)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
+//    }
+//}
 
 double scalar_d3::testPeriodic() {
     double xCoord = 0.0;
