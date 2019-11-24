@@ -51,6 +51,8 @@
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
+ * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
+ * \param   plateRad is the const double precision value of the radius of the heating plate.
  ********************************************************************************************************************************************
  */
 hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const double plateRad):
@@ -79,8 +81,7 @@ void hotPlateCC::setXYZ() {
  ********************************************************************************************************************************************
  * \brief   Function to create a heating patch for non-homogeneous boundary conditions
  *
- *          The current implementation if for a conducting circular heating plate surrounded by adiabatic insulated walls.
- *          This may replaced in future with an external implementation of non-homogeneous BC.
+ *          The current implementation is for a conducting circular heating plate surrounded by adiabatic insulated walls.
  *
  ********************************************************************************************************************************************
  */
@@ -115,11 +116,12 @@ void hotPlateCC::createPatch(const double patchRadius) {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions on the given field
+ * \brief   Function to impose Mixed BC of a heating plate on a cell centered variable
  *
- *          The function first calls the syncData() function of the field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling individual functions
- *          to impose the BCs along X, Y and Z directions.
+ *          For Saras solver, the wall passes through the cell centers of the variables.
+ *          Hence the variable is lying on the wall for this case.
+ *          Accordingly the value of the variable is directly set to 1.0 on the conducting sections of the wall.
+ *          At the rest of the wall, Neumann BC is imposed using a boolean wallMask variable.
  *
  ********************************************************************************************************************************************
  */

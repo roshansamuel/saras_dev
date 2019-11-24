@@ -115,6 +115,7 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
     checkPeriodic();
 
+    // Initialize velocity boundary conditions
     initVBC();
 
     imposeUBCs();

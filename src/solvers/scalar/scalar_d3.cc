@@ -91,27 +91,17 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
 
     checkPeriodic();
 
+    // Initialize velocity and temperature boundary conditions
     initVBC();
     initTBC();
-    //tempBC = new boundary(mesh, T.F, 1);
-
-    // Create heating patch if the user set parameter for heating plate is true
-    if (inputParams.nonHgBC) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-homogeneous boundary condition (heating plate) on bottom wall" << std::endl;
-            std::cout << std::endl;
-        }
-
-        //tempBC->createPatch(inputParams.patchRadius);
-    }
 
     imposeUBCs();
     imposeVBCs();
     imposeWBCs();
 
-    //tempBC->imposeBC();
     imposeTBCs();
 }
+
 
 void scalar_d3::solvePDE() {
 #ifndef TIME_RUN
@@ -357,6 +347,7 @@ void scalar_d3::solvePDE() {
 #endif
 }
 
+
 void scalar_d3::computeTimeStep() {
 #ifdef TIME_RUN
     struct timeval begin, end;
@@ -483,9 +474,9 @@ void scalar_d3::computeTimeStep() {
     imposeWBCs();
 
     // IMPOSE BOUNDARY CONDITIONS ON T
-    //tempBC->imposeBC();
     imposeTBCs();
 }
+
 
 void scalar_d3::solveVx() {
     int iterCount = 0;
@@ -544,6 +535,7 @@ void scalar_d3::solveVx() {
     }
 }
 
+
 void scalar_d3::solveVy() {
     int iterCount = 0;
     double maxError = 0.0;
@@ -600,6 +592,7 @@ void scalar_d3::solveVy() {
         }
     }
 }
+
 
 void scalar_d3::solveVz() {
     int iterCount = 0;
@@ -658,6 +651,7 @@ void scalar_d3::solveVz() {
     }
 }
 
+
 void scalar_d3::solveT() {
     int iterCount = 0;
     double maxError = 0.0;
@@ -680,7 +674,6 @@ void scalar_d3::solveT() {
 
         T = guessedScalar;
 
-        //tempBC->imposeBC();
         imposeTBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -716,157 +709,6 @@ void scalar_d3::solveT() {
     }
 }
 
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose global and sub-domain boundary values on x-velocity component
- *
- *          First, inter-processor data transfer is performed by calling the \ref sfield#syncData "syncData" function of Vx.
- *          Then the values of <B>Vx</B> on the 6 walls are imposed.
- *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- ********************************************************************************************************************************************
- */
-//void scalar_d3::imposeUBCs() {
-//    V.Vx.syncData();
-//
-//    // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
-//    if (not inputParams.xPer) {
-//        // NO-SLIP BCS
-//        // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-//        if (mesh.rankData.xRank == 0) {
-//            V.Vx.F(V.Vx.fWalls(0)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
-//        }
-//        // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-//            V.Vx.F(V.Vx.fWalls(1)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
-//        }
-//    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT LEFT AND RIGHT WALLS
-//
-//    // IMPOSE BC FOR Vx ALONG FRONT AND BACK WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-//    if (not inputParams.yPer) {
-//        // NO-SLIP BCS
-//        // Vx LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Y
-//        if (mesh.rankData.yRank == 0) {
-//            V.Vx.F(V.Vx.fWalls(2)) = 0.0;
-//        }
-//        // Vx LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Y
-//        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-//            V.Vx.F(V.Vx.fWalls(3)) = 0.0;
-//        }
-//    }
-//
-//    // IMPOSE BC FOR Vx ALONG TOP AND BOTTOM WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-//    if (not inputParams.zPer) {
-//        // NO-SLIP BCS
-//        // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-//        V.Vx.F(V.Vx.fWalls(4)) = 0.0;
-//        // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-//        V.Vx.F(V.Vx.fWalls(5)) = 0.0;
-//    }
-//}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose global and sub-domain boundary values on y-velocity component
- *
- *          First, inter-processor data transfer is performed by calling the \ref sfield#syncData "syncData" function Vy.
- *          Then the values of <B>Vy</B> on the 6 walls are imposed.
- *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- ********************************************************************************************************************************************
- */
-//void scalar_d3::imposeVBCs() {
-//    V.Vy.syncData();
-//
-//    // IMPOSE BC FOR Vy ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-//    if (not inputParams.xPer) {
-//        // NO-SLIP BCS
-//        // Vy LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG X
-//        if (mesh.rankData.xRank == 0) {
-//            V.Vy.F(V.Vy.fWalls(0)) = 0.0;
-//        }
-//        // Vy LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG X
-//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-//            V.Vy.F(V.Vy.fWalls(1)) = 0.0;
-//        }
-//    }
-//
-//    // IMPOSE BC FOR Vy ALONG FRONT AND BACK WALLS
-//    if (not inputParams.yPer) {
-//        // NO-SLIP BCS
-//        // Vy LIES ON EITHER SIDE OF THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS COLLOCATED ALONG Y
-//        if (mesh.rankData.yRank == 0) {
-//            V.Vy.F(V.Vy.fWalls(2)) = -V.Vy.F(V.Vy.shift(1, V.Vy.fWalls(2), 1));
-//        }
-//        // Vy LIES ON EITHER SIDE OF THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS COLLOCATED ALONG Y
-//        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-//            V.Vy.F(V.Vy.fWalls(3)) = -V.Vy.F(V.Vy.shift(1, V.Vy.fWalls(3), -1));
-//        }
-//    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT FRONT AND BACK WALLS
-//
-//    // IMPOSE BC FOR Vy ALONG TOP AND BOTTOM WALLS
-//    if (not inputParams.zPer) {
-//        // NO-SLIP BCS
-//        // Vy LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG Z
-//        V.Vy.F(V.Vy.fWalls(4)) = 0.0;
-//        // Vy LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vy IS STAGGERED ALONG Z
-//        V.Vy.F(V.Vy.fWalls(5)) = 0.0;
-//    }
-//}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose global and sub-domain boundary values on z-velocity component
- *
- *          First, inter-processor data transfer is performed by calling the \ref sfield#syncData "syncData" function of the Vz.
- *          Then the values of <B>Vz</B> on the 6 walls are imposed.
- *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- ********************************************************************************************************************************************
- */
-//void scalar_d3::imposeWBCs() {
-//    V.Vz.syncData();
-//
-//    // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-//    if (not inputParams.xPer) {
-//        // NO-SLIP BCS
-//        // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-//        if (mesh.rankData.xRank == 0) {
-//            V.Vz.F(V.Vz.fWalls(0)) = 0.0;
-//        }
-//        // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-//        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-//            V.Vz.F(V.Vz.fWalls(1)) = 0.0;
-//        }
-//    }
-//
-//    // IMPOSE BC FOR Vz ALONG FRONT AND BACK WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-//    if (not inputParams.yPer) {
-//        // NO-SLIP BCS
-//        // Vz LIES ON THE FRONT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Y
-//        if (mesh.rankData.yRank == 0) {
-//            V.Vz.F(V.Vz.fWalls(2)) = 0.0;
-//        }
-//        // Vz LIES ON THE BACK WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG Y
-//        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-//            V.Vz.F(V.Vz.fWalls(3)) = 0.0;
-//        }
-//    }
-//
-//    // IMPOSE BC FOR Vz ALONG TOP AND BOTTOM WALLS
-//    if (inputParams.zPer) {
-//        // PERIODIC BCS
-//        V.Vz.F(V.Vz.fWalls(4)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-//        V.Vz.F(V.Vz.fWalls(5)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-//    } else {
-//        // NON PERIODIC BCS
-//        // NO-SLIP BCS
-//        // Vz LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-//        V.Vz.F(V.Vz.fWalls(4)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-//        // Vz LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-//        V.Vz.F(V.Vz.fWalls(5)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-//    }
-//}
 
 double scalar_d3::testPeriodic() {
     double xCoord = 0.0;
@@ -908,13 +750,13 @@ double scalar_d3::testPeriodic() {
             for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += iX) {
                 xCoord = mesh.xColloc(V.Vx.fCore.lbound(0)) - (mesh.xColloc(V.Vx.fCore.lbound(0) + iX) - mesh.xColloc(V.Vx.fCore.lbound(0)));
                 nseRHS.Vx(V.Vx.fCore.lbound(0) - iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                             cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                             cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
+                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 xCoord = mesh.xColloc(V.Vx.fCore.ubound(0)) + (mesh.xColloc(V.Vx.fCore.ubound(0)) - mesh.xColloc(V.Vx.fCore.ubound(0) - iX));
                 nseRHS.Vx(V.Vx.fCore.ubound(0) + iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                             cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                             cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
+                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
         }
     }
@@ -925,13 +767,13 @@ double scalar_d3::testPeriodic() {
             for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += iY) {
                 yCoord = mesh.yStaggr(V.Vx.fCore.lbound(1)) - (mesh.yStaggr(V.Vx.fCore.lbound(1) + iY) - mesh.yStaggr(V.Vx.fCore.lbound(1)));
                 nseRHS.Vx(iX, V.Vx.fCore.lbound(1) - iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                             cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                             cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*yCoord/mesh.yLen)*
+                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 yCoord = mesh.yStaggr(V.Vx.fCore.ubound(1)) + (mesh.yStaggr(V.Vx.fCore.ubound(1)) - mesh.yStaggr(V.Vx.fCore.ubound(1) - iY));
                 nseRHS.Vx(iX, V.Vx.fCore.ubound(1) + iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                             cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                             cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*yCoord/mesh.yLen)*
+                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
         }
     }
@@ -942,13 +784,13 @@ double scalar_d3::testPeriodic() {
             for (int iY = V.Vx.fCore.lbound(1); iY <= V.Vx.fCore.ubound(1); iY += iZ) {
                 zCoord = mesh.zStaggr(V.Vx.fCore.lbound(2)) - (mesh.zStaggr(V.Vx.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vx.fCore.lbound(2)));
                 nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                             cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                             cos(2.0*M_PI*zCoord/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
+                                                               cos(2.0*M_PI*zCoord/mesh.zLen);
 
                 zCoord = mesh.zStaggr(V.Vx.fCore.ubound(2)) + (mesh.zStaggr(V.Vx.fCore.ubound(2)) - mesh.zStaggr(V.Vx.fCore.ubound(2) - iZ));
                 nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                             cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                             cos(2.0*M_PI*zCoord/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
+                                                               cos(2.0*M_PI*zCoord/mesh.zLen);
             }
         }
     }
@@ -959,13 +801,13 @@ double scalar_d3::testPeriodic() {
             for (int iZ = V.Vy.fCore.lbound(2); iZ <= V.Vy.fCore.ubound(2); iZ += iX) {
                 xCoord = mesh.xStaggr(V.Vy.fCore.lbound(0)) - (mesh.xStaggr(V.Vy.fCore.lbound(0) + iX) - mesh.xStaggr(V.Vy.fCore.lbound(0)));
                 nseRHS.Vy(V.Vy.fCore.lbound(0) - iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                              sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
-                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
+                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 xCoord = mesh.xStaggr(V.Vy.fCore.ubound(0)) + (mesh.xStaggr(V.Vy.fCore.ubound(0)) - mesh.xStaggr(V.Vy.fCore.ubound(0) - iX));
                 nseRHS.Vy(V.Vy.fCore.ubound(0) + iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                              sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
-                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
+                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
         }
     }
@@ -976,13 +818,13 @@ double scalar_d3::testPeriodic() {
             for (int iZ = V.Vy.fCore.lbound(2); iZ <= V.Vy.fCore.ubound(2); iZ += iY) {
                 yCoord = mesh.yColloc(V.Vy.fCore.lbound(1)) - (mesh.yColloc(V.Vy.fCore.lbound(1) + iY) - mesh.yColloc(V.Vy.fCore.lbound(1)));
                 nseRHS.Vy(iX, V.Vy.fCore.lbound(1) - iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                              sin(2.0*M_PI*yCoord/mesh.yLen)*
-                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                sin(2.0*M_PI*yCoord/mesh.yLen)*
+                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
                 yCoord = mesh.yColloc(V.Vy.fCore.ubound(1)) + (mesh.yColloc(V.Vy.fCore.ubound(1)) - mesh.yColloc(V.Vy.fCore.ubound(1) - iY));
                 nseRHS.Vy(iX, V.Vy.fCore.ubound(1) + iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                              sin(2.0*M_PI*yCoord/mesh.yLen)*
-                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                sin(2.0*M_PI*yCoord/mesh.yLen)*
+                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
             }
         }
     }
@@ -993,13 +835,13 @@ double scalar_d3::testPeriodic() {
             for (int iY = V.Vy.fCore.lbound(1); iY <= V.Vy.fCore.ubound(1); iY += iZ) {
                 zCoord = mesh.zStaggr(V.Vy.fCore.lbound(2)) - (mesh.zStaggr(V.Vy.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vy.fCore.lbound(2)));
                 nseRHS.Vy(iX, iY, V.Vy.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                              sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
-                                                              cos(2.0*M_PI*zCoord/mesh.zLen);
+                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
+                                                                cos(2.0*M_PI*zCoord/mesh.zLen);
 
                 zCoord = mesh.zStaggr(V.Vy.fCore.ubound(2)) + (mesh.zStaggr(V.Vy.fCore.ubound(2)) - mesh.zStaggr(V.Vy.fCore.ubound(2) - iZ));
                 nseRHS.Vy(iX, iY, V.Vy.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                              sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
-                                                              cos(2.0*M_PI*zCoord/mesh.zLen);
+                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
+                                                                cos(2.0*M_PI*zCoord/mesh.zLen);
             }
         }
     }
@@ -1012,5 +854,6 @@ double scalar_d3::testPeriodic() {
 
     return std::max(blitz::max(fabs(V.Vx.F)), blitz::max(fabs(V.Vy.F)));
 }
+
 
 scalar_d3::~scalar_d3() { }

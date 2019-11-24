@@ -60,7 +60,6 @@ class scalar: public hydro {
 
     protected:
         plainsf tmpRHS;
-
         plainsf guessedScalar;
         plainsf scalarLaplacian;
 
@@ -102,9 +101,6 @@ class scalar_d2: public scalar {
 
         void solveT();
 
-        void imposeUBCs();
-        void imposeWBCs();
-
         void computeTimeStep();
 };
 
@@ -140,10 +136,6 @@ class scalar_d3: public scalar {
         void solveVz();
 
         void solveT();
-
-        //void imposeUBCs();
-        //void imposeVBCs();
-        //void imposeWBCs();
 
         void computeTimeStep();
 };

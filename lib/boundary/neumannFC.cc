@@ -49,8 +49,10 @@
  *          The class constructor initializes the mesh for computational problem.
  *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
  *
- * \param   mesh is a const reference to the global data contained in the grid class
+ * \param   mesh is a const reference to the global data contained in the grid class.
  * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
+ * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
+ * \param   bcValue is the const double precision value of the derivative of the variable at the boundary.
  ********************************************************************************************************************************************
  */
 neumannFC::neumannFC(const grid &mesh, field &inField, const int bcWall, const double bcValue):
@@ -58,11 +60,11 @@ neumannFC::neumannFC(const grid &mesh, field &inField, const int bcWall, const d
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions on the given field
+ * \brief   Function to impose Neumann BC on a face centered variable
  *
- *          The function first calls the syncData() function of the field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling individual functions
- *          to impose the BCs along X, Y and Z directions.
+ *          For Saras solver, the wall passes through the cell centers of the variables.
+ *          Hence the variable is lying on either sides of the wall for this case.
+ *          Accordingly the derivative of the variable is set on the wall.
  *
  ********************************************************************************************************************************************
  */

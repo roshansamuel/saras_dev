@@ -55,6 +55,7 @@
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   solParam is a const reference to the user-set parameters contained in the parser class
+ * \param   mpiParam is a reference to the object of parallel class containing the necessary rank data
  ********************************************************************************************************************************************
  */
 scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
@@ -97,6 +98,7 @@ scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
     }
 }
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to solve the implicit equation for scalar field
@@ -116,11 +118,12 @@ scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
  */
 void scalar::solveT() { };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to initialize the boundary conditions for temperature
  *
- *          The boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.
+ *          The temperature boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.
  *          Out of the different boundary conditions available in the boundary class,
  *          the appropriate BCs are chosen according to the type of problem being solved.
  ********************************************************************************************************************************************
@@ -142,8 +145,14 @@ void scalar::initTBC() {
 #endif
     // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
     if (inputParams.probType == 5 || inputParams.probType == 8) {
+        // CREATE HEATING PATCH IF THE USER SET PARAMETER FOR HEATING PLATE IS TRUE
         if (inputParams.nonHgBC) {
+#ifndef PLANAR
+            if (mpiData.rank == 0) std::cout << "Using non-homogeneous boundary condition (heating plate) on bottom wall" << std::endl << std::endl;
             tBot = new hotPlateCC(mesh, T.F, 4, inputParams.patchRadius);
+#else
+            if (mpiData.rank == 0) std::cout << "WARNING: Non-homogenous BC flag is set to true in input paramters for 2D simulation. IGNORING" << std::endl << std::endl;
+#endif
         } else {
             tBot = new dirichletCC(mesh, T.F, 4, 1.0);
         }
@@ -156,13 +165,15 @@ void scalar::initTBC() {
     }
 };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to impose the boundary conditions for temperature
  *
- *          The boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.
- *          Out of the different boundary conditions available in the boundary class,
- *          the appropriate BCs are chosen according to the type of problem being solved.
+ *          The function first calls the syncData() function of the temperature field to update the sub-domain pads.
+ *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
+ *          of each boundary class object assigned to each wall.
+ *
  ********************************************************************************************************************************************
  */
 void scalar::imposeTBCs() {

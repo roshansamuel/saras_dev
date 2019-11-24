@@ -46,11 +46,12 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the boundary class
  *
- *          The class constructor initializes the mesh for computational problem.
- *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
+ *          The class constructor initializes the mesh and other constant values for imposing the boundary condition.
+ *          This constructor is called along with the constructors of any of the available classes of BCs.
  *
- * \param   mesh is a const reference to the global data contained in the grid class
- * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
+ * \param   mesh is a const reference to the global data contained in the grid class.
+ * \param   inField is a reference to the field to which the boundary conditions must be applied.
+ * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
  ********************************************************************************************************************************************
  */
 boundary::boundary(const grid &mesh, field &inField, const int bcWall):
@@ -60,36 +61,41 @@ boundary::boundary(const grid &mesh, field &inField, const int bcWall):
     // This has to be changed appropriately.
     rankFlag = true;
 
-    // By default, shiftVal is 1. i.e., the BC will be applied on the left wall along a given direction.
+    // By default, shiftVal is 1. i.e., the BC will be applied correctly only on the left wall along a given direction.
     // This has to be changed appropriately for the wall on the other side.
     shiftVal = 1;
 
+    // Update rankFlag for the left wall (along X)
     if (wallNum == 0) rankFlag = mesh.rankData.xRank == 0;
+    // Update rankFlag and shiftVal for the right wall (along X)
     if (wallNum == 1) {
         rankFlag = mesh.rankData.xRank == mesh.rankData.npX - 1;
         shiftVal = -1;
     }
 #ifndef PLANAR
+    // Update rankFlag for the front wall (along Y)
     if (wallNum == 2) rankFlag = mesh.rankData.yRank == 0;
+    // Update rankFlag and shiftVal for the front wall (along Y)
     if (wallNum == 3) {
         rankFlag = mesh.rankData.yRank == mesh.rankData.npY - 1;
         shiftVal = -1;
     }
 #endif
+    // Update shiftVal for the top wall (along Z)
     if (wallNum == 5) {
         shiftVal = -1;
     }
 
+    // Find the dimension along which the BC is being applied (X -> 0, Y -> 1, Z -> 2) using the wallNum
     shiftDim = (int) wallNum/2;
 }
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions on the given field
+ * \brief   Prototype function to impose the boundary conditions on the given field
  *
- *          The function first calls the syncData() function of the field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling individual functions
- *          to impose the BCs along X, Y and Z directions.
+ *          Based on the values of wallNum, shiftDim, shiftVal and fieldVal, the appropriate BC (neumann/dirichlet/mixed)
+ *          is imposed on the field.
  *
  ********************************************************************************************************************************************
  */

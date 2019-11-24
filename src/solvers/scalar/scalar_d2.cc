@@ -87,15 +87,16 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
 
     checkPeriodic();
 
+    // Initialize velocity and temperature boundary conditions
+    initVBC();
     initTBC();
-    //tempBC = new boundary(mesh, T.F, 0);
 
     imposeUBCs();
     imposeWBCs();
 
-    //tempBC->imposeBC();
     imposeTBCs();
 }
+
 
 void scalar_d2::solvePDE() {
     int xLow, xTop;
@@ -301,6 +302,7 @@ void scalar_d2::solvePDE() {
     ofFile.close();
 }
 
+
 void scalar_d2::computeTimeStep() {
     // BELOW FLAG MAY BE TURNED OFF FOR DEBUGGING/DIGNOSTIC RUNS ONLY
     // IT IS USED TO TURN OFF COMPUTATION OF NON-LINEAR TERMS
@@ -404,9 +406,9 @@ void scalar_d2::computeTimeStep() {
     imposeWBCs();
 
     // IMPOSE BOUNDARY CONDITIONS ON T
-    //tempBC->imposeBC();
     imposeTBCs();
 }
+
 
 void scalar_d2::solveVx() {
     int iterCount = 0;
@@ -459,6 +461,7 @@ void scalar_d2::solveVx() {
     }
 }
 
+
 void scalar_d2::solveVz() {
     int iterCount = 0;
     double maxError = 0.0;
@@ -510,6 +513,7 @@ void scalar_d2::solveVz() {
     }
 }
 
+
 void scalar_d2::solveT() {
     int iterCount = 0;
     double maxError = 0.0;
@@ -528,7 +532,6 @@ void scalar_d2::solveT() {
 
         T = guessedScalar;
 
-        //tempBC->imposeBC();
         imposeTBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
@@ -561,83 +564,6 @@ void scalar_d2::solveT() {
     }
 }
 
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose global and sub-domain boundary values on x-velocity component
- *
- *          First, inter-processor data transfer is performed by calling the \ref sfield#syncData "syncData" function of Vx
- *          Then the values of <B>Vx</B> on the 4 walls are imposed.
- *          The order of imposing boundary conditions is - left, right, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- ********************************************************************************************************************************************
- */
-void scalar_d2::imposeUBCs() {
-    V.Vx.syncData();
-
-    // IMPOSE BC FOR Vx ALONG LEFT AND RIGHT WALLS
-    if (not inputParams.xPer) {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        // Vx LIES ON EITHER SIDE OF THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-        if (mesh.rankData.xRank == 0) {
-            V.Vx.F(V.Vx.fWalls(0)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(0), 1));
-        }
-        // Vx LIES ON EITHER SIDE OF THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS COLLOCATED ALONG X
-        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            V.Vx.F(V.Vx.fWalls(1)) = -V.Vx.F(V.Vx.shift(0, V.Vx.fWalls(1), -1));
-        }
-    } // FOR PERIODIC BCS, THE MPI DATA TRANSFER IS SUFFICIENT FOR COLLOCATED GRID POINTS AT LEFT AND RIGHT WALLS
-
-    // IMPOSE BC FOR Vx ALONG TOP AND BOTTOM WALLS
-    if (not inputParams.zPer) {
-        // NO-SLIP BCS
-        // Vx LIES ON THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-        V.Vx.F(V.Vx.fWalls(4)) = 0.0;
-        // Vx LIES ON THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vx IS STAGGERED ALONG Z
-        V.Vx.F(V.Vx.fWalls(5)) = 0.0;
-    }
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose global and sub-domain boundary values on z-velocity component
- *
- *          First, inter-processor data transfer is performed by calling the \ref sfield#syncData "syncData" function of Vz
- *          Then the values of <B>Vz</B> on the 4 walls are imposed.
- *          The order of imposing boundary conditions is - left, right, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- ********************************************************************************************************************************************
- */
-void scalar_d2::imposeWBCs() {
-    V.Vz.syncData();
-
-    // IMPOSE BC FOR Vz ALONG LEFT AND RIGHT WALLS. FOR PERIODIC CASE, DATA TRANSFER AUTOMATICALLY IMPOSES BC
-    if (not inputParams.xPer) {
-        // NO-SLIP BCS
-        // Vz LIES ON THE LEFT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-        if (mesh.rankData.xRank == 0) {
-            V.Vz.F(V.Vz.fWalls(0)) = 0.0;
-        }
-        // Vz LIES ON THE RIGHT WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS STAGGERED ALONG X
-        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            V.Vz.F(V.Vz.fWalls(1)) = 0.0;
-        }
-    }
-
-    // IMPOSE BC FOR Vz ALONG TOP AND BOTTOM WALLS
-    if (inputParams.zPer) {
-        // PERIODIC BCS
-        V.Vz.F(V.Vz.fWalls(4)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-        V.Vz.F(V.Vz.fWalls(5)) = V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-    } else {
-        // NON PERIODIC BCS
-        // NO-SLIP BCS
-        // Vz LIES ON EITHER SIDE OF THE BOTTOM WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-        V.Vz.F(V.Vz.fWalls(4)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(4), 1));
-        // Vz LIES ON EITHER SIDE OF THE TOP WALL AS THE WALL IS ON STAGGERED POINT AND Vz IS COLLOCATED ALONG Z
-        V.Vz.F(V.Vz.fWalls(5)) = -V.Vz.F(V.Vz.shift(2, V.Vz.fWalls(5), -1));
-    }
-}
 
 double scalar_d2::testPeriodic() {
     int iY = 0;
@@ -650,14 +576,14 @@ double scalar_d2::testPeriodic() {
     for (int i=V.Vx.F.lbound(0); i <= V.Vx.F.ubound(0); i++) {
         for (int k=V.Vx.F.lbound(2); k <= V.Vx.F.ubound(2); k++) {
             V.Vx.F(i, 0, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
-                                cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                              cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
             nseRHS.Vx(i, 0, k) = V.Vx.F(i, 0, k);
         }
     }
     for (int i=V.Vz.F.lbound(0); i <= V.Vz.F.ubound(0); i++) {
         for (int k=V.Vz.F.lbound(2); k <= V.Vz.F.ubound(2); k++) {
             V.Vz.F(i, 0, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                 sin(2.0*M_PI*mesh.zColloc(k)/mesh.zLen);
+                               sin(2.0*M_PI*mesh.zColloc(k)/mesh.zLen);
             nseRHS.Vz(i, 0, k) = V.Vz.F(i, 0, k);
         }
     }
@@ -668,11 +594,11 @@ double scalar_d2::testPeriodic() {
         for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += 1) {
             xCoord = mesh.xColloc(V.Vx.fCore.lbound(0)) - (mesh.xColloc(V.Vx.fCore.lbound(0) + iX) - mesh.xColloc(V.Vx.fCore.lbound(0)));
             nseRHS.Vx(V.Vx.fCore.lbound(0) - iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                             cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                           cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
 
             xCoord = mesh.xColloc(V.Vx.fCore.ubound(0)) + (mesh.xColloc(V.Vx.fCore.ubound(0)) - mesh.xColloc(V.Vx.fCore.ubound(0) - iX));
             nseRHS.Vx(V.Vx.fCore.ubound(0) + iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                             cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                           cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
         }
     }
 
@@ -681,11 +607,11 @@ double scalar_d2::testPeriodic() {
         for (int iX = V.Vx.fCore.lbound(0); iX <= V.Vx.fCore.ubound(0); iX += 1) {
             zCoord = mesh.zStaggr(V.Vx.fCore.lbound(2)) - (mesh.zStaggr(V.Vx.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vx.fCore.lbound(2)));
             nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                             cos(2.0*M_PI*zCoord/mesh.zLen);
+                                                           cos(2.0*M_PI*zCoord/mesh.zLen);
 
             zCoord = mesh.zStaggr(V.Vx.fCore.ubound(2)) + (mesh.zStaggr(V.Vx.fCore.ubound(2)) - mesh.zStaggr(V.Vx.fCore.ubound(2) - iZ));
             nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                             cos(2.0*M_PI*zCoord/mesh.zLen);
+                                                           cos(2.0*M_PI*zCoord/mesh.zLen);
         }
     }
 
@@ -694,11 +620,11 @@ double scalar_d2::testPeriodic() {
         for (int iZ = V.Vz.fCore.lbound(2); iZ <= V.Vz.fCore.ubound(2); iZ += 1) {
             xCoord = mesh.xStaggr(V.Vz.fCore.lbound(0)) - (mesh.xStaggr(V.Vz.fCore.lbound(0) + iX) - mesh.xStaggr(V.Vz.fCore.lbound(0)));
             nseRHS.Vz(V.Vz.fCore.lbound(0) - iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                              sin(2.0*M_PI*mesh.zColloc(iZ)/mesh.zLen);
+                                                            sin(2.0*M_PI*mesh.zColloc(iZ)/mesh.zLen);
 
             xCoord = mesh.xStaggr(V.Vz.fCore.ubound(0)) + (mesh.xStaggr(V.Vz.fCore.ubound(0)) - mesh.xStaggr(V.Vz.fCore.ubound(0) - iX));
             nseRHS.Vz(V.Vz.fCore.ubound(0) + iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                              sin(2.0*M_PI*mesh.zColloc(iZ)/mesh.zLen);
+                                                            sin(2.0*M_PI*mesh.zColloc(iZ)/mesh.zLen);
         }
     }
 
@@ -707,11 +633,11 @@ double scalar_d2::testPeriodic() {
         for (int iX = V.Vz.fCore.lbound(0); iX <= V.Vz.fCore.ubound(0); iX += 1) {
             zCoord = mesh.zColloc(V.Vz.fCore.lbound(2)) - (mesh.zColloc(V.Vz.fCore.lbound(2) + iZ) - mesh.zColloc(V.Vz.fCore.lbound(2)));
             nseRHS.Vz(iX, iY, V.Vz.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                              sin(2.0*M_PI*zCoord/mesh.zLen);
+                                                            sin(2.0*M_PI*zCoord/mesh.zLen);
 
             zCoord = mesh.zColloc(V.Vz.fCore.ubound(2)) + (mesh.zColloc(V.Vz.fCore.ubound(2)) - mesh.zColloc(V.Vz.fCore.ubound(2) - iZ));
             nseRHS.Vz(iX, iY, V.Vz.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                              sin(2.0*M_PI*zCoord/mesh.zLen);
+                                                            sin(2.0*M_PI*zCoord/mesh.zLen);
         }
     }
 
@@ -722,5 +648,6 @@ double scalar_d2::testPeriodic() {
 
     return std::max(blitz::max(fabs(V.Vx.F)), blitz::max(fabs(V.Vz.F)));
 }
+
 
 scalar_d2::~scalar_d2() { }

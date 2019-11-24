@@ -147,9 +147,6 @@ class hydro_d2: public hydro {
         void solveVx();
         void solveVz();
 
-        //void imposeUBCs();
-        //void imposeWBCs();
-
         void computeTimeStep();
 };
 
