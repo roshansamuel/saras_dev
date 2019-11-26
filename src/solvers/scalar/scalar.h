@@ -65,10 +65,10 @@ class scalar: public hydro {
 
         boundary *tLft, *tRgt, *tFrn, *tBak, *tTop, *tBot;
 
-        virtual void solveT();
-
         void initTBC();
         void imposeTBCs();
+
+        virtual void solveT();
 };
 
 /**
@@ -110,7 +110,7 @@ class scalar_d2: public scalar {
  *  \brief The derived class from the scalar base class to solve the incompressible NSE in 2D with energy equation
  *
  *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Since the class is instantiated when solveing the NSE in 2D, the y-direction component of the grid is supressed.
+ *  Since the class is instantiated when solving the NSE in 2D, the y-direction component of the grid is supressed.
  *  Consequently, the boundary conditions are imposed only on 4 sides of the domain.
  ********************************************************************************************************************************************
  */

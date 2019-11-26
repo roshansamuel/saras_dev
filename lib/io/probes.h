@@ -63,6 +63,13 @@ typedef struct dataStruct {
 } dataStruct;
 
 class probes {
+    public:
+        probes(const grid &mesh, std::vector<field> &pFields);
+
+        void probeData(double time);
+
+        ~probes();
+
     private:
         const grid &mesh;
 
@@ -82,18 +89,11 @@ class probes {
         void createMPIStruct();
 
         void placeProbes();
-
-    public:
-        probes(const grid &mesh, std::vector<field> &pFields);
-
-        void probeData(double time);
-
-        ~probes();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class probes probes.h "lib/probes.h"
+ *  \class probes probes.h "lib/io/probes.h"
  *  \brief Handles the writing of data from probes placed in the domain
  *
  *  The class places the probes in probesList provided by user through the parser class.

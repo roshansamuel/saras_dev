@@ -102,15 +102,6 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
             // FOR CHANNEL AND DUCT FLOW, SET THE X-VELOCITY THROUGHOUT THE DOMAIN TO 1.0
             V.Vx.F = 1.0;
         }
-
-        //switch (inputParams.icType) {
-        //    case 1: initCond->initTGV(V);
-        //        break;
-        //    case 2: initCond->initSinusoidal(V);
-        //        break;
-        //    case 3: initCond->initRandom(V);
-        //        break;
-        //}
     }
 
     checkPeriodic();
@@ -124,20 +115,6 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
 }
 
 void hydro_d3::solvePDE() {
-#ifndef TIME_RUN
-    int xLow, xTop;
-    int yLow, yTop;
-    int zLow, zTop;
-
-    double dVol;
-    double maxDivergence;
-    double fwTime, prTime, rsTime;
-    double totalEnergy, localEnergy;
-
-    // Plain scalar field to compute divergence
-    plainsf divV(mesh, P);
-#endif
-
 #ifdef TIME_RUN
     visc_time = 0.0;
     nlin_time = 0.0;
@@ -147,6 +124,8 @@ void hydro_d3::solvePDE() {
     pois_time = 0.0;
 
 #else
+    double fwTime, prTime, rsTime;
+
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
 
@@ -165,7 +144,7 @@ void hydro_d3::solvePDE() {
     }
 
     // Output file containing the time series of various variables
-    std::ofstream ofFile("output/TimeSeries.dat");
+    tseries tsWriter(mesh, V, P, time, dt);
 
     // FILE WRITING TIME
     fwTime = time;
@@ -180,53 +159,8 @@ void hydro_d3::solvePDE() {
     timeStepCount = 0;
 
 #ifndef TIME_RUN
-    // PARAMETERS FOR COMPUTING TOTAL ENERGY IN THE DOMAIN
-    // UPPER AND LOWER LIMITS WHEN COMPUTING ENERGY IN STAGGERED GRID
-    xLow = P.F.fCore.lbound(0);        xTop = P.F.fCore.ubound(0);
-    yLow = P.F.fCore.lbound(1);        yTop = P.F.fCore.ubound(1);
-    zLow = P.F.fCore.lbound(2);        zTop = P.F.fCore.ubound(2);
-
-    // STAGGERED GRIDS HAVE SHARED POINT ACROSS MPI-SUBDOMAINS - ACCORDINGLY DECREASE LIMITS
-    if (mesh.rankData.xRank > 0) {
-        xLow += 1;
-    }
-
-    if (mesh.rankData.yRank > 0) {
-        yLow += 1;
-    }
-
-    // INFINITESIMAL VOLUME FOR INTEGRATING ENERGY OVER DOMAIN
-    dVol = hx*hy*hz;
-
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
-    V.divergence(divV, P);
-    maxDivergence = divV.fxMax();
-
-    localEnergy = 0.0;
-    totalEnergy = 0.0;
-    for (int iX = xLow; iX <= xTop; iX++) {
-        for (int iY = yLow; iY <= yTop; iY++) {
-            for (int iZ = zLow; iZ <= zTop; iZ++) {
-                localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
-            }
-        }
-    }
-
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-
-    if (mesh.rankData.rank == 0) {
-        std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
-                                   std::setw(16) << "Total energy" << "\t" << "Divergence" << std::endl;
-
-        std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                   std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
-
-        ofFile << "#VARIABLES = Time, Energy, Divergence, dt\n";
-        ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << inputParams.tStp << std::endl;
-    }
+    tsWriter.writeTSData();
 
     if (inputParams.restartFlag) {
         // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
@@ -265,31 +199,8 @@ void hydro_d3::solvePDE() {
         time += dt;
 
 #ifndef TIME_RUN
-        V.divergence(divV, P);
-        maxDivergence = divV.fxMax();
-
-        localEnergy = 0.0;
-        totalEnergy = 0.0;
-        for (int iX = xLow; iX <= xTop; iX++) {
-            for (int iY = yLow; iY <= yTop; iY++) {
-                for (int iZ = zLow; iZ <= zTop; iZ++) {
-                    localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                    pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                    pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
-                }
-            }
-        }
-
-        MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-
         if (timeStepCount % inputParams.ioCnt == 0) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                           std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
-
-                ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                        std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << dt << std::endl;
-            }
+            tsWriter.writeTSData();
         }
 
         if (inputParams.readProbes and std::abs(prTime - time) < 0.5*dt) {
@@ -323,11 +234,6 @@ void hydro_d3::solvePDE() {
         std::cout << std::left << std::setw(50) << "Time taken in computing RHS for poisson solver: "   << std::fixed << std::setprecision(6) << prhs_time << std::endl;
         std::cout << std::left << std::setw(50) << "Time taken by poisson solver: "                     << std::fixed << std::setprecision(6) << pois_time << std::endl;
     }
-#endif
-
-    // CLOSE THE TIME-SERIES FILE
-#ifndef TIME_RUN
-    ofFile.close();
 #endif
 }
 

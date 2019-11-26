@@ -50,6 +50,7 @@
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   wField is a vector of sfields to be written
+ *
  ********************************************************************************************************************************************
  */
 writer::writer(const grid &mesh, std::vector<field> &wFields): mesh(mesh), wFields(wFields) {

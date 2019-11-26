@@ -99,17 +99,7 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
 
 
 void scalar_d2::solvePDE() {
-    int xLow, xTop;
-    int zLow, zTop;
-
-    double dVol;
-    double maxDivergence;
     double fwTime, prTime, rsTime;
-    double totalEnergy, localEnergy;
-    double totalUzT, localUzT, totalCount, localCount, NusseltNo;
-
-    // Plain scalar field to compute divergence
-    plainsf divV(mesh, P);
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
@@ -129,7 +119,7 @@ void scalar_d2::solvePDE() {
     }
 
     // Output file containing the time series of various variables
-    std::ofstream ofFile("output/TimeSeries.dat");
+    tseries tsWriter(mesh, V, P, time, dt);
 
     // FILE WRITING TIME
     fwTime = time;
@@ -142,64 +132,8 @@ void scalar_d2::solvePDE() {
 
     timeStepCount = 0;
 
-    NusseltNo = 0.0;
-
-    // PARAMETERS FOR COMPUTING TOTAL ENERGY IN THE DOMAIN
-    // UPPER AND LOWER LIMITS WHEN COMPUTING ENERGY IN STAGGERED GRID
-    xLow = P.F.fCore.lbound(0);        xTop = P.F.fCore.ubound(0);
-    zLow = P.F.fCore.lbound(2);        zTop = P.F.fCore.ubound(2);
-
-    // STAGGERED GRIDS HAVE SHARED POINT ACROSS MPI-SUBDOMAINS - ACCORDINGLY DECREASE LIMITS
-    if (mesh.rankData.xRank > 0) {
-        xLow += 1;
-    }
-
-    // INFINITESIMAL VOLUME FOR INTEGRATING ENERGY OVER DOMAIN
-    dVol = hx*hz;
-
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
-    V.divergence(divV, P);
-    maxDivergence = divV.fxMax();
-
-    int iY = 0;
-    localEnergy = 0.0;
-    totalEnergy = 0.0;
-    localUzT = 0.0;
-    localCount = 0.0;
-
-    // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-    V.interTempZ = 0.0;
-    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-    }
-    V.interTempZ /= V.Vz.PcIntSlices.size();
-    for (int iX = xLow; iX <= xTop; iX++) {
-        for (int iZ = zLow; iZ <= zTop; iZ++) {
-            localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
-
-            // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-            localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
-            localCount += 1.0;
-        }
-    }
-
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    NusseltNo = 1.0 + (totalUzT/totalCount)/kappa;
-
-    if (mesh.rankData.rank == 0) {
-        std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
-                                   std::setw(16) << "Re (Urms)" << "\t" << "Nusselt No" << "\t" << "Divergence" << std::endl;
-
-        std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                   std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
-
-        ofFile << "#VARIABLES = Time, Energy, NusseltNo, Divergence, dt\n";
-        ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << inputParams.tStp << std::endl;
-    }
+    tsWriter.writeTSData();
 
     if (inputParams.restartFlag) {
         // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
@@ -221,8 +155,8 @@ void scalar_d2::solvePDE() {
         rsTime += inputParams.rsInt;
     }
 
-    // TIME-INTEGRATION LOOP
     dt = inputParams.tStp;
+    // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
@@ -236,46 +170,8 @@ void scalar_d2::solvePDE() {
         timeStepCount += 1;
         time += dt;
 
-        V.divergence(divV, P);
-        maxDivergence = divV.fxMax();
-
-        int iY = 0;
-        localEnergy = 0.0;
-        totalEnergy = 0.0;
-        localUzT = 0.0;
-        localCount = 0.0;
-
-        // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-        V.interTempZ = 0.0;
-        for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-            V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-        }
-        V.interTempZ /= V.Vz.PcIntSlices.size();
-
-        for (int iX = xLow; iX <= xTop; iX++) {
-            for (int iZ = zLow; iZ <= zTop; iZ++) {
-                localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
-
-                // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-                localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
-                localCount += 1.0;
-            }
-        }
-
-        MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        NusseltNo = 1.0 + (totalUzT/totalCount)/kappa;
-
         if (timeStepCount % inputParams.ioCnt == 0) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                           std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
-
-                ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                        std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << dt << std::endl;
-            }
+            tsWriter.writeTSData(T, nu, kappa);
         }
 
         if (inputParams.readProbes and std::abs(prTime - time) < 0.5*dt) {
@@ -297,9 +193,6 @@ void scalar_d2::solvePDE() {
             break;
         }
     }
-
-    // CLOSE THE TIME-SERIES FILE
-    ofFile.close();
 }
 
 

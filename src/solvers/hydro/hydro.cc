@@ -78,54 +78,27 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to enable/disable periodic data transfer as per the problem
+ * \brief   The core publicly accessible function of the \ref hydro class to solve the Navier-Stokes equations
  *
- *          The function checks the xPer, yPer and zPer flags in the parser class
- *          and enables/disables MPI data transfer at boundaries accordingly
- *          By default, the MPI neighbours at boundaries are set for periodic data-transfer.
- *          This has to be disabled if the problem has non-periodic boundaries.
- *
+ *          The NSE are integrated in time from within this function by calling \ref computeTimeStep in a loop.
+ *          The function keeps track of the non-dimensional time with \ref time and number of iterations with \ref iterCount.
+ *          Both these values are continuously incremented from within the loop, and finally, when \ref time has reached the
+ *          user-ser value in \ref parser#tMax "tMax", the time-integration loop is broken and the program exits.
  ********************************************************************************************************************************************
  */
-void hydro::checkPeriodic() {
-    // Disable periodic data transfer by setting neighbouring ranks of boundary sub-domains to NULL
-    // Left and right walls
-    if (not inputParams.xPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along X Direction" << std::endl;
-            std::cout << std::endl;
-        }
+void hydro::solvePDE() { };
 
-        if (mpiData.xRank == 0)             mpiData.nearRanks(0) = MPI_PROC_NULL;
-        if (mpiData.xRank == mpiData.npX-1) mpiData.nearRanks(1) = MPI_PROC_NULL;
-    }
 
-    // Front and rear walls
-#ifdef PLANAR
-    // Front and rear walls are by default non-periodic for 2D simulations
-    if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
-    if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
-
-#else
-    if (not inputParams.yPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along Y Direction" << std::endl;
-            std::cout << std::endl;
-        }
-
-        if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
-        if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
-    }
-#endif
-
-    // Inform user about BC along top and bottom walls
-    if (not inputParams.zPer) {
-        if (mpiData.rank == 0) {
-            std::cout << "Using non-periodic boundary conditions along Z Direction" << std::endl;
-            std::cout << std::endl;
-        }
-    }
-};
+/**
+ ********************************************************************************************************************************************
+ * \brief   The subroutine to solve the NS equations using the implicit Crank-Nicholson method
+ *
+ *          This function uses the values of velocity vector field and pressure scalar field, along with a specifed time-step
+ *          to update the values of both fields by one time-step.
+ *          Hence this function has to be repeatedly called in a loop from within the \ref solvePDE function to solve the equations.
+ ********************************************************************************************************************************************
+ */
+void hydro::computeTimeStep() { };
 
 
 /**
@@ -190,6 +163,58 @@ void hydro::solveVz() { };
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to enable/disable periodic data transfer as per the problem
+ *
+ *          The function checks the xPer, yPer and zPer flags in the parser class
+ *          and enables/disables MPI data transfer at boundaries accordingly
+ *          By default, the MPI neighbours at boundaries are set for periodic data-transfer.
+ *          This has to be disabled if the problem has non-periodic boundaries.
+ *
+ ********************************************************************************************************************************************
+ */
+void hydro::checkPeriodic() {
+    // Disable periodic data transfer by setting neighbouring ranks of boundary sub-domains to NULL
+    // Left and right walls
+    if (not inputParams.xPer) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-periodic boundary conditions along X Direction" << std::endl;
+            std::cout << std::endl;
+        }
+
+        if (mpiData.xRank == 0)             mpiData.nearRanks(0) = MPI_PROC_NULL;
+        if (mpiData.xRank == mpiData.npX-1) mpiData.nearRanks(1) = MPI_PROC_NULL;
+    }
+
+    // Front and rear walls
+#ifdef PLANAR
+    // Front and rear walls are by default non-periodic for 2D simulations
+    if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
+    if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
+
+#else
+    if (not inputParams.yPer) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-periodic boundary conditions along Y Direction" << std::endl;
+            std::cout << std::endl;
+        }
+
+        if (mpiData.yRank == 0)             mpiData.nearRanks(2) = MPI_PROC_NULL;
+        if (mpiData.yRank == mpiData.npY-1) mpiData.nearRanks(3) = MPI_PROC_NULL;
+    }
+#endif
+
+    // Inform user about BC along top and bottom walls
+    if (not inputParams.zPer) {
+        if (mpiData.rank == 0) {
+            std::cout << "Using non-periodic boundary conditions along Z Direction" << std::endl;
+            std::cout << std::endl;
+        }
+    }
+};
+
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to set the coefficients used for solving the implicit equations of U, V and W
  *
  *          The function assigns values to the variables \ref hx, \ref hy, etc.
@@ -215,31 +240,6 @@ void hydro::setCoefficients() {
     hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
 #endif
 };
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   The subroutine to solve the NS equations using the implicit Crank-Nicholson method
- *
- *          This function uses the values of velocity vector field and pressure scalar field, along with a specifed time-step
- *          to update the values of both fields by one time-step.
- *          Hence this function has to be repeatedly called in a loop from within the \ref solvePDE function to solve the equations.
- ********************************************************************************************************************************************
- */
-void hydro::computeTimeStep() { };
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   The core publicly accessible function of the \ref hydro class to solve the Navier-Stokes equations
- *
- *          The NSE are integrated in time from within this function by calling \ref computeTimeStep in a loop.
- *          The function keeps track of the non-dimensional time with \ref time and number of iterations with \ref iterCount.
- *          Both these values are continuously incremented from within the loop, and finally, when \ref time has reached the
- *          user-ser value in \ref parser#tMax "tMax", the time-integration loop is broken and the program exits.
- ********************************************************************************************************************************************
- */
-void hydro::solvePDE() { };
 
 
 /**

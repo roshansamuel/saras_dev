@@ -29,96 +29,65 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file parser.h
+/*! \file tseries.h
  *
- *  \brief Class declaration of parser
+ *  \brief Class declaration of tseries
  *
- *  \author Roshan Samuel, Shashwat Bhattacharya
+ *  \author Roshan Samuel
  *  \date Nov 2019
  *  \copyright New BSD License
  *
  ********************************************************************************************************************************************
  */
 
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef TSERIES_H
+#define TSERIES_H
 
-#include <math.h>
-#include <string>
-#include <sstream>
 #include <fstream>
-#include <blitz/array.h>
-#include <yaml-cpp/yaml.h>
 
-class parser {
+#include "plainsf.h"
+#include "sfield.h"
+#include "vfield.h"
+#include "grid.h"
+
+class tseries {
     public:
-        int ioCnt;
-        int rbcType;
-        int nThreads;
-        int npY, npX;
-        int forceType;
-        int xInd, yInd, zInd;
-        int vcDepth, vcCount;
-        int preSmooth, postSmooth;
+        tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const double &solverTime, const double &timeStep);
 
-        int iScheme;
-        int probType;
-        int xGrid, yGrid, zGrid;
+        void writeTSData();
+        void writeTSData(const sfield &T, const double nu, const double kappa);
 
-        bool useCFL;
-        bool nonHgBC;
-        bool readProbes;
-        bool restartFlag;
-        bool xPer, yPer, zPer;
-
-        double Re;
-        double Ra;
-        double Pr;
-        double Ta;
-        double Ro;
-
-        double fwInt;
-        double rsInt;
-        double prInt;
-        double tolerance;
-        double Lx, Ly, Lz;
-        double tStp, tMax;
-        double patchRadius;
-        double betaX, betaY, betaZ;
-        double courantNumber;
-
-        std::string dScheme;
-        std::string meshType;
-
-        std::vector<int> interSmooth;
-        std::vector<blitz::TinyVector<int, 3> > probesList;
-
-        parser();
-
-        void writeParams();
+        ~tseries();
 
     private:
-        std::string domainType;
-        std::string probeCoords;
+        int xLow, xTop;
+        int yLow, yTop;
+        int zLow, zTop;
 
-        void parseYAML();
-        void checkData();
+        double dVol;
+        double maxDivergence;
+        double totalEnergy, localEnergy;
+        double totalUzT, localUzT, totalCount, localCount, NusseltNo;
 
-        void testProbes();
-        void parseProbes();
+        const double &time, &tStp;
 
-        void setGrids();
-        void setPeriodicity();
+        const grid &mesh;
+
+        const sfield &P;
+        vfield &V;
+
+        plainsf divV;
+
+        std::ofstream ofFile;
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class parser parser.h "lib/io/parser.h"
- *  \brief  Contains all the global variables set by the user through the yaml file
+ *  \class tseries tseries.h "lib/io/tseries.h"
+ *  \brief Handles the writing of time-series data for various global quantities
  *
- *  The class parses the paramters.yaml file and stores all the simulation paramters in publicly accessible constants.
- *  The class also has a function to check the consistency of the user set paramters and throw exceptions.
- *  The class is best initialized as a constant to prevent inadvertent tampering of the global variables it contains.
+ *  The class writes the output into a dat file as well as to the standard I/O.
+ *  The class computes various global quantities use library functions and MPI reduce calls.
  ********************************************************************************************************************************************
  */
 

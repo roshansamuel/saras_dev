@@ -55,3 +55,7 @@ add_library (reader
 add_library (writer
              writer.cc
 )
+
+add_library (tseries
+             tseries.cc
+)

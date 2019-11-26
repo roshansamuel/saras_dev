@@ -44,6 +44,20 @@
 #include "probes.h"
 #include "mpi.h"
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Constructor of the probes class
+ *
+ *          The constructor initializes the variables and parameters for writing probed data
+ *          The header for the ProbeData.dat file is also written here.
+ *          Depending on whether the run is 2D or 3D, the appropriate header is written.
+ *          Finally, the MPIStruct datatype for transferring probed data across processors is also initialized.
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class.
+ * \param   pFields is a vector containing a list of references to all the fields which need to be probed.
+ *
+ ********************************************************************************************************************************************
+ */
 probes::probes(const grid &mesh, std::vector<field> &pFields): mesh(mesh), pFields(pFields), numFields(pFields.size()) {
     placeProbes();
 

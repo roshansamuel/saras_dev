@@ -50,6 +50,7 @@
 #include "poisson.h"
 #include "plainvf.h"
 #include "initial.h"
+#include "tseries.h"
 #include "writer.h"
 #include "reader.h"
 #include "probes.h"
