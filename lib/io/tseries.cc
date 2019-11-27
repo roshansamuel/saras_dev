@@ -84,9 +84,9 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
 
     // INFINITESIMAL VOLUME FOR INTEGRATING ENERGY OVER DOMAIN
 #ifdef PLANAR
-    dVol = mesh.dXi*mesh.dEt*mesh.dZt;
-#else
     dVol = mesh.dXi*mesh.dZt;
+#else
+    dVol = mesh.dXi*mesh.dEt*mesh.dZt;
 #endif
 
     if (mesh.rankData.rank == 0) {
@@ -145,10 +145,10 @@ void tseries::writeTSData() {
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << std::endl;
+                                    std::setw(16) << std::setprecision(8) << totalEnergy << "\t" << maxDivergence << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy) << "\t" << maxDivergence << "\t" << tStp << std::endl;
+                                std::setw(16) << std::setprecision(8) << totalEnergy << "\t" << maxDivergence << "\t" << tStp << std::endl;
     }
 }
 
@@ -219,7 +219,7 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
+                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << nu << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                 std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << tStp << std::endl;
