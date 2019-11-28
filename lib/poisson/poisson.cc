@@ -114,10 +114,6 @@ void poisson::initializeArrays() {
     residualData.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
     residualData.reindexSelf(stagFull.lbound());
     residualData = 0.0;
-
-    pressureLapl.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-    pressureLapl.reindexSelf(stagFull.lbound());
-    pressureLapl = 0.0;
 }
 
 /**

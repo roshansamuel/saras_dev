@@ -197,13 +197,13 @@ void field::setBulkSlice() {
     // At all interior sub-domains after performing MPI domain decomposition,
     // the bulk and core slices are identical
 
-    if (xStag and gridData.subarrayStarts(0) == 0) blBound(0) += 1;
+    if (xStag and gridData.rankData.xRank == 0) blBound(0) += 1;
 
-    if (xStag and gridData.subarrayEnds(0) == gridData.globalSize(0) - 1) buBound(0) -= 1;
+    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) buBound(0) -= 1;
 
-    if (yStag and gridData.subarrayStarts(1) == 0) blBound(1) += 1;
+    if (yStag and gridData.rankData.yRank == 0) blBound(1) += 1;
 
-    if (yStag and gridData.subarrayEnds(1) == gridData.globalSize(1) - 1) buBound(1) -= 1;
+    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1) buBound(1) -= 1;
 
     if (zStag) {
         blBound(2) += 1;

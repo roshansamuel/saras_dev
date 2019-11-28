@@ -96,7 +96,6 @@ void multigrid_d2::mgSolve(plainsf &inFn, const plainsf &rhs) {
     for (int i=0; i<inputParams.vcCount; i++) {
         smoothedPres = 0.0;
         iteratorTemp = 0.0;
-        pressureLapl = 0.0;
 
         vCycle();
     }

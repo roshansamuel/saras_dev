@@ -70,7 +70,6 @@ class poisson {
         blitz::Array<double, 3> residualData;
         blitz::Array<double, 3> iteratorTemp;
         blitz::Array<double, 3> smoothedPres;
-        blitz::Array<double, 3> pressureLapl;
 
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;

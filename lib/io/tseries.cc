@@ -97,7 +97,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
             ofFile << "#VARIABLES = Time, Energy, Divergence, dt\n";
         } else {
             std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
-                                    std::setw(16) << "Re (Urms)" << "\t" << "Nusselt No" << "\t" << "Divergence" << std::endl;
+                                    std::setw(16) << "Re (Urms)" << "\t" << "Nusselt No" << "\t" << "Divergence" << "\t" << "nu" << std::endl;
 
             ofFile << "#VARIABLES = Time, Energy, NusseltNo, Divergence, dt\n";
         }
