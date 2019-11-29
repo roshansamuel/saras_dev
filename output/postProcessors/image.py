@@ -58,7 +58,7 @@ def hdf5_reader(filename,dataset):
     return V1
 
 kappa = 0.0001
-d = 0.1
+d = 1.0
 
 A=20
 font = {'family' : 'serif', 'weight' : 'normal', 'size' : A}
@@ -70,29 +70,30 @@ print("CHECK")
 t = 43
 ypos = 17
 def plot_density():
-    #U = hdf5_reader("Soln_{0:009.4f}.h5".format(t), "Vx")
-    #V = hdf5_reader("Soln_{0:009.4f}.h5".format(t), "Vy")
-    #W = hdf5_reader("Soln_{0:009.4f}.h5".format(t), "Vz")
 
-    fName = "SolnIP_0005.0000.h5"
-    slc = 64
-    g = 16
+    fName = "Soln_slice.h5"
 
-    U = hdf5_reader("U.V1r.h5", "U.V1r")#[:,slc,:]
-    V = hdf5_reader("U.V2r.h5", "U.V2r")#[:,slc,:] 
-    W = hdf5_reader("U.V3r.h5", "U.V3r")#[:,slc,:]
-    T = hdf5_reader("T.Fr.h5", "T.Fr")#[:,slc,:]
-    
+    U = hdf5_reader(fName, "Vx")
+    V = hdf5_reader(fName, "Vy")
+    W = hdf5_reader(fName, "Vz")
+    T = hdf5_reader(fName, "T")
+   
+   
+   
+   
     [Nx, Nz] = T.shape
 
     print(T.shape, U.shape, V.shape, W.shape) 
 
     L = 1.0
-    x = np.linspace(0,1,Nx)# loadtxt("mesh.d")[:,0]
-    z = np.linspace(0,1,Nz) #loadtxt("mesh.d")[:,0]  
+    x = np.linspace(0,1,Nx)
+    z = np.linspace(0,1,Nz) 
 
     fig, axes = plt.subplots(figsize=(10,10))
     levels = []
+    g=20
+    print np.max(U[:,0]), np.min(U[:,0])
+    print np.max(W[:,0]), np.min(U[:,0])
 
     density = axes.pcolor(x, z, np.transpose(T), cmap='jet')#, norm = colors.LogNorm())
     Q = axes.quiver(x[::g], z[::g], np.transpose(U[::g,::g]), np.transpose(W[::g,::g]), units='width')

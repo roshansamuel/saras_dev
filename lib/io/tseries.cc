@@ -97,7 +97,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
             ofFile << "#VARIABLES = Time, Energy, Divergence, dt\n";
         } else {
             std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
-                                    std::setw(16) << "Re (Urms)" << "\t" << "Nusselt No" << "\t" << "Divergence" << "\t" << "nu" << std::endl;
+                                    std::setw(16) << "Re (Urms)" << "\t" << "Nusselt No" << "\t" << "Divergence" << std::endl;
 
             ofFile << "#VARIABLES = Time, Energy, NusseltNo, Divergence, dt\n";
         }
@@ -219,7 +219,7 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << nu << std::endl;
+                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                 std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << tStp << std::endl;
