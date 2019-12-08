@@ -33,7 +33,7 @@
  #
  #   \brief CMakeLists file to add the force class library.
  #
- #   \author Shashwat Bhattacharya
+ #   \author Shashwat Bhattacharya, Roshan Samuel
  #   \date Nov 2019
  #   \copyright New BSD License
  #
@@ -42,4 +42,8 @@
 
 add_library (force
              force.cc
+             coriolisForce.cc
+             buoyantForce.cc
+             rotatingConv.cc
+             randomForcing.cc
 )

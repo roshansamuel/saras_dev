@@ -41,6 +41,7 @@
  */
 
 #include "hydro.h"
+#include "initial.h"
 
 /**
  ********************************************************************************************************************************************
@@ -85,23 +86,26 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
         P = 1.0;
 
         // INITIALIZE VARIABLES
-        //initCond = new initial(mesh);
-
-        if (inputParams.probType == 1) {
-            // FOR LDC, SET THE X-VELOCITY OF STAGGERED POINTS ON THE LID TO 1.0
-            V.Vx.F(blitz::Range::all(), blitz::Range::all(), mesh.staggrCoreDomain.ubound(2)) = 1.0;
-
-        } else if (inputParams.probType == 2) {
-            initCond = new taylorGreen(mesh);
-            initCond->initializeField(V);
-            //initCond->initTGV(V);
+        initial *initCond;
+        switch (inputParams.icType) {
+            case 1: initCond = new taylorGreen(mesh);
+                break;
+            case 2: initCond = new channelSine(mesh);
+                break;
+            case 3: initCond = new channelRand(mesh);
+                break;
+            default: initCond = new zeroInitial(mesh);
         }
+        initCond->initializeField(V);
     }
 
     checkPeriodic();
 
     // Initialize velocity boundary conditions
     initVBC();
+
+    // Initialize velocity forcing field
+    initVForcing();
 
     imposeUBCs();
     imposeWBCs();
@@ -213,7 +217,7 @@ void hydro_d2::computeTimeStep() {
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
     V.computeNLin(V, nseRHS);
 
-    Force.add_VForce(nseRHS);
+    vForcing->addForcing(nseRHS);
 
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);

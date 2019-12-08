@@ -29,9 +29,9 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file force.cc
+/*! \file coriolisForce.cc
  *
- *  \brief Definitions for functions of class force
+ *  \brief Definitions for functions of class coriolisForce
  *  \sa force.h
  *  \author Shashwat Bhattacharya, Roshan Samuel
  *  \date Nov 2019
@@ -42,28 +42,27 @@
 
 #include "force.h"
 
-force::force(const grid &mesh, vfield &U): mesh(mesh), V(U) { }
+coriolisForce::coriolisForce(const grid &mesh, vfield &U): force(mesh, U) {
+    Fr = 1.0/mesh.inputParams.Ro;
+}
 
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a vector field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainvf &Hv) { };
+void coriolisForce::addForcing(plainvf &Hv) {
+    //ADD THE ROTATING TERM TO THE Vx COMPONENT OF Hv
+    V.interTempX = 0.0;
+    for (unsigned int i=0; i < V.Vx.VyIntSlices.size(); i++) {
+        V.interTempX(V.Vx.fCore) += V.Vy.F(V.Vx.VyIntSlices(i));
+    }   
+    V.interTempX /= V.Vx.VyIntSlices.size();
 
+    Hv.Vx += Fr*V.interTempX;
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a scalar field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainsf &Ht) { };
+    //SUBTRACT THE ROTATING TERM FROM THE Vy COMPONENT of Hv
+    V.interTempY = 0.0;
+    for (unsigned int i=0; i < V.Vy.VxIntSlices.size(); i++) {
+        V.interTempY(V.Vy.fCore) += V.Vx.F(V.Vy.VxIntSlices(i));
+    }   
+    V.interTempY /= V.Vy.VxIntSlices.size();
+
+    Hv.Vy -= Fr*V.interTempY;
+}

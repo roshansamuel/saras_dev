@@ -29,9 +29,9 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file force.cc
+/*! \file rotatingConv.cc
  *
- *  \brief Definitions for functions of class force
+ *  \brief Definitions for functions of class rotatingConv
  *  \sa force.h
  *  \author Shashwat Bhattacharya, Roshan Samuel
  *  \date Nov 2019
@@ -42,28 +42,53 @@
 
 #include "force.h"
 
-force::force(const grid &mesh, vfield &U): mesh(mesh), V(U) { }
+rotatingConv::rotatingConv(const grid &mesh, vfield &U, const sfield &T): force(mesh, U), T(T) {
+    switch (mesh.inputParams.rbcType) {
+        case 1:
+            Fb = mesh.inputParams.Ra*mesh.inputParams.Pr;
+            Fr = mesh.inputParams.Pr*sqrt(mesh.inputParams.Ta);
+            break;
+        case 2:
+            Fb = 1.0;
+            Fr = sqrt(mesh.inputParams.Ta*mesh.inputParams.Pr/mesh.inputParams.Ra); 
+            break;
+        case 3:
+            Fb = mesh.inputParams.Ra;
+            Fr = sqrt(mesh.inputParams.Ta);
+            break;
+        case 4:
+            Fb = mesh.inputParams.Pr;
+            Fr = sqrt(mesh.inputParams.Ta*mesh.inputParams.Pr/mesh.inputParams.Ra); 
+            break;
+    }
+}
 
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a vector field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainvf &Hv) { };
+void rotatingConv::addForcing(plainvf &Hv) {
+    //ADD THE BUOYANCY TERM TO THE Vz COMPONENT OF Hv
+    V.interTempZ = 0.0;
+    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
+        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+    }
+    V.interTempZ /= V.Vz.PcIntSlices.size();
 
+    Hv.Vz += Fb*V.interTempZ;
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a scalar field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainsf &Ht) { };
+    //ADD THE ROTATING TERM TO THE Vx COMPONENT OF Hv
+    V.interTempX = 0.0;
+    for (unsigned int i=0; i < V.Vx.VyIntSlices.size(); i++) {
+        V.interTempX(V.Vx.fCore) += V.Vy.F(V.Vx.VyIntSlices(i));
+    }   
+    V.interTempX /= V.Vx.VyIntSlices.size();
+
+    Hv.Vx += Fr*V.interTempX;
+
+    //SUBTRACT THE ROTATING TERM FROM THE Vy COMPONENT of Hv
+    V.interTempY = 0.0;
+    for (unsigned int i=0; i < V.Vy.VxIntSlices.size(); i++) {
+        V.interTempY(V.Vy.fCore) += V.Vx.F(V.Vy.VxIntSlices(i));
+    }   
+    V.interTempY /= V.Vy.VxIntSlices.size();
+
+    Hv.Vy -= Fr*V.interTempY;
+}

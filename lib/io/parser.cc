@@ -77,7 +77,9 @@ void parser::parseYAML() {
     parser.GetNextDocument(yamlNode);
 
     /********** Problem parameters **********/
+
     yamlNode["Program"]["Problem Type"] >> probType;
+    yamlNode["Program"]["Initial Condition"] >> icType;
     yamlNode["Program"]["Domain Type"] >> domainType;
     yamlNode["Program"]["RBC Type"] >> rbcType;
 
@@ -97,6 +99,7 @@ void parser::parseYAML() {
     yamlNode["Program"]["Plate Radius"] >> patchRadius;
 
     /********** Mesh parameters **********/
+
     yamlNode["Mesh"]["Mesh Type"] >> meshType;
 
     yamlNode["Mesh"]["X Beta"] >> betaX;
@@ -108,12 +111,14 @@ void parser::parseYAML() {
     yamlNode["Mesh"]["Z Index"] >> zInd;
 
     /********** Parallelization parameters **********/
+
     yamlNode["Parallel"]["Number of OMP threads"] >> nThreads;
 
     yamlNode["Parallel"]["X Number of Procs"] >> npX;
     yamlNode["Parallel"]["Y Number of Procs"] >> npY;
 
     /********** Solver parameters **********/
+
     yamlNode["Solver"]["Differentiation Scheme"] >> dScheme;
     yamlNode["Solver"]["Integration Scheme"] >> iScheme;
     yamlNode["Solver"]["Restart Run"] >> restartFlag;
@@ -132,6 +137,7 @@ void parser::parseYAML() {
     yamlNode["Solver"]["Probes"] >> probeCoords;
 
     /********** Multigrid parameters **********/
+
     yamlNode["Multigrid"]["Jacobi Tolerance"] >> tolerance;
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;

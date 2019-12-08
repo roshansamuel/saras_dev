@@ -29,9 +29,9 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file force.cc
+/*! \file randomForcing.cc
  *
- *  \brief Definitions for functions of class force
+ *  \brief Definitions for functions of class randomForcing
  *  \sa force.h
  *  \author Shashwat Bhattacharya, Roshan Samuel
  *  \date Nov 2019
@@ -42,28 +42,30 @@
 
 #include "force.h"
 
-force::force(const grid &mesh, vfield &U): mesh(mesh), V(U) { }
+randomForcing::randomForcing(const grid &mesh, vfield &U): force(mesh, U) {
+    Force_x.resize(V.Vx.fSize);
+    Force_x.reindexSelf(V.Vx.flBound);
+
+#ifndef PLANAR
+    Force_y.resize(V.Vy.fSize);
+    Force_y.reindexSelf(V.Vy.flBound);
+#endif
+
+    Force_z.resize(V.Vz.fSize);
+    Force_z.reindexSelf(V.Vz.flBound);
+}
 
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a vector field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainvf &Hv) { };
+void randomForcing::addForcing(plainvf &Hv){
+    // Currently, random forcing is not implemented. The forcing is 0 for now
+    Force_x = 0.0;
+    Hv.Vx += Force_x;
 
+#ifndef PLANAR
+    Force_y = 0.0;
+    Hv.Vy += Force_y;
+#endif
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a scalar field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainsf &Ht) { };
+    Force_z = 0.0;
+    Hv.Vz += Force_z;
+}

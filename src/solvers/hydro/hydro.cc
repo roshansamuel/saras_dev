@@ -60,7 +60,6 @@
 hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             V(mesh, "V"),
             P(mesh, "P"),
-            Force(V, solParam, mpiParam),
             mesh(mesh),
             inputParams(solParam),
             inverseRe(1.0/inputParams.Re),
@@ -240,6 +239,28 @@ void hydro::setCoefficients() {
     hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
 #endif
 };
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to initialize the forcing terms for velocity
+ *
+ *          The forcing terms for the velocity field are initialized here.
+ *          Out of the different forcings available in the force class,
+ *          the appropriate forcing is chosen according to the parameters set by the user.
+ ********************************************************************************************************************************************
+ */
+void hydro::initVForcing() {
+    switch (inputParams.forceType) {
+        case 0: vForcing = new zeroForcing(mesh, V);
+            break;
+        case 1: vForcing = new randomForcing(mesh, V);
+            break;
+        case 2: vForcing = new coriolisForce(mesh, V);
+            break;
+        default: vForcing = new zeroForcing(mesh, V);
+    }
+}
 
 
 /**

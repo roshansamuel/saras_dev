@@ -52,6 +52,8 @@ class scalar: public hydro {
     public:
         sfield T;
 
+        force *tForcing;
+
         double nu, kappa; 
 
         scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
@@ -67,6 +69,9 @@ class scalar: public hydro {
 
         void initTBC();
         void imposeTBCs();
+
+        void initVForcing();
+        void initTForcing();
 
         virtual void solveT();
 };

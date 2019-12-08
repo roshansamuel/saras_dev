@@ -121,6 +121,47 @@ void scalar::solveT() { };
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to initialize the forcing terms for velocity
+ *
+ *          The forcing terms for the velocity field are initialized here.
+ *          Out of the different forcings available in the force class,
+ *          the appropriate forcing is chosen according to the parameters set by the user.
+ ********************************************************************************************************************************************
+ */
+void scalar::initVForcing() {
+    switch (inputParams.forceType) {
+        case 0: vForcing = new zeroForcing(mesh, V);
+            break;
+        case 1: vForcing = new randomForcing(mesh, V);
+            break;
+        case 2: vForcing = new coriolisForce(mesh, V);
+            break;
+        case 3: vForcing = new buoyantForce(mesh, V, T);
+            break;
+        case 4: vForcing = new rotatingConv(mesh, V, T);
+            break;
+        default: vForcing = new zeroForcing(mesh, V);
+    }
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to initialize the forcing terms for temperature
+ *
+ *          The forcing terms for the temperature field are initialized here.
+ *          Out of the different forcings available in the force class,
+ *          the appropriate forcing is chosen according to the parameters set by the user.
+ ********************************************************************************************************************************************
+ */
+void scalar::initTForcing() {
+    // Currently no forcing for scalar terms are available
+    tForcing = new zeroForcing(mesh, V);
+}
+
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to initialize the boundary conditions for temperature
  *
  *          The temperature boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.

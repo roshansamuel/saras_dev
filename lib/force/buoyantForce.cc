@@ -29,9 +29,9 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file force.cc
+/*! \file buoyantForce.cc
  *
- *  \brief Definitions for functions of class force
+ *  \brief Definitions for functions of class buoyantForce
  *  \sa force.h
  *  \author Shashwat Bhattacharya, Roshan Samuel
  *  \date Nov 2019
@@ -42,28 +42,27 @@
 
 #include "force.h"
 
-force::force(const grid &mesh, vfield &U): mesh(mesh), V(U) { }
+buoyantForce::buoyantForce(const grid &mesh, vfield &U, const sfield &T): force(mesh, U), T(T) {
+    switch (mesh.inputParams.rbcType) {
+        case 1: Fb = mesh.inputParams.Ra*mesh.inputParams.Pr;
+            break;
+        case 2: Fb = 1.0;
+            break;
+        case 3: Fb = mesh.inputParams.Ra;
+            break;
+        case 4: Fb = mesh.inputParams.Pr;
+            break;
+    }
+}
 
 
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a vector field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainvf &Hv) { };
+void buoyantForce::addForcing(plainvf &Hv) {
+    //ADD THE BUOYANCY TERM TO THE Vz COMPONENT OF Hv
+    V.interTempZ = 0.0;
+    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
+        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
+    }
+    V.interTempZ /= V.Vz.PcIntSlices.size();
 
-
-/**
- ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a scalar field
- *
- *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
- *          added to the input plain field.
- *
- ********************************************************************************************************************************************
- */
-void force::addForcing(plainsf &Ht) { };
+    Hv.Vz += Fb*V.interTempZ;
+}

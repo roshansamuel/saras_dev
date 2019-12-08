@@ -111,4 +111,19 @@ class channelRand: public initial {
  ********************************************************************************************************************************************
  */
 
+class zeroInitial: public initial {
+    public:
+        zeroInitial(const grid &mesh): initial(mesh) { };
+
+        void initializeField(vfield &uField) {uField.Vx = 0.0; uField.Vy = 0.0; uField.Vz = 0.0;};
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class zeroInitial initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose the default condition of 0 velocity.
+ *
+ ********************************************************************************************************************************************
+ */
+
 #endif

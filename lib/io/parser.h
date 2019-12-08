@@ -61,6 +61,7 @@ class parser {
         int vcDepth, vcCount;
         int preSmooth, postSmooth;
 
+        int icType;
         int iScheme;
         int probType;
         int xGrid, yGrid, zGrid;

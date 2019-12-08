@@ -91,6 +91,10 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
     initVBC();
     initTBC();
 
+    // Initialize velocity and temperature forcing fields
+    initVForcing();
+    initTForcing();
+
     imposeUBCs();
     imposeWBCs();
 
@@ -213,7 +217,7 @@ void scalar_d2::computeTimeStep() {
     V.computeNLin(V, nseRHS);
 
     //ADD VELOCITY FORCING TO THE RHS
-    Force.add_VForce(nseRHS, T);
+    vForcing->addForcing(nseRHS);
     
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
     pressureGradient = 0.0;
@@ -282,7 +286,7 @@ void scalar_d2::computeTimeStep() {
     }
 
     // ADD SCALAR FORCING TO THE TEMPERATURE EQUATION
-    Force.add_SForce(tmpRHS);
+    tForcing->addForcing(tmpRHS);
 
     // MULTIPLY WITH TIME-STEP AND ADD THE CALCULATED VALUE TO THE TEMPERATURE AT START OF TIME-STEP
     tmpRHS *= dt;

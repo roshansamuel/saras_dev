@@ -45,41 +45,115 @@
 
 #include <blitz/array.h>
 
-#include "parallel.h"
-#include "plainsf.h"
 #include "plainvf.h"
 #include "sfield.h"
 #include "vfield.h"
-#include "parser.h"
 
-class sfield;
-
-class force{
+class force {
     public:
-        force(vfield &U, const parser &solParams, parallel &mpiParam);
+        force(const grid &mesh, vfield &U);
 
-        void add_SForce(plainsf &Ht);
-        void add_VForce(plainvf &Hv);
-        void add_VForce(plainvf &Hv, sfield &T);
+        virtual void addForcing(plainvf &Hv);
+        virtual void addForcing(plainsf &Ht);
 
-    private:
+    protected:
+        const grid &mesh;
+
         vfield &V;
-
-        const parallel &mpiData;
-
-        const parser &inputParams;
-
-        double Fb, Fr;
-
-        void add_Coriolis(plainvf &Hv);
-        void add_RandomForce(plainvf &Hv);
-        void add_Buoyancy(plainvf &Hv, sfield &T);
 };
 
 /**
  ********************************************************************************************************************************************
  *  \class force force.h "lib/force/force.h"
  *  \brief Contains all the global variables related to the imposing of forcing, and associated functions
+ *
+ ********************************************************************************************************************************************
+ */
+
+class coriolisForce: public force {
+    public:
+        coriolisForce(const grid &mesh, vfield &U);
+
+        inline void addForcing(plainvf &Hv);
+    private:
+        double Fr;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class coriolisForce force.h "lib/force/force.h"
+ *  \brief The derived class from force to add Coriolis forcing to the velocity field in rotating systems.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class buoyantForce: public force {
+    public:
+        buoyantForce(const grid &mesh, vfield &U, const sfield &T);
+
+        inline void addForcing(plainvf &Hv);
+    private:
+        double Fb;
+
+        const sfield &T;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class buoyantForce force.h "lib/force/force.h"
+ *  \brief The derived class from force to add forcing due to buoyancy to the velocity field in convecting systems.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class rotatingConv: public force {
+    public:
+        rotatingConv(const grid &mesh, vfield &U, const sfield &T);
+
+        inline void addForcing(plainvf &Hv);
+    private:
+        double Fb, Fr;
+
+        const sfield &T;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class rotatingConv force.h "lib/force/force.h"
+ *  \brief The derived class from force to add forcing due to both buoyancy and rotation to the velocity field in rotating convection simulations.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class randomForcing: public force {
+    public:
+        randomForcing(const grid &mesh, vfield &U);
+
+        inline void addForcing(plainvf &Hv);
+    private:
+        blitz::Array<double, 3> Force_x, Force_y, Force_z;
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class randomForcing force.h "lib/force/force.h"
+ *  \brief The derived class from force to add random forcing to the velocity field.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class zeroForcing: public force {
+    public:
+        zeroForcing(const grid &mesh, vfield &U): force(mesh, U) { };
+
+        inline void addForcing(plainvf &Hv) { };
+        inline void addForcing(plainsf &Ht) { };
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class zeroForcing force.h "lib/force/force.h"
+ *  \brief The derived class from force to add the default forcing of no forcing.
  *
  ********************************************************************************************************************************************
  */

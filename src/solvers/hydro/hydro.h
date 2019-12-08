@@ -49,7 +49,6 @@
 #include "parallel.h"
 #include "poisson.h"
 #include "plainvf.h"
-#include "initial.h"
 #include "tseries.h"
 #include "writer.h"
 #include "reader.h"
@@ -66,7 +65,7 @@ class hydro {
 
         sfield P;
 
-        force Force;
+        force *vForcing;
 
         hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
@@ -91,7 +90,6 @@ class hydro {
         const double inverseRe;
 
         probes *dataProbe;
-        initial *initCond;
         boundary *uLft, *uRgt, *uFrn, *uBak, *uTop, *uBot;
         boundary *vLft, *vRgt, *vFrn, *vBak, *vTop, *vBot;
         boundary *wLft, *wRgt, *wFrn, *wBak, *wTop, *wBot;
@@ -113,6 +111,8 @@ class hydro {
         void imposeUBCs();
         void imposeVBCs();
         void imposeWBCs();
+
+        void initVForcing();
 
         virtual void solveVx();
         virtual void solveVy();
