@@ -89,14 +89,16 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
         P = 1.0;
 
         // INITIALIZE VARIABLES
-        initCond = new initial(mesh);
+        //initCond = new initial(mesh);
 
         if (inputParams.probType == 1) {
             // FOR LDC, SET THE X-VELOCITY OF STAGGERED POINTS ON THE LID TO 1.0
             V.Vx.F(blitz::Range::all(), blitz::Range::all(), mesh.staggrCoreDomain.ubound(2)) = 1.0;
 
         } else if (inputParams.probType == 2) {
-            initCond->initTGV(V);
+            initCond = new taylorGreen(mesh);
+            initCond->initializeField(V);
+            //initCond->initTGV(V);
 
         } else if (inputParams.probType == 3 or inputParams.probType == 4) {
             // FOR CHANNEL AND DUCT FLOW, SET THE X-VELOCITY THROUGHOUT THE DOMAIN TO 1.0

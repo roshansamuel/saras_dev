@@ -148,6 +148,13 @@ void field::setCoreSlice() {
         cuBound(2) = gridData.staggrCoreDomain.ubound()(2);
     }
 
+    // Following lines taken from Aether to correct periodic BCs for channel flow - test it thoroughly
+    // Pushing the last point at the end of the domain inside by one unit of grid spacing for periodic domains
+    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and gridData.inputParams.xPer) cuBound(0) -= 1;
+
+    // Pushing the last point at the end of the domain inside by one unit of grid spacing for periodic domains
+    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1 and gridData.inputParams.yPer) cuBound(1) -= 1;
+
     fCore = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), cuBound);
 
     fCLft = shift(0, fCore, -1);

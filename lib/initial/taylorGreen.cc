@@ -29,10 +29,10 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file initial.h
+/*! \file initial.cc
  *
- *  \brief Class declaration of initial
- *
+ *  \brief Definitions for functions of class initial
+ *  \sa initial.h
  *  \author Roshan Samuel
  *  \date Nov 2019
  *  \copyright New BSD License
@@ -40,75 +40,73 @@
  ********************************************************************************************************************************************
  */
 
-#ifndef INITIAL_H
-#define INITIAL_H
-
-#include <blitz/array.h>
-
-#include "vfield.h"
-#include "grid.h"
-
-class initial {
-    public:
-        initial(const grid &mesh);
-
-        virtual void initializeField(vfield &uField);
-
-    protected:
-        const grid &mesh;
-};
+#include "initial.h"
 
 /**
  ********************************************************************************************************************************************
- *  \class initial initial.h "lib/initial/initial.h"
- *  \brief Contains all the global variables related to the imposing of initial conditions, and functions to impose them
+ * \brief   Constructor of the initial class
  *
+ *          The empty constructer merely initializes the local reference to the global mesh variable.
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class
  ********************************************************************************************************************************************
  */
+taylorGreen::taylorGreen(const grid &mesh): initial(mesh) { }
 
-class taylorGreen: public initial {
-    public:
-        taylorGreen(const grid &mesh);
-
-        void initializeField(vfield &uField);
-};
 
 /**
  ********************************************************************************************************************************************
- *  \class taylorGreen initial.h "lib/initial/initial.h"
- *  \brief The derived class from initial to impose initial condition of Taylor-Green vortices.
+ * \brief   Function to impose the Taylor Green Vortex initial condition on the given input velocity field
+ *
+ *          Depending on the preprocessor flag PLANAR, the function applies the Taylor Green vortex equation
+ *          to set initial conditions in both 2D and 3D cases.
  *
  ********************************************************************************************************************************************
  */
+void taylorGreen::initializeField(vfield &uField) {
+    if (mesh.rankData.rank == 0) std::cout << "Imposing Taylor-Green vortices initial condition" << std::endl << std::endl;
 
-class channelSine: public initial {
-    public:
-        channelSine(const grid &mesh);
+#ifdef PLANAR
+    // X-VELOCITY
+    for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
+        for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
+            uField.Vx.F(i, 0, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
+                                   cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+        }
+    }
 
-        void initializeField(vfield &uField);
-};
+    // Z-VELOCITY
+    for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
+        for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
+            uField.Vz.F(i, 0, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                    sin(2.0*M_PI*mesh.zColloc(k)/mesh.zLen);
+        }
+    }
 
-/**
- ********************************************************************************************************************************************
- *  \class channelSine initial.h "lib/initial/initial.h"
- *  \brief The derived class from initial to impose sinusoidal perturbation for channel flow.
- *
- ********************************************************************************************************************************************
- */
+#else
+    // X-VELOCITY
+    for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
+        for (int j=uField.Vx.F.lbound(1); j <= uField.Vx.F.ubound(1); j++) {
+            for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
+                uField.Vx.F(i, j, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
+                                       cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                                       cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+            }
+        }
+    }
 
-class channelRand: public initial {
-    public:
-        channelRand(const grid &mesh);
+    // Y-VELOCITY
+    for (int i=uField.Vy.F.lbound(0); i <= uField.Vy.F.ubound(0); i++) {
+        for (int j=uField.Vy.F.lbound(1); j <= uField.Vy.F.ubound(1); j++) {
+            for (int k=uField.Vy.F.lbound(2); k <= uField.Vy.F.ubound(2); k++) {
+                uField.Vy.F(i, j, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                        sin(2.0*M_PI*mesh.yColloc(j)/mesh.yLen)*
+                                        cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+            }
+        }
+    }
 
-        void initializeField(vfield &uField);
-};
-
-/**
- ********************************************************************************************************************************************
- *  \class channelRand initial.h "lib/initial/initial.h"
- *  \brief The derived class from initial to impose random initial condition for channel flow.
- *
- ********************************************************************************************************************************************
- */
-
+    // Z-VELOCITY
+    uField.Vz.F = 0.0;
 #endif
+}

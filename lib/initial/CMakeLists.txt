@@ -42,4 +42,7 @@
 
 add_library (initial
              initial.cc
+             taylorGreen.cc
+             channelSine.cc
+             channelRand.cc
 )

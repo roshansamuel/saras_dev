@@ -4,7 +4,7 @@
     # 1 = Hydrodynamics: Lid-Driven Cavity
     # 2 = Hydrodynamics: Taylor Green Vortices
     # 3 = Hydrodynamics: Channel Flow
-    # 4 = Hydrodynamics: Duct Flow
+    # 4 = Hydrodynamics: Forced Channel Flow
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
