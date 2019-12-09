@@ -252,13 +252,25 @@ void hydro::setCoefficients() {
  */
 void hydro::initVForcing() {
     switch (inputParams.forceType) {
-        case 0: vForcing = new zeroForcing(mesh, V);
+        case 0:
+            if (mpiData.rank == 0) std::cout << "Running hydrodynamics simulation with zero velocity forcing" << std::endl << std::endl;
+            vForcing = new zeroForcing(mesh, V);
             break;
-        case 1: vForcing = new randomForcing(mesh, V);
+        case 1:
+            if (mpiData.rank == 0) std::cout << "Running hydrodynamics simulation with random velocity forcing" << std::endl << std::endl;
+            vForcing = new randomForcing(mesh, V);
             break;
-        case 2: vForcing = new coriolisForce(mesh, V);
+        case 2:
+            if (mpiData.rank == 0) std::cout << "Running hydrodynamics simulation with rotation" << std::endl << std::endl;
+            vForcing = new coriolisForce(mesh, V);
             break;
-        default: vForcing = new zeroForcing(mesh, V);
+        case 5:
+            if (mpiData.rank == 0) std::cout << "Running hydrodynamics simulation with constant pressure gradient along X-direction" << std::endl << std::endl;
+            vForcing = new constantPGrad(mesh, V);
+            break;
+        default:
+            if (mpiData.rank == 0) std::cout << "WARNING: Chosen velocity forcing is incompatible with hydrodynamics runs. Defaulting to zero forcing" << std::endl << std::endl;
+            vForcing = new zeroForcing(mesh, V);
     }
 }
 

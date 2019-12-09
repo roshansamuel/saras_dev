@@ -76,7 +76,7 @@ int main() {
             } else if (inputParams.probType == 3) {
                 std::cout << std::endl << "Solving NSE for channel flow problem" << std::endl;
             } else if (inputParams.probType == 4) {
-                std::cout << std::endl << "Solving NSE for square-duct flow problem" << std::endl;
+                std::cout << std::endl << "Solving NSE for forced channel flow problem" << std::endl;
             }
             std::cout << std::endl;
         }

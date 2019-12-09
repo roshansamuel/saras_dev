@@ -59,6 +59,7 @@ initial::initial(const grid &mesh): mesh(mesh) { }
  ********************************************************************************************************************************************
  * \brief   Prototype function to impose the initial conditions on the given field
  *
+ * \param   uField is a reference to the velocity vector field to be initialized
  ********************************************************************************************************************************************
  */
 void initial::initializeField(vfield &uField) { };

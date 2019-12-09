@@ -157,6 +157,7 @@ void field::setCoreSlice() {
 
     fCore = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), cuBound);
 
+    // As of Dec 2019, the below slices are used only in the divergence calculation of vfield and gradient calculation of sfield and plainsf
     fCLft = shift(0, fCore, -1);
     fCRgt = shift(0, fCore,  1);
 
@@ -171,9 +172,9 @@ void field::setCoreSlice() {
  ********************************************************************************************************************************************
  * \brief   Function to create the bulk slice and its offset views
  *
- *          The bulk and wall slices of the field differentiates the domain into the bulk of the fluid and
- *          the walls of the domain.
- *          The bulk slice is also offset in all the directions for ease in computation of numerical derivatives.
+ *          The bulk and wall slices of the field differentiates the domain into the bulk of the fluid and the walls of the domain.
+ *          The bulk slice is used in two places - i) to set wall slices - walls are considered to be the points just outside bulk,
+ *                                                ii) the limits of all iterative solvers in src are set to bulk limits.
  *
  ********************************************************************************************************************************************
  */
@@ -204,15 +205,19 @@ void field::setBulkSlice() {
     // At all interior sub-domains after performing MPI domain decomposition,
     // the bulk and core slices are identical
 
-    if (xStag and gridData.rankData.xRank == 0) blBound(0) += 1;
+    if (xStag and gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
 
-    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) buBound(0) -= 1;
+    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) {
+        gridData.inputParams.xPer? buBound(0) -= 2: buBound(0) -= 1;
+    }
 
-    if (yStag and gridData.rankData.yRank == 0) blBound(1) += 1;
+    if (yStag and gridData.rankData.yRank == 0 and not gridData.inputParams.yPer) blBound(1) += 1;
 
-    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1) buBound(1) -= 1;
+    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1) {
+        gridData.inputParams.yPer? buBound(1) -= 2: buBound(1) -= 1;
+    }
 
-    if (zStag) {
+    if (zStag and not gridData.inputParams.zPer) {
         blBound(2) += 1;
         buBound(2) -= 1;
     }
@@ -221,26 +226,6 @@ void field::setBulkSlice() {
     blBound(1) = 0;
     buBound(1) = 0;
 #endif
-
-    // THE FOLLOWING LINES ENSURE THAT BOUNDARY PADS GET CORRECTLY UPDATED IN PERIODIC BC
-    if (xStag and gridData.inputParams.xPer) {
-        if (gridData.rankData.xRank == 0) {
-            blBound(0) -= 1;
-        }
-        if (gridData.rankData.xRank == gridData.rankData.npX - 1) {
-            buBound(0) += 1;
-        }
-    }
-
-    if (yStag and gridData.inputParams.yPer) {
-        if (gridData.rankData.yRank == 0) {
-            blBound(1) -= 1;
-        }
-
-        if (gridData.rankData.yRank == gridData.rankData.npY - 1) {
-            buBound(1) += 1;
-        }
-    }
 
     fBulk = blitz::RectDomain<3>(blBound, buBound);
 }

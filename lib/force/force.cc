@@ -42,16 +42,28 @@
 
 #include "force.h"
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Constructor of the force class
+ *
+ *          The empty constructer merely initializes the local reference to the global mesh variable and vector field for velocity.
+ *          The velocity vector field is used for its interpolation slices to be used in calculating forcing terms.
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class
+ * \param   U is a reference to the velocity vector field
+ ********************************************************************************************************************************************
+ */
 force::force(const grid &mesh, vfield &U): mesh(mesh), V(U) { }
 
 
 /**
  ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a vector field
+ * \brief   Prototype function to add the forcing field to a plain vector field
  *
  *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
  *          added to the input plain field.
  *
+ * \param   Hv is a reference to the plain vector field to which the forcing term is to be added (RHS of the NSE)
  ********************************************************************************************************************************************
  */
 void force::addForcing(plainvf &Hv) { };
@@ -59,11 +71,12 @@ void force::addForcing(plainvf &Hv) { };
 
 /**
  ********************************************************************************************************************************************
- * \brief   Prototype function to add the forcing field to a scalar field
+ * \brief   Prototype function to add the forcing field to a plain scalar field
  *
  *          Based on the values of Fb, Fr, and other constants as applicable, the appropriate forcing field is calculated and
  *          added to the input plain field.
  *
+ * \param   Ht is a reference to the plain scalar field to which the forcing term is to be added (RHS of the temperature equation)
  ********************************************************************************************************************************************
  */
 void force::addForcing(plainsf &Ht) { };

@@ -75,6 +75,7 @@ class coriolisForce: public force {
         coriolisForce(const grid &mesh, vfield &U);
 
         inline void addForcing(plainvf &Hv);
+        inline void addForcing(plainsf &Ht) { };
     private:
         double Fr;
 };
@@ -92,6 +93,7 @@ class buoyantForce: public force {
         buoyantForce(const grid &mesh, vfield &U, const sfield &T);
 
         inline void addForcing(plainvf &Hv);
+        inline void addForcing(plainsf &Ht) { };
     private:
         double Fb;
 
@@ -111,6 +113,7 @@ class rotatingConv: public force {
         rotatingConv(const grid &mesh, vfield &U, const sfield &T);
 
         inline void addForcing(plainvf &Hv);
+        inline void addForcing(plainsf &Ht) { };
     private:
         double Fb, Fr;
 
@@ -130,6 +133,7 @@ class randomForcing: public force {
         randomForcing(const grid &mesh, vfield &U);
 
         inline void addForcing(plainvf &Hv);
+        inline void addForcing(plainsf &Ht) { };
     private:
         blitz::Array<double, 3> Force_x, Force_y, Force_z;
 };
@@ -138,6 +142,22 @@ class randomForcing: public force {
  ********************************************************************************************************************************************
  *  \class randomForcing force.h "lib/force/force.h"
  *  \brief The derived class from force to add random forcing to the velocity field.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class constantPGrad: public force {
+    public:
+        constantPGrad(const grid &mesh, vfield &U): force(mesh, U) { };
+
+        inline void addForcing(plainvf &Hv) {Hv.Vx += 1.0;};
+        inline void addForcing(plainsf &Ht) { };
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class constantPGrad force.h "lib/force/force.h"
+ *  \brief The derived class from force to add forcing due to constant pressure gradient to the velocity field, specially in channel flow simulations.
  *
  ********************************************************************************************************************************************
  */
