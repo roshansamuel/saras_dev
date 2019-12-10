@@ -119,6 +119,12 @@ void tseries::writeTSData() {
     V.divergence(divV, P);
     maxDivergence = divV.fxMax();
 
+    if (maxDivergence > 1.0e5) {
+        if (mesh.rankData.rank == 0) std::cout << std::endl << "ERROR: Divergence exceeds permissible limits. ABORTING" << std::endl << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
+
     localEnergy = 0.0;
     totalEnergy = 0.0;
 #ifdef PLANAR
@@ -171,6 +177,12 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     V.divergence(divV, P);
     maxDivergence = divV.fxMax();
+
+    if (maxDivergence > 1.0e5) {
+        if (mesh.rankData.rank == 0) std::cout << std::endl << "ERROR: Divergence exceeds permissible limits. ABORTING" << std::endl << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
 
     localEnergy = 0.0;
     totalEnergy = 0.0;

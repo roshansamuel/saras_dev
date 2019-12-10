@@ -112,18 +112,26 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     // CREATE UNIFORM GRID WHICH IS DEFAULT ALONG ALL THREE DIRECTIONS
     createUniformGrid();
 
+    // FLAG TO CHECK FOR GRID ANISOTROPY - FALSE BY DEFAULT UNLESS NON-UNIFORM GRID IS CREATED
+    bool gridCheck = false;
+
     // DEPENDING ON THE USER-SET PARAMETERS, SWITCH TO TAN-HYP ALONG SELECTED DIRECTIONS
     if (inputParams.xGrid == 2) {
         createTanHypGrid(0);
+        gridCheck = true;
     }
 
     if (inputParams.yGrid == 2) {
         createTanHypGrid(1);
+        gridCheck = true;
     }
 
     if (inputParams.zGrid == 2) {
         createTanHypGrid(2);
+        gridCheck = true;
     }
+
+    if (gridCheck) checkAnisotropy();
 
     gatherGlobal();
 }
@@ -508,6 +516,49 @@ void grid::createTanHypGrid(int dim) {
             ztzzColloc(i) = -4.0*pow(tanh(thBeta[2]), 3)*(1.0 - 2.0*zColloc(i)/zLen)/(thBeta[2]*zLen*zLen*pow(1.0 - pow(tanh(thBeta[2])*(1.0 - 2.0*zColloc(i)/zLen), 2), 2));
             ztz2Colloc(i) = pow(zt_zColloc(i), 2.0);
         }
+    }
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to check the anisotropy of the grid
+ *
+ *          The function is called only if non-uniform grid is made.
+ *          It scans through the entire grid cell-by-cell and checks the 2 aspect-ratios of the cell (one for 2D grids)
+ *          The maximum value of aspect ratio is stored.
+ *          Each MPI sub-domain checks within its limits and an MPI_Reduce call gets the global maximum.
+ *
+ ********************************************************************************************************************************************
+ */
+void grid::checkAnisotropy() {
+    double xWidth, yWidth, zWidth;
+    double localMax, globalMax;
+    double xyRatio, yzRatio;
+    double cellMaxAR;
+
+    localMax = 0.0;
+    for (int i = 0; i < collocCoreSize.ubound(0); i++) {
+        for (int j = 0; j < collocCoreSize.ubound(0); j++) {
+            for (int k = 0; k < collocCoreSize.ubound(0); k++) {
+                xWidth = xColloc(i-1) - xColloc(i);
+                yWidth = yColloc(j-1) - yColloc(j);
+                zWidth = zColloc(k-1) - zColloc(k);
+                xyRatio = std::max(xWidth/yWidth, yWidth/xWidth);
+                yzRatio = std::max(yWidth/zWidth, zWidth/yWidth);
+                cellMaxAR = std::max(xyRatio, yzRatio);
+                if (cellMaxAR > localMax) localMax = cellMaxAR;
+            }
+        }
+    }
+
+    MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (globalMax > 5.0) {
+        if (rankData.rank == 0) std::cout << "\nWARNING: Grid anisotropy exceeds limits. Finite-difference calculations will be inaccurate" << std::endl;
+    } else {
+        if (rankData.rank == 0) std::cout << "\nMaximum grid anisotropy is " << globalMax << std::endl;
     }
 }
 
