@@ -193,29 +193,36 @@ void scalar::initTBC() {
         tLft = new dirichletCC(mesh, T.F, 0, 1.0);
         tRgt = new dirichletCC(mesh, T.F, 1, 0.0);
     }
+
 #ifndef PLANAR
     tFrn = new neumannCC(mesh, T.F, 2, 0.0);
     tBak = new neumannCC(mesh, T.F, 3, 0.0);
 #endif
-    // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
-    if (inputParams.probType == 5 || inputParams.probType == 8) {
-        // CREATE HEATING PATCH IF THE USER SET PARAMETER FOR HEATING PLATE IS TRUE
-        if (inputParams.nonHgBC) {
-#ifndef PLANAR
-            if (mpiData.rank == 0) std::cout << "Using non-homogeneous boundary condition (heating plate) on bottom wall" << std::endl << std::endl;
-            tBot = new hotPlateCC(mesh, T.F, 4, inputParams.patchRadius);
-#else
-            if (mpiData.rank == 0) std::cout << "WARNING: Non-homogenous BC flag is set to true in input paramters for 2D simulation. IGNORING" << std::endl << std::endl;
-#endif
-        } else {
-            tBot = new dirichletCC(mesh, T.F, 4, 1.0);
-        }
-        tTop = new dirichletCC(mesh, T.F, 5, 0.0);
 
-    // COLD PLATE AT BOTTOM AND HOT PLATE AT TOP FOR SST
-    } else if (mesh.inputParams.probType == 6) {
-        tBot = new dirichletCC(mesh, T.F, 4, 0.0);
-        tTop = new dirichletCC(mesh, T.F, 5, 1.0);
+    if (inputParams.zPer) {
+        tBot = new periodicCC(mesh, T.F, 4);
+        tTop = new periodicCC(mesh, T.F, 5);
+    } else {
+        // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
+        if (inputParams.probType == 5 || inputParams.probType == 8) {
+            // CREATE HEATING PATCH IF THE USER SET PARAMETER FOR HEATING PLATE IS TRUE
+            if (inputParams.nonHgBC) {
+#ifndef PLANAR
+                if (mpiData.rank == 0) std::cout << "Using non-homogeneous boundary condition (heating plate) on bottom wall" << std::endl << std::endl;
+                tBot = new hotPlateCC(mesh, T.F, 4, inputParams.patchRadius);
+#else
+                if (mpiData.rank == 0) std::cout << "WARNING: Non-homogenous BC flag is set to true in input paramters for 2D simulation. IGNORING" << std::endl << std::endl;
+#endif
+            } else {
+                tBot = new dirichletCC(mesh, T.F, 4, 1.0);
+            }
+            tTop = new dirichletCC(mesh, T.F, 5, 0.0);
+
+        // COLD PLATE AT BOTTOM AND HOT PLATE AT TOP FOR SST
+        } else if (mesh.inputParams.probType == 6) {
+            tBot = new dirichletCC(mesh, T.F, 4, 0.0);
+            tTop = new dirichletCC(mesh, T.F, 5, 1.0);
+        }
     }
 };
 

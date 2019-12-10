@@ -285,12 +285,12 @@ void hydro::initVForcing() {
  ********************************************************************************************************************************************
  */
 void hydro::initVBC() {
-    // INFLOW AND OUTFLOW BCS
     if (inputParams.probType == 3) {
+        // INFLOW AND OUTFLOW BCS
         uLft = new dirichletFC(mesh, V.Vx, 0, 1.0);
         uRgt = new neumannFC(mesh, V.Vx, 1, 0.0);
-    // NO-PENETRATION BCS
     } else {
+        // NO-PENETRATION BCS
         uLft = new dirichletFC(mesh, V.Vx, 0, 0.0);
         uRgt = new dirichletFC(mesh, V.Vx, 1, 0.0);
     }
@@ -301,23 +301,29 @@ void hydro::initVBC() {
     uBak = new dirichletCC(mesh, V.Vx, 3, 0.0);
 #endif
 
-    // NO-SLIP BCS FOR LDC
-    if (inputParams.probType == 1) {
-        uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
-        uTop = new dirichletCC(mesh, V.Vx, 5, 1.0);
-    // NO-SLIP BCS
+    if (inputParams.zPer) {
+        // PERIODIC BC
+        uBot = new periodicCC(mesh, V.Vx, 4);
+        uTop = new periodicCC(mesh, V.Vx, 5);
     } else {
-        uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
-        uTop = new dirichletCC(mesh, V.Vx, 5, 0.0);
+        if (inputParams.probType == 1) {
+            // NO-SLIP BCS FOR LDC
+            uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
+            uTop = new dirichletCC(mesh, V.Vx, 5, 1.0);
+        } else {
+            // NO-SLIP BCS
+            uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
+            uTop = new dirichletCC(mesh, V.Vx, 5, 0.0);
+        }
     }
 
 #ifndef PLANAR
-    // INFLOW AND OUTFLOW BCS
     if (inputParams.probType == 3) {
+        // INFLOW AND OUTFLOW BCS
         vLft = new dirichletCC(mesh, V.Vy, 0, 0.0);
         vRgt = new neumannCC(mesh, V.Vy, 1, 0.0);
-    // NO-SLIP BCS
     } else {
+        // NO-SLIP BCS
         vLft = new dirichletCC(mesh, V.Vy, 0, 0.0);
         vRgt = new dirichletCC(mesh, V.Vy, 1, 0.0);
     }
@@ -326,17 +332,23 @@ void hydro::initVBC() {
     vFrn = new dirichletFC(mesh, V.Vy, 2, 0.0);
     vBak = new dirichletFC(mesh, V.Vy, 3, 0.0);
 
-    // NO-SLIP BCS
-    vBot = new dirichletCC(mesh, V.Vy, 4, 0.0);
-    vTop = new dirichletCC(mesh, V.Vy, 5, 0.0);
+    if (inputParams.zPer) {
+        // PERIODIC BC
+        vBot = new periodicCC(mesh, V.Vy, 4);
+        vTop = new periodicCC(mesh, V.Vy, 5);
+    } else {
+        // NO-SLIP BCS
+        vBot = new dirichletCC(mesh, V.Vy, 4, 0.0);
+        vTop = new dirichletCC(mesh, V.Vy, 5, 0.0);
+    }
 #endif
 
-    // INFLOW AND OUTFLOW BCS
     if (inputParams.probType == 3) {
+        // INFLOW AND OUTFLOW BCS
         wLft = new dirichletCC(mesh, V.Vz, 0, 0.0);
         wRgt = new neumannCC(mesh, V.Vz, 1, 0.0);
-    // NO-SLIP BCS
     } else {
+        // NO-SLIP BCS
         wLft = new dirichletCC(mesh, V.Vz, 0, 0.0);
         wRgt = new dirichletCC(mesh, V.Vz, 1, 0.0);
     }
@@ -347,8 +359,15 @@ void hydro::initVBC() {
     wBak = new dirichletCC(mesh, V.Vz, 3, 0.0);
 #endif
 
-    wBot = new dirichletFC(mesh, V.Vz, 4, 0.0);
-    wTop = new dirichletFC(mesh, V.Vz, 5, 0.0);
+    if (inputParams.zPer) {
+        // PERIODIC BC
+        wBot = new periodicFC(mesh, V.Vz, 4);
+        wTop = new periodicFC(mesh, V.Vz, 5);
+    } else {
+        // NO-SLIP BCS
+        wBot = new dirichletFC(mesh, V.Vz, 4, 0.0);
+        wTop = new dirichletFC(mesh, V.Vz, 5, 0.0);
+    }
 };
 
 

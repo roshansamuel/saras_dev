@@ -494,9 +494,9 @@ void multigrid_d3::initMeshRanges() {
     yEnd = stagCore.ubound(1);
     zEnd = stagCore.ubound(2);
 
-    if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) xEnd -= 1;
+    //if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) xEnd -= 1;
 
-    if (inputParams.yPer and mesh.rankData.yRank == mesh.rankData.npY - 1) yEnd -= 1;
+    //if (inputParams.yPer and mesh.rankData.yRank == mesh.rankData.npY - 1) yEnd -= 1;
 }
 
 void multigrid_d3::createMGSubArrays() {
@@ -576,8 +576,8 @@ void multigrid_d3::createMGSubArrays() {
         mgRecvRgt(i) = stagCore.ubound(0) + strideValues(i), 0, 0;
 
         // For periodic BC, the slice to be sent from the left end of the domain is on the wall, and not from the point adjacent to the wall
-        if (inputParams.xPer and mesh.rankData.xRank == 0) mgSendLft(i)(0) = 0;
-        if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) mgRecvRgt(i)(0) = stagCore.ubound(0);
+        //if (inputParams.xPer and mesh.rankData.xRank == 0) mgSendLft(i)(0) = 0;
+        //if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) mgRecvRgt(i)(0) = stagCore.ubound(0);
 
         mgSendFrn(i) = 0,  strideValues(i), 0;
         mgRecvFrn(i) = 0, -strideValues(i), 0;
@@ -585,8 +585,8 @@ void multigrid_d3::createMGSubArrays() {
         mgRecvBak(i) = 0, stagCore.ubound(1) + strideValues(i), 0;
 
         // For periodic BC, the slice to be sent from the front end of the domain is on the wall, and not from the point adjacent to the wall
-        if (inputParams.yPer and mesh.rankData.yRank == 0) mgSendFrn(i)(1) = 0;
-        if (inputParams.yPer and mesh.rankData.yRank == mesh.rankData.npY - 1) mgRecvBak(i)(1) = stagCore.ubound(1);
+        //if (inputParams.yPer and mesh.rankData.yRank == 0) mgSendFrn(i)(1) = 0;
+        //if (inputParams.yPer and mesh.rankData.yRank == mesh.rankData.npY - 1) mgRecvBak(i)(1) = stagCore.ubound(1);
     }
 }
 

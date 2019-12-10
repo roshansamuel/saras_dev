@@ -217,9 +217,13 @@ void field::setBulkSlice() {
         gridData.inputParams.yPer? buBound(1) -= 2: buBound(1) -= 1;
     }
 
-    if (zStag and not gridData.inputParams.zPer) {
-        blBound(2) += 1;
-        buBound(2) -= 1;
+    if (zStag) {
+        if (not gridData.inputParams.zPer) {
+            blBound(2) += 1;
+            buBound(2) -= 1;
+        } else {
+            buBound(2) -= 2;
+        }
     }
 
 #ifdef PLANAR

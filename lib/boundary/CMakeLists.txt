@@ -44,6 +44,8 @@ add_library (boundary
              boundary.cc
              dirichletCC.cc
              dirichletFC.cc
+             periodicCC.cc
+             periodicFC.cc
              neumannCC.cc
              neumannFC.cc
              hotPlateCC.cc

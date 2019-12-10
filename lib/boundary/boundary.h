@@ -106,6 +106,36 @@ class dirichletFC: public boundary {
  ********************************************************************************************************************************************
  */
 
+class periodicCC: public boundary {
+    public:
+        periodicCC(const grid &mesh, field &inField, const int bcWall);
+
+        inline void imposeBC();
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class periodicCC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply periodic boundary condition for a cell-centered variable.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class periodicFC: public boundary {
+    public:
+        periodicFC(const grid &mesh, field &inField, const int bcWall);
+
+        inline void imposeBC();
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class periodicFC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to apply periodic boundary condition for a face-centered variable.
+ *
+ ********************************************************************************************************************************************
+ */
+
 class neumannCC: public boundary {
     public:
         neumannCC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
