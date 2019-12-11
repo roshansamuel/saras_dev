@@ -82,13 +82,6 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
     }
 #endif
 
-    // INFINITESIMAL VOLUME FOR INTEGRATING ENERGY OVER DOMAIN
-#ifdef PLANAR
-    dVol = mesh.dXi*mesh.dZt;
-#else
-    dVol = mesh.dXi*mesh.dEt*mesh.dZt;
-#endif
-
     // TOTAL VOLUME FOR AVERAGING THE RESULT OF VOLUMETRIC INTEGRATION
     double localVol = 0.0;
 
@@ -110,7 +103,6 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
 #endif
     MPI_Allreduce(&localVol, &totalVol, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
 
-#ifdef PLANAR
     if (mesh.rankData.rank == 0) {
         if (mesh.inputParams.probType <= 4) {
             std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
@@ -209,13 +201,6 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
     localEnergy = 0.0;
     totalEnergy = 0.0;
     localUzT = 0.0;
-
-    // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
-    V.interTempZ = 0.0;
-    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-    }
-    V.interTempZ /= V.Vz.PcIntSlices.size();
 
 #ifdef PLANAR
     int iY = 0;

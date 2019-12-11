@@ -64,9 +64,8 @@ class tseries {
         int yLow, yTop;
         int zLow, zTop;
 
-        double dVol;
-        double maxDivergence;
         double totalVol;
+        double maxDivergence;
         double totalEnergy, localEnergy;
         double totalUzT, localUzT, NusseltNo;
 
