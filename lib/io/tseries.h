@@ -66,8 +66,9 @@ class tseries {
 
         double dVol;
         double maxDivergence;
+        double totalVol;
         double totalEnergy, localEnergy;
-        double totalUzT, localUzT, totalCount, localCount, NusseltNo;
+        double totalUzT, localUzT, NusseltNo;
 
         const double &time, &tStp;
 

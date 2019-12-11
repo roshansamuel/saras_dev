@@ -137,7 +137,7 @@ void scalar_d2::solvePDE() {
     timeStepCount = 0;
 
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
-    tsWriter.writeTSData();
+    tsWriter.writeTSData(T, nu, kappa);
 
     if (inputParams.restartFlag) {
         // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.

@@ -33,7 +33,7 @@
  *
  *  \brief Definitions for functions of class tseries
  *  \sa tseries.h
- *  \author Roshan Samuel
+ *  \author Roshan Samuel, Ali Asad
  *  \date Nov 2019
  *  \copyright New BSD License
  *
@@ -89,6 +89,28 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
     dVol = mesh.dXi*mesh.dEt*mesh.dZt;
 #endif
 
+    // TOTAL VOLUME FOR AVERAGING THE RESULT OF VOLUMETRIC INTEGRATION
+    double localVol = 0.0;
+
+    totalVol = 0.0;
+#ifdef PLANAR
+    for (int iX = xLow; iX <= xTop; iX++) {
+        for (int iZ = zLow; iZ <= zTop; iZ++) {
+            localVol += (mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+        }
+    }
+#else
+    for (int iX = xLow; iX <= xTop; iX++) {
+        for (int iY = yLow; iY <= yTop; iY++) {
+            for (int iZ = zLow; iZ <= zTop; iZ++) {
+                localVol += (mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            }
+        }
+    }
+#endif
+    MPI_Allreduce(&localVol, &totalVol, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+
+#ifdef PLANAR
     if (mesh.rankData.rank == 0) {
         if (mesh.inputParams.probType <= 4) {
             std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
@@ -132,7 +154,7 @@ void tseries::writeTSData() {
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
             localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
+                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
@@ -141,13 +163,13 @@ void tseries::writeTSData() {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
                 localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
                                 pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
+                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
 #endif
-
     MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    totalEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
@@ -187,7 +209,6 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
     localEnergy = 0.0;
     totalEnergy = 0.0;
     localUzT = 0.0;
-    localCount = 0.0;
 
     // INTERPOLATE T TO Vz LOCATIONS TO COMPUTE Nu
     V.interTempZ = 0.0;
@@ -201,11 +222,9 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
             localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
+                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
-            // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-            localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
-            localCount += 1.0;
+            localUzT += ((V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1))/2.0)*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
@@ -214,11 +233,9 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
             for (int iZ = zLow; iZ <= zTop; iZ++) {
                 localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
                                 pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*dVol;
+                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
-                // BELOW CALCULATION WORKS FOR UNIFORM GRID ONLY. CORRECTION/WEIGHTS NECESSARY FOR NON-UNIFORM GRID
-                localUzT += V.Vz.F(iX, iY, iZ) * V.interTempZ(iX, iY, iZ);
-                localCount += 1.0;
+                localUzT += ((V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1))/2.0)*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
@@ -226,8 +243,8 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
 
     MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localCount, &totalCount, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    NusseltNo = 1.0 + (totalUzT/totalCount)/kappa;
+    totalEnergy /= totalVol;
+    NusseltNo = 1.0 + (totalUzT/totalVol)/kappa;
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
