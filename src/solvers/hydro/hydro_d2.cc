@@ -147,28 +147,23 @@ void hydro_d2::solvePDE() {
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     tsWriter.writeTSData();
 
-    if (inputParams.restartFlag) {
-        // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
-        fwTime += std::fmod(time, inputParams.fwInt);
-        prTime += std::fmod(time, inputParams.prInt);
-        rsTime += std::fmod(time, inputParams.rsInt);
-
-    } else {
-        // WRITE DATA AT t = 0
+    // WRITE DATA AT t = 0
+    if (not inputParams.restartFlag) {
         dataWriter.writeSolution(time);
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
         }
-
-        // FOR RUNS STARTING FROM t = 0, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE OUTPUT WRITE INTERVAL.
-        fwTime += inputParams.fwInt;
-        prTime += inputParams.prInt;
-        rsTime += inputParams.rsInt;
     }
 
-    dt = inputParams.tStp;
+    // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
+    // OTHERWISE THE WRITE INTERVAL IS ADDED DIRECTLY
+    fwTime += inputParams.fwInt - std::fmod(time, inputParams.fwInt);
+    prTime += inputParams.prInt - std::fmod(time, inputParams.prInt);
+    rsTime += inputParams.rsInt - std::fmod(time, inputParams.rsInt);
+
     // TIME-INTEGRATION LOOP
+    dt = inputParams.tStp;
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();

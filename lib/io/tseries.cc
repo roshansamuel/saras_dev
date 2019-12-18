@@ -62,7 +62,11 @@
 tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const double &solverTime, const double &timeStep):
                  time(solverTime), tStp(timeStep), mesh(mesh), P(solverP), V(solverV), divV(mesh, P) {
     // Open TimeSeries file
-    ofFile.open("output/TimeSeries.dat", std::fstream::out);
+    if (mesh.inputParams.restartFlag) {
+        ofFile.open("output/TimeSeries.dat", std::fstream::out | std::fstream::app);
+    } else {
+        ofFile.open("output/TimeSeries.dat", std::fstream::out);
+    }
 
     // UPPER AND LOWER LIMITS WHEN COMPUTING ENERGY IN STAGGERED GRID
     xLow = P.F.fCore.lbound(0);        xTop = P.F.fCore.ubound(0);

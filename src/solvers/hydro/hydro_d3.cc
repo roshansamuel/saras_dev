@@ -114,6 +114,18 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
     imposeUBCs();
     imposeVBCs();
     imposeWBCs();
+
+    // DEBUG CODE
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (mesh.rankData.rank == 0) std::cout << mesh.rankData.rank << "\t" << V.Vx.fCore.ubound() << std::endl;
+    //if (mesh.rankData.rank == 1) std::cout << mesh.rankData.rank << "\t" << V.Vx.fCore.ubound() << std::endl;
+    //if (mesh.rankData.rank == 2) std::cout << mesh.rankData.rank << "\t" << V.Vx.fCore.ubound() << std::endl;
+    //if (mesh.rankData.rank == 3) std::cout << mesh.rankData.rank << "\t" << V.Vx.fCore.ubound() << std::endl;
+    ////if (mesh.rankData.rank == 3) std::cout << V.Vy.fCore.ubound() << std::endl;
+    ////if (mesh.rankData.rank == 3) std::cout << V.Vz.fCore.ubound() << std::endl;
+    //MPI_Finalize();
+    //exit(0);
+    // END DEBUG CODE
 }
 
 void hydro_d3::solvePDE() {
@@ -164,25 +176,20 @@ void hydro_d3::solvePDE() {
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     tsWriter.writeTSData();
 
-    if (inputParams.restartFlag) {
-        // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
-        fwTime += std::fmod(time, inputParams.fwInt);
-        prTime += std::fmod(time, inputParams.prInt);
-        rsTime += std::fmod(time, inputParams.rsInt);
-
-    } else {
-        // WRITE DATA AT t = 0
+    // WRITE DATA AT t = 0
+    if (not inputParams.restartFlag) {
         dataWriter.writeSolution(time);
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
         }
-
-        // FOR RUNS STARTING FROM t = 0, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE OUTPUT WRITE INTERVAL.
-        fwTime += inputParams.fwInt;
-        prTime += inputParams.prInt;
-        rsTime += inputParams.rsInt;
     }
+
+    // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
+    // OTHERWISE THE WRITE INTERVAL IS ADDED DIRECTLY
+    fwTime += inputParams.fwInt - std::fmod(time, inputParams.fwInt);
+    prTime += inputParams.prInt - std::fmod(time, inputParams.prInt);
+    rsTime += inputParams.rsInt - std::fmod(time, inputParams.rsInt);
 #endif
 
     // TIME-INTEGRATION LOOP
