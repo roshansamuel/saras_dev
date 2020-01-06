@@ -109,7 +109,10 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     // HOWEVER, IF THE DOMAIN IS PERIODIC (DEFAULT), THE DATA TO BE SENT ON THE LEFT IS FROM THE WALL POINT ITSELF
-    if (xStag and rankData.xRank > 0) {
+    // WHEN USING Method 3 OF setBulkSlice FUNCTION IN field.cc, THE BELOW MODIFICATION APPLIES TO ALL RANKS
+    // ELSE, IT APPLIES ONLY TO xRank > 0
+    //if (xStag and rankData.xRank > 0) {
+    if (xStag) {
         saStarts(0) += padWidth(0);
     }
 
@@ -141,9 +144,10 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     loclSize = coreSize;            loclSize(0) = padWidth(0);
 
     // FOR THE LAST RANK, IN PERIODIC BC (DEFAULT BECAUSE SEND NEIGHBOUR IS NULL RANK FOR NON-PERIODIC CASE) THE RECEIVED DATA IS WRITTEN INTO THE WALL POINT
-    if (xStag and rankData.xRank == rankData.npX-1) {
-        saStarts(0) -= padWidth(0);
-    }
+    // BELOW LINE MUST BE COMMENTED WHEN USING Method 3 OF setBulkSlice FUNCTION IN field.cc
+    //if (xStag and rankData.xRank == rankData.npX-1) {
+    //    saStarts(0) -= padWidth(0);
+    //}
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayX1);
     MPI_Type_commit(&recvSubarrayX1);
@@ -156,7 +160,10 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     // HOWEVER, FOR THE FIRST RANK, IN PERIODIC BC (DEFAULT) THE DATA FROM WALL POINT ITSELF IS SENT
-    if (yStag and rankData.yRank > 0) {
+    // WHEN USING Method 3 OF setBulkSlice FUNCTION IN field.cc, THE BELOW MODIFICATION APPLIES TO ALL RANKS
+    // ELSE, IT APPLIES ONLY TO yRank > 0
+    //if (yStag and rankData.yRank > 0) {
+    if (yStag) {
         saStarts(1) += padWidth(1);
     }
 
@@ -187,9 +194,10 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
     // FOR THE LAST RANK, IN PERIODIC BC (DEFAULT BECAUSE SEND NEIGHBOUR IS NULL RANK FOR NON-PERIODIC CASE) THE RECEIVED DATA IS WRITTEN INTO THE WALL POINT
-    if (yStag and rankData.yRank == rankData.npY-1) {
-        saStarts(1) -= padWidth(1);
-    }
+    // BELOW LINE MUST BE COMMENTED WHEN USING Method 3 OF setBulkSlice FUNCTION IN field.cc
+    //if (yStag and rankData.yRank == rankData.npY-1) {
+    //    saStarts(1) -= padWidth(1);
+    //}
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayY1);
     MPI_Type_commit(&recvSubarrayY1);

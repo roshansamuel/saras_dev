@@ -149,14 +149,11 @@ void field::setCoreSlice() {
     }
 
     // Following lines taken from Aether to correct periodic BCs for channel flow - test it thoroughly
+    // They need to be commented when using Method 3 in setBulkSlice function below
     // Pushing the last point at the end of the domain inside by one unit of grid spacing for periodic domains
-    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and gridData.inputParams.xPer) cuBound(0) -= 1;
-
-    // Pushing the last point at the end of the domain inside by one unit of grid spacing for periodic domains
-    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1 and gridData.inputParams.yPer) cuBound(1) -= 1;
-
-    // Pushing the last point at the end of the domain inside by one unit of grid spacing for periodic domains
-    if (zStag and gridData.inputParams.zPer) cuBound(2) -= 1;
+    //if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and gridData.inputParams.xPer) cuBound(0) -= 1;
+    //if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1 and gridData.inputParams.yPer) cuBound(1) -= 1;
+    //if (zStag and gridData.inputParams.zPer) cuBound(2) -= 1;
 
     fCore = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), cuBound);
 
@@ -208,6 +205,27 @@ void field::setBulkSlice() {
     // At all interior sub-domains after performing MPI domain decomposition,
     // the bulk and core slices are identical
 
+    // Different ways of defining bulk are clubbed together
+    // The correct method needs to be chosen through Swayamvar
+
+    // Method 1: The method originally present in Saras
+    /*
+    if (xStag and gridData.rankData.xRank == 0) blBound(0) += 1;
+
+    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) buBound(0) -= 1;
+
+    if (yStag and gridData.rankData.yRank == 0) blBound(1) += 1;
+
+    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1) buBound(1) -= 1;
+
+    if (zStag) {
+        blBound(2) += 1;
+        buBound(2) -= 1;
+    }
+    */
+
+    // Method 2: The method implemented after long discussions - shift the entire bulk to one side
+    /*
     if (xStag and gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
 
     if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) {
@@ -222,10 +240,27 @@ void field::setBulkSlice() {
 
     if (zStag) {
         if (not gridData.inputParams.zPer) {
-          blBound(2) += 1;
-          buBound(2) -= 1;
+            blBound(2) += 1;
+            buBound(2) -= 1;
         } else {
             buBound(2) -= 2;
+        }
+    }
+    */
+
+    // Method 3: Seemingly the oldest version that existed in Aether
+    if (xStag and gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
+
+    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and not gridData.inputParams.xPer) buBound(0) -= 1;
+
+    if (yStag and gridData.rankData.yRank == 0 and not gridData.inputParams.yPer) blBound(1) += 1;
+
+    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1 and not gridData.inputParams.yPer) buBound(1) -= 1;
+
+    if (zStag) {
+        if (not gridData.inputParams.zPer) {
+            blBound(2) += 1;
+            buBound(2) -= 1;
         }
     }
 

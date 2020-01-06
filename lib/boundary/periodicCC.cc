@@ -71,11 +71,13 @@ periodicCC::periodicCC(const grid &mesh, field &inField, const int bcWall):
  */
 inline void periodicCC::imposeBC() {
     // The BC is applied for all ranks and no rankFlag is used
+    // NOTE: The second point from the wall of the opposite side is read to impose periodic BC.
+    // This corresponds to a bulk that is same as core - and is implemented as Method 3 in setBulkSlice function of field.cc
     if (shiftVal > 0) {
         // If shiftVal = 1, the wall is either left (0), front (2), or bottom (4) wall
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum+1), -1));
+        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum + 1), -2));
     } else {
         // If shiftVal = -1, the wall is either right (1), back (3), or top (5) wall
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum-1), 1));
+        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum - 1), 2));
     }
 }

@@ -29,7 +29,7 @@
     # 4 = large U, small Pr
     "RBC Type": 1
 
-    "Reynolds Number": 400
+    "Reynolds Number": 1000
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
@@ -84,7 +84,7 @@
 
 # Parellelization parameters
 "Parallel":
-    "Number of OMP threads": 5
+    "Number of OMP threads": 1
     "X Number of Procs": 2
     "Y Number of Procs": 2
 
@@ -100,20 +100,20 @@
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
-    "Restart Run":  true
+    "Restart Run": false
 
     # Set below flag to true for adaptive time-stepping based on Courant number
     "Use CFL Condition": false
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.3
+    "Final Time": 0.1
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.05
+    "Solution Write Interval": 0.01
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 0.02
@@ -144,4 +144,4 @@
     # Number of smoothing iterations to be performed after V-Cycle
     "Post-Smoothing Count": 20
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Inter-Smoothing Count": [5, 10, 15, 20]
+    "Inter-Smoothing Count": [10, 10, 10, 10]

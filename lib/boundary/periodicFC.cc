@@ -73,9 +73,9 @@ inline void periodicFC::imposeBC() {
     // The BC is applied for all ranks and no rankFlag is used
     if (shiftVal > 0) {
         // If shiftVal = 1, the wall is either left (0), front (2), or bottom (4) wall
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum+1), -1));
+        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum + 1), -1));
     } else {
         // If shiftVal = -1, the wall is either right (1), back (3), or top (5) wall
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum-1), 1));
+        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum - 1), 1));
     }
 }
