@@ -372,6 +372,7 @@ double hydro_d2::testPeriodic() {
             nseRHS.Vx(i, 0, k) = V.Vx.F(i, 0, k);
         }
     }
+
     for (int i=V.Vz.F.lbound(0); i <= V.Vz.F.ubound(0); i++) {
         for (int k=V.Vz.F.lbound(2); k <= V.Vz.F.ubound(2); k++) {
             V.Vz.F(i, 0, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*

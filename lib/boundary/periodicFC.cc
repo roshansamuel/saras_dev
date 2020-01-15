@@ -44,13 +44,13 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the boundary class
+ * \brief   Constructor of the periodicFC class
  *
  *          The class constructor initializes the mesh for computational problem.
  *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
- * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
+ * \param   inField is a reference to the field to which the boundary conditions must be applied.
  * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
  ********************************************************************************************************************************************
  */

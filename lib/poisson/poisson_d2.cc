@@ -370,9 +370,6 @@ void multigrid_d2::initMeshRanges() {
 
     xEnd = stagCore.ubound(0);
     zEnd = stagCore.ubound(2);
-
-    if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) xEnd -= 1;
-    if (inputParams.zPer) zEnd -= 1;
 }
 
 void multigrid_d2::createMGSubArrays() {
@@ -399,9 +396,6 @@ void multigrid_d2::createMGSubArrays() {
         mgSendRgt(i) = stagCore.ubound(0) - strideValues(i), 0, 0;
         mgRecvRgt(i) = stagCore.ubound(0) + strideValues(i), 0, 0;
 
-        // For periodic BC, the slice to be sent from the left end of the domain is on the wall, and not from the point adjacent to the wall
-        if (inputParams.xPer and mesh.rankData.xRank == 0) mgSendLft(i)(0) = 0;
-        if (inputParams.xPer and mesh.rankData.xRank == mesh.rankData.npX - 1) mgRecvRgt(i)(0) = stagCore.ubound(0);
     }
 }
 
@@ -425,7 +419,7 @@ void multigrid_d2::imposeBC() {
         pressureData(xMeshRange(vLevel), 0, -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) - strideValues(vLevel));
 
         // PERIODIC BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2)) = pressureData(xMeshRange(vLevel), 0, 0);
+        pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, strideValues(vLevel));
 
     } else {
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL

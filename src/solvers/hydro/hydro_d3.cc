@@ -114,16 +114,6 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
     imposeUBCs();
     imposeVBCs();
     imposeWBCs();
-
-    // DEBUG CODE
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 0) std::cout << V.Vx.F(0,0,0) << std::endl;
-    //if (mesh.rankData.rank == 1) std::cout << V.Vx.F(2,2,2) << std::endl;
-    //if (mesh.rankData.rank == 2) std::cout << V.Vx.F(3,3,3) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << V.Vx.F(4,4,4) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
-    // END DEBUG CODE
 }
 
 void hydro_d3::solvePDE() {
@@ -262,13 +252,6 @@ void hydro_d3::computeTimeStep() {
 #else
     V.computeDiff(nseRHS);
     nseRHS *= inverseRe;
-
-    // DEBUG CODE
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 0) std::cout << nseRHS.Vx(0,0,0) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
-    // END DEBUG CODE
 #endif
 
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
@@ -525,6 +508,7 @@ void hydro_d3::solveVz() {
         }
     }
 }
+
 
 double hydro_d3::testPeriodic() {
     double xCoord = 0.0;
