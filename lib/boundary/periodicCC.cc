@@ -46,8 +46,8 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the periodicCC class
  *
- *          The class constructor initializes the mesh for computational problem.
- *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
+ *          The constructor simply initializes the base boundary class using all the arguments supplied to it.
+ *          Since periodic BC is being implemented, no additional values are necessary for the object.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   inField is a reference to the field to which the boundary conditions must be applied.

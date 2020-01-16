@@ -59,15 +59,18 @@ int main() {
     // INITIALIZE PARALLELIZATION DATA
     parallel mpi(inputParams);
 
+    // WRITE CONTENTS OF THE INPUT YAML FILE TO THE STANDARD I/O
     if (mpi.rank == 0) {
         inputParams.writeParams();
     }
 
+    // INITIALIZE GRID DATA
     grid gridData(inputParams, mpi);
 
     gettimeofday(&runStart, NULL);
 
     if (inputParams.probType <= 4) {
+        // SELECTION OF SOLVERS FOR HYDRODYNAMICS SIMULATIONS
         if (mpi.rank == 0) {
             if (inputParams.probType == 1) {
                 std::cout << std::endl << "Solving NSE for lid-driven cavity problem" << std::endl;
@@ -95,6 +98,7 @@ int main() {
         delete nseSolver;
 
     } else if (inputParams.probType <= 7) {
+        // SELECTION OF SOLVERS FOR SCALAR SIMULATIONS
         if (mpi.rank == 0) {
             if (inputParams.probType == 5) {
                 std::cout << std::endl << "Solving NSE for heated bottom-plate problem" << std::endl;
@@ -115,7 +119,7 @@ int main() {
 
         scalar *nseSolver;
 
-        // CREATE NEW INSTANCE OF THE HYDRODYNAMICS SOLVER WITH SCALAR SOLVER
+        // CREATE NEW INSTANCE OF THE SCALAR SOLVER
 #ifdef PLANAR
         nseSolver = new scalar_d2(gridData, inputParams, mpi);
 #else

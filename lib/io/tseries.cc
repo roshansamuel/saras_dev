@@ -107,6 +107,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
 #endif
     MPI_Allreduce(&localVol, &totalVol, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
 
+    // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
     if (mesh.rankData.rank == 0) {
         if (mesh.inputParams.probType <= 4) {
             std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<

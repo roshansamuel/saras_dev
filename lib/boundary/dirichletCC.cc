@@ -46,8 +46,8 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the dirichletCC class
  *
- *          The class constructor initializes the mesh for computational problem.
- *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
+ *          The constructor initializes the base boundary class using part of the arguments supplied to it.
+ *          The value of the field at the boundary, denoted by fieldValue, is also set in the initialization list.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   inField is a reference to the field to which the boundary conditions must be applied.

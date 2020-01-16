@@ -1,42 +1,61 @@
 ---
-title: 'Gala: A Python package for galactic dynamics'
+title: 'Saras: A General-Purpose PDE Solver C++ for Fluid Dynamics'
 tags:
-  - Python
-  - astronomy
-  - dynamics
-  - galactic dynamics
-  - milky way
+  - C++
+  - PDE
+  - turbulence
+  - fluid dynamics
 authors:
-  - name: Adrian M. Price-Whelan
-    orcid: 0000-0003-0872-7098
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)
-  - name: Author Without ORCID
+  - name: Mahendra K. Verma
+    orcid: 0000-0002-3380-4561
+    affiliation: 2
+  - name: Roshan Samuel
+    orcid: 0000-0002-1280-9881
+    affiliation: 1
+  - name: Shashwat Bhattacharya
+    orcid: 0000-0001-7462-7680
+    affiliation: 1
+  - name: Ali Asad
+    orcid: 0000-0001-9704-6686
+    affiliation: 2
+  - name: Soumyadeep Chatterjee
+    orcid: 0000-0001-7957-1727
     affiliation: 2
 affiliations:
- - name: Lyman Spitzer, Jr. Fellow, Princeton University
+ - name: Department of Mechanical Engineering, Indian Institute of Technology - Kanpur
    index: 1
- - name: Institution 2
+ - name: Department of Physics, Indian Institute of Technology - Kanpur
    index: 2
-date: 13 August 2017
+date: 15 January 2020
 bibliography: paper.bib
 
 # Optional fields if submitting to a AAS journal too, see this blog post:
 # https://blog.joss.theoj.org/2018/12/a-new-collaboration-with-aas-publishing
-aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
-aas-journal: Astrophysical Journal <- The name of the AAS journal.
+# aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
+# aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
 
 # Summary
 
-The forces on stars, galaxies, and dark matter under external gravitational
-fields lead to the dynamical evolution of structures in the universe. The orbits
-of these bodies are therefore key to understanding the formation, history, and
-future state of galaxies. The field of "galactic dynamics," which aims to model
-the gravitating components of galaxies to study their structure and evolution,
-is now well-established, commonly taught, and frequently used in astronomy.
-Aside from toy problems and demonstrations, the majority of problems require
-efficient numerical tools, many of which require the same base code (e.g., for
-performing numerical orbit integration).
+The laws that govern natural systems are often mathematically modelled using a
+set of partial differential equations (PDEs).
+More often than not, the resultant PDEs are not amenable to analytical tools for
+solving them, and numerical techniques remain the only recourse in such cases.
+As a result, efficiently solving PDEs numerically is a primary step in understanding
+the physics of various systems.
+``Saras`` is a general-purpose PDE solver written in objective C++.
+In ``Saras``, the underlying mathematical constructs used to define a PDE, like
+vector and scalar fields, are defined as classes.
+Moreover, vector calculus operations associated with such fields, like gradient and
+divergence, are defined as functions of the classes.
+
+This design makes the code intuitive, allowing users to quickly cast PDEs into
+readable code.
+The initial conditions, boundary conditions, and source/forcing terms which appear
+commonly in many PDEs, are also defined as derived classes of base ``initial``,
+``boundary`` and ``force`` classes.
+These classes are written to be readily extensible, so that users can add custom
+initial conditions, source terms, and so on.
 
 ``Gala`` is an Astropy-affiliated Python package for galactic dynamics. Python
 enables wrapping low-level languages (e.g., C) for speed without losing
@@ -60,9 +79,13 @@ scientific explorations of forthcoming data releases from the *Gaia* mission
 
 # Mathematics
 
-Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
-
-Double dollars make self-standing equations:
+The Navier-Stokes equations, which govern the dynamics of fluid flow, can be written
+as
+$$ \frac{\partial \mathbf{u}}{\partial t} + \mathbf{u}\cdot\nabla\mathbf{u} = -\nabla p + \nu\nabla^2\mathbf{u} $$
+where $\mathbf{u}$ is the velocity field, $p$ is the pressure field, and $\nu$ is
+the kinematic viscosity of the fluid.
+The fluid is assumed incompressible. Hence $\nabla\cdot\mathbf{u} = 0$, and density is
+assumed constant and equal to unity.
 
 $$\Theta(x) = \left\{\begin{array}{l}
 0\textrm{ if } x < 0\cr
@@ -87,8 +110,8 @@ Figures can be included like this: ![Example figure.](figure.png)
 
 # Acknowledgements
 
-We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and Semyeong
-Oh, and support from Kathryn Johnston during the genesis of this project.
+We acknowledge contributions from Gaurav Gautham, Saurav Bhattacharjee, and Rishabh Sahu,
+and support from Prof Fahad Anwer during the genesis of this project.
 
 # References
 

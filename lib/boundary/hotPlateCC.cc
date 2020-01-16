@@ -44,10 +44,10 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the boundary class
+ * \brief   Constructor of the hotPlateCC class
  *
- *          The class constructor initializes the mesh for computational problem.
- *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
+ *          The constructor initializes the base boundary class using part of the arguments supplied to it.
+ *          The radius of the heating plate, denoted by patchRadius, is also set in the initialization list.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
@@ -67,7 +67,7 @@ hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const
  *
  *          Depending on whether the variable is collocated or staggered along a given direction,
  *          the function sets the reference to each grid array, x, y and z, to either the
- *          array of locations of collocated points or staggered points.
+ *          array of locations of face-centers or cell-centers.
  ********************************************************************************************************************************************
  */
 void hotPlateCC::setXYZ() {

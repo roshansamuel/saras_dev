@@ -46,7 +46,7 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the force class
  *
- *          The empty constructer merely initializes the local reference to the global mesh variable and vector field for velocity.
+ *          The empty constructor merely initializes the local reference to the global mesh variable and vector field for velocity.
  *          The velocity vector field is used for its interpolation slices to be used in calculating forcing terms.
  *
  * \param   mesh is a const reference to the global data contained in the grid class

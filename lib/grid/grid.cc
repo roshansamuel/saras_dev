@@ -47,7 +47,6 @@
  * \brief   Constructor of the grid class
  *
  *          The class constructor initializes the mesh for computational problem.
- *          Based on the user set values in the parser class, it decides if the simulation is going to be 2D or 3D.
  *          The pad widths, global grid limits in the full domain, local grid limits in the MPI decomposed sub-domains,
  *          grid spacings, domain lengths, etc., along each direction are set.
  *          Appropriate stretching functions are chosen according to user preferences and their corresponding grid

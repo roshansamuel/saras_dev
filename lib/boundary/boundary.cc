@@ -96,7 +96,6 @@ boundary::boundary(const grid &mesh, field &inField, const int bcWall):
  *
  *          Based on the values of wallNum, shiftDim, shiftVal and fieldVal, the appropriate BC (neumann/dirichlet/mixed)
  *          is imposed on the field.
- *
  ********************************************************************************************************************************************
  */
 void boundary::imposeBC() { };

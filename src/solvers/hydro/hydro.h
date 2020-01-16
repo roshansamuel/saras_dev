@@ -157,7 +157,7 @@ class hydro_d2: public hydro {
  *  \brief The derived class from the hydro base class to solve the incompressible NSE in 2D
  *
  *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Since the class is instantiated when solveing the NSE in 2D, the y-direction component of the grid is supressed.
+ *  Since the class is instantiated when solving the NSE in 2D, the y-direction component of the grid is supressed.
  *  Consequently, the boundary conditions are imposed only on 4 sides of the domain.
  ********************************************************************************************************************************************
  */
