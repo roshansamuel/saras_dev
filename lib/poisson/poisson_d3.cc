@@ -160,6 +160,11 @@ void multigrid_d3::smooth(const int smoothCount) {
     struct timeval begin, end;
 #endif
 
+    // Code to check convergence within smooth ->
+    double tempValue;
+    double localMax, globalMax;
+    // <- Code to check convergence within smooth
+
     iteratorTemp = 0.0;
 
     for(int n=0; n<smoothCount; n++) {
@@ -199,7 +204,37 @@ void multigrid_d3::smooth(const int smoothCount) {
         gettimeofday(&end, NULL);
         smothTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
+
+        // Code to check convergence within smooth ->
+        updatePads();
+
+        tempValue = 0.0;
+        localMax = -1.0e-10;
+        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+            for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+                    tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                                      xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
+                                      ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
+                                      etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
+                                      ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
+                                      ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));
+
+                    if (tempValue > localMax) {
+                        localMax = tempValue;
+                    }
+                }
+            }
+        }
+
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        // <- Code to check convergence within smooth
     }
+        // Code to check convergence within smooth ->
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Residual in smoothing:" << globalMax << std::endl;
+        }
+        // <- Code to check convergence within smooth
 
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
