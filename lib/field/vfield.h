@@ -55,7 +55,7 @@ class vfield {
     private:
         const grid &gridData;
 
-        blitz::Array<double, 3> derivTempX, derivTempY, derivTempZ;
+        blitz::Array<real, 3> derivTempX, derivTempY, derivTempZ;
 
     public:
         field Vx, Vy, Vz;
@@ -64,12 +64,12 @@ class vfield {
 
         std::string fieldName;
 
-        blitz::Array<double, 3> interTempX, interTempY, interTempZ;
+        blitz::Array<real, 3> interTempX, interTempY, interTempZ;
 
         vfield(const grid &gridData, std::string fieldName);
 
         void computeDiff(plainvf &H);
-        void computeTStp(double &dt_out);
+        void computeTStp(real &dt_out);
         void computeNLin(const vfield &V, plainvf &H);
 
         void divergence(plainsf &divV, const sfield &P);
@@ -82,11 +82,11 @@ class vfield {
         vfield& operator += (vfield &a);
         vfield& operator -= (vfield &a);
 
-        vfield& operator *= (double a);
+        vfield& operator *= (real a);
 
         void operator = (plainvf &a);
         void operator = (vfield &a);
-        void operator = (double a);
+        void operator = (real a);
 
         ~vfield() { };
 };

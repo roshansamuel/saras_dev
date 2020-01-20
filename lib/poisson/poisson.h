@@ -48,7 +48,6 @@
 #include <math.h>
 
 #include "plainsf.h"
-#include "parser.h"
 #include "grid.h"
 
 class poisson {
@@ -58,18 +57,18 @@ class poisson {
         int xEnd, yEnd, zEnd;
 
 #ifdef TIME_RUN
-        double solveTimeComp;
-        double solveTimeTran;
-        double smothTimeComp;
-        double smothTimeTran;
+        real solveTimeComp;
+        real solveTimeTran;
+        real smothTimeComp;
+        real smothTimeTran;
 #endif
 
         const grid &mesh;
         const parser &inputParams;
 
-        blitz::Array<double, 3> residualData;
-        blitz::Array<double, 3> iteratorTemp;
-        blitz::Array<double, 3> smoothedPres;
+        blitz::Array<real, 3> residualData;
+        blitz::Array<real, 3> iteratorTemp;
+        blitz::Array<real, 3> smoothedPres;
 
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;
@@ -79,11 +78,11 @@ class poisson {
         blitz::Array<MPI_Request, 1> recvRequest;
         blitz::Array<MPI_Status, 1> recvStatus;
 
-        blitz::Array<double, 1> hx, hy, hz;
+        blitz::Array<real, 1> hx, hy, hz;
 
-        blitz::Array<double, 1> xixx, xix2;
-        blitz::Array<double, 1> etyy, ety2;
-        blitz::Array<double, 1> ztzz, ztz2;
+        blitz::Array<real, 1> xixx, xix2;
+        blitz::Array<real, 1> etyy, ety2;
+        blitz::Array<real, 1> ztzz, ztz2;
 
         blitz::Array<blitz::Range, 1> xMeshRange, yMeshRange, zMeshRange;
 
@@ -117,8 +116,8 @@ class poisson {
         void initializeArrays();
 
     public:
-        blitz::Array<double, 3> pressureData;
-        blitz::Array<double, 3> inputRHSData;
+        blitz::Array<real, 3> pressureData;
+        blitz::Array<real, 3> inputRHSData;
 
         blitz::RectDomain<3> stagFull;
         blitz::RectDomain<3> stagCore;
@@ -127,10 +126,10 @@ class poisson {
 
         virtual void mgSolve(plainsf &inFn, const plainsf &rhs);
 
-        virtual double testTransfer();
-        virtual double testProlong();
-        virtual double testPeriodic();
-        virtual double testSolve();
+        virtual real testTransfer();
+        virtual real testProlong();
+        virtual real testPeriodic();
+        virtual real testSolve();
 
         virtual ~poisson();
 };
@@ -156,7 +155,7 @@ class poisson {
 
 class multigrid_d2: public poisson {
     private:
-        blitz::Array<double, 1> hx2, hz2, hzhx;
+        blitz::Array<real, 1> hx2, hz2, hzhx;
 
         void solve();
         void prolong();
@@ -181,10 +180,10 @@ class multigrid_d2: public poisson {
 
         void mgSolve(plainsf &inFn, const plainsf &rhs);
 
-        double testTransfer();
-        double testProlong();
-        double testPeriodic();
-        double testSolve();
+        real testTransfer();
+        real testProlong();
+        real testPeriodic();
+        real testSolve();
 
         ~multigrid_d2() {};
 };
@@ -200,7 +199,7 @@ class multigrid_d2: public poisson {
 
 class multigrid_d3: public poisson {
     private:
-        blitz::Array<double, 1> hxhy, hyhz, hzhx, hxhyhz;
+        blitz::Array<real, 1> hxhy, hyhz, hzhx, hxhyhz;
 
         void solve();
         void prolong();
@@ -225,10 +224,10 @@ class multigrid_d3: public poisson {
 
         void mgSolve(plainsf &inFn, const plainsf &rhs);
 
-        double testTransfer();
-        double testProlong();
-        double testPeriodic();
-        double testSolve();
+        real testTransfer();
+        real testProlong();
+        real testPeriodic();
+        real testSolve();
 
         ~multigrid_d3() {};
 };

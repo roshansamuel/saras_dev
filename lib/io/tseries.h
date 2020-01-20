@@ -52,10 +52,10 @@
 
 class tseries {
     public:
-        tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const double &solverTime, const double &timeStep);
+        tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const real &solverTime, const real &timeStep);
 
         void writeTSData();
-        void writeTSData(const sfield &T, const double nu, const double kappa);
+        void writeTSData(const sfield &T, const real nu, const real kappa);
 
         ~tseries();
 
@@ -64,12 +64,12 @@ class tseries {
         int yLow, yTop;
         int zLow, zTop;
 
-        double totalVol;
-        double maxDivergence;
-        double totalEnergy, localEnergy;
-        double totalUzT, localUzT, NusseltNo;
+        real totalVol;
+        real maxDivergence;
+        real totalEnergy, localEnergy;
+        real totalUzT, localUzT, NusseltNo;
 
-        const double &time, &tStp;
+        const real &time, &tStp;
 
         const grid &mesh;
 

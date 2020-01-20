@@ -283,7 +283,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) { };
  *          This done by printing the contents of the arrays for visual inspection for now.
  ********************************************************************************************************************************************
  */
-double poisson::testTransfer() { return 0; };
+real poisson::testTransfer() { return 0; };
 
 /**
  ********************************************************************************************************************************************
@@ -291,10 +291,10 @@ double poisson::testTransfer() { return 0; };
  *
  *          The function populates the arrays with predetermined values at all locations.
  *          It then calls prolong function at a lower vLevel and checks if the data is being interpolated correctly at higher vLevel
- *          This done by returning the average deviation from correct values as a double precision value
+ *          This done by returning the average deviation from correct values as a real value
  ********************************************************************************************************************************************
  */
-double poisson::testProlong() { return 0; };
+real poisson::testProlong() { return 0; };
 
 /**
  ********************************************************************************************************************************************
@@ -305,7 +305,7 @@ double poisson::testProlong() { return 0; };
  *          This done by printing the contents of the arrays for visual inspection for now.
  ********************************************************************************************************************************************
  */
-double poisson::testPeriodic() { return 0; };
+real poisson::testPeriodic() { return 0; };
 
 /**
  ********************************************************************************************************************************************
@@ -316,7 +316,7 @@ double poisson::testPeriodic() { return 0; };
  *          This done by printing the contents of the arrays for visual inspection for now.
  ********************************************************************************************************************************************
  */
-double poisson::testSolve() { return 0; };
+real poisson::testSolve() { return 0; };
 
 poisson::~poisson() {
 #ifdef TIME_RUN

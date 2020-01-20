@@ -1,6 +1,8 @@
 # USER SET PARAMETERS - COMMENT/UNCOMMENT AS NECESSARY
 
 PROC=4
+REAL_DOUBLE="DOUBLE"
+#REAL_FLOAT="FLOAT"
 #PLANAR="PLANAR"
 #TIME_RUN="TIME_RUN"
 #TEST_RUN="TEST_RUN"
@@ -24,7 +26,8 @@ cd build
 if [ -z $PLANAR ]; then
     if [ -z $TEST_RUN ]; then
         if [ -z $TIME_RUN ]; then
-            CC=mpicc CXX=mpicxx cmake ../../
+            CC=mpicc CXX=mpicxx cmake ../../ -DREAL_DOUBLE=ON
+            echo "Hello"
         else
             CC=mpicc CXX=mpicxx cmake ../../ -DTIME_RUN=ON
         fi

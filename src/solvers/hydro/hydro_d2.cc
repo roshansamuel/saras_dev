@@ -112,7 +112,7 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
 }
 
 void hydro_d2::solvePDE() {
-    double fwTime, prTime, rsTime;
+    real fwTime, prTime, rsTime;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
@@ -256,7 +256,7 @@ void hydro_d2::computeTimeStep() {
 
 void hydro_d2::solveVx() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
         int iY = 0;
@@ -307,7 +307,7 @@ void hydro_d2::solveVx() {
 
 void hydro_d2::solveVz() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
         int iY = 0;
@@ -357,10 +357,10 @@ void hydro_d2::solveVz() {
 }
 
 
-double hydro_d2::testPeriodic() {
+real hydro_d2::testPeriodic() {
     int iY = 0;
-    double xCoord = 0.0;
-    double zCoord = 0.0;
+    real xCoord = 0.0;
+    real zCoord = 0.0;
 
     nseRHS = 0.0;
     V = 0.0;

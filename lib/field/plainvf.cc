@@ -157,15 +157,15 @@ plainvf& plainvf::operator -= (vfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to multiply a scalar value to the plain vector field
  *
- *          The unary operator *= multiplies a double precision value to all the fields (Vx, Vy and Vz) stored in plainvf and returns
+ *          The unary operator *= multiplies a real value to all the fields (Vx, Vy and Vz) stored in plainvf and returns
  *          a pointer to itself.
  *
- * \param   a is a double precision number to be multiplied to the plain vector field
+ * \param   a is a real number to be multiplied to the plain vector field
  *
  * \return  A pointer to itself is returned by the plain vector field class to which the operator belongs
  ********************************************************************************************************************************************
  */
-plainvf& plainvf::operator *= (double a) {
+plainvf& plainvf::operator *= (real a) {
     Vx *= a;
     Vy *= a;
     Vz *= a;
@@ -207,12 +207,12 @@ void plainvf::operator = (vfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to assign a scalar value to the plain vector field
  *
- *          The operator = assigns a double precision value to all the fields (Vx, Vy and Vz) stored in plainvf.
+ *          The operator = assigns a real value to all the fields (Vx, Vy and Vz) stored in plainvf.
  *
- * \param   a is a double precision number to be assigned to the plain vector field
+ * \param   a is a real number to be assigned to the plain vector field
  ********************************************************************************************************************************************
  */
-void plainvf::operator = (double a) {
+void plainvf::operator = (real a) {
     Vx = a;
     Vy = a;
     Vz = a;

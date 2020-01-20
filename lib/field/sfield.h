@@ -55,7 +55,7 @@ class sfield {
     private:
         const grid &gridData;
 
-        blitz::Array<double, 3> derivTempF;
+        blitz::Array<real, 3> derivTempF;
         
     public:
         field F;
@@ -64,7 +64,7 @@ class sfield {
 
         std::string fieldName;
 
-        blitz::Array<double, 3> interTempF;
+        blitz::Array<real, 3> interTempF;
 
         sfield(const grid &gridData, std::string fieldName);
 
@@ -81,11 +81,11 @@ class sfield {
         sfield& operator += (sfield &a);
         sfield& operator -= (sfield &a);
 
-        sfield& operator *= (double a);
+        sfield& operator *= (real a);
 
         void operator = (plainsf &a);
         void operator = (sfield &a);
-        void operator = (double a);
+        void operator = (real a);
 
         ~sfield() { };
 };

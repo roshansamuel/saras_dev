@@ -51,7 +51,7 @@ class plainvf {
         const grid &gridData;
 
     public:
-        blitz::Array<double, 3> Vx, Vy, Vz;
+        blitz::Array<real, 3> Vx, Vy, Vz;
 
         plainvf(const grid &gridData, const vfield &refV);
 
@@ -63,11 +63,11 @@ class plainvf {
         plainvf& operator += (vfield &a);
         plainvf& operator -= (vfield &a);
 
-        plainvf& operator *= (double a);
+        plainvf& operator *= (real a);
 
         void operator = (plainvf &a);
         void operator = (vfield &a);
-        void operator = (double a);
+        void operator = (real a);
 
 /**
  ********************************************************************************************************************************************
@@ -91,15 +91,15 @@ class plainvf {
  *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
  *          the global maximum from the entire computational domain.
  *
- * \return  The double precision value of the maximum is returned (it is implicitly assumed that only double precision values are used)
+ * \return  The real value of the maximum is returned (it is implicitly assumed that only real values are used)
  ********************************************************************************************************************************************
  */
-        inline double vxMax() {
-            double localMax, globalMax;
+        inline real vxMax() {
+            real localMax, globalMax;
 
             localMax = blitz::max(Vx);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }
@@ -112,15 +112,15 @@ class plainvf {
  *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
  *          the global maximum from the entire computational domain.
  *
- * \return  The double precision value of the maximum is returned (it is implicitly assumed that only double precision values are used)
+ * \return  The real value of the maximum is returned (it is implicitly assumed that only real values are used)
  ********************************************************************************************************************************************
  */
-        inline double vyMax() {
-            double localMax, globalMax;
+        inline real vyMax() {
+            real localMax, globalMax;
 
             localMax = blitz::max(Vy);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }
@@ -133,15 +133,15 @@ class plainvf {
  *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
  *          the global maximum from the entire computational domain.
  *
- * \return  The double precision value of the maximum is returned (it is implicitly assumed that only double precision values are used)
+ * \return  The real value of the maximum is returned (it is implicitly assumed that only real values are used)
  ********************************************************************************************************************************************
  */
-        inline double vzMax() {
-            double localMax, globalMax;
+        inline real vzMax() {
+            real localMax, globalMax;
 
             localMax = blitz::max(Vz);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }

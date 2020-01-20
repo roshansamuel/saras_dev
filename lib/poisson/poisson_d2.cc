@@ -181,8 +181,8 @@ void multigrid_d2::smooth(const int smoothCount) {
 void multigrid_d2::solve() {
     int iY = 0;
     int iterCount = 0;
-    double tempValue;
-    double localMax, globalMax;
+    real tempValue;
+    real localMax, globalMax;
 
     while (true) {
         // GAUSS-SEIDEL ITERATIVE SOLVER - FASTEST IN BENCHMARKS
@@ -226,7 +226,7 @@ void multigrid_d2::solve() {
             }
         }
 
-        MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (globalMax < inputParams.tolerance) {
             break;
         }
@@ -388,7 +388,7 @@ void multigrid_d2::createMGSubArrays() {
         length = 1;
         stride = strideValues(i);
 
-        MPI_Type_vector(count, length, stride, MPI_DOUBLE_PRECISION, &xMGArray(i));
+        MPI_Type_vector(count, length, stride, MPI_REAL, &xMGArray(i));
         MPI_Type_commit(&xMGArray(i));
 
         mgSendLft(i) =  strideValues(i), 0, 0;
@@ -443,7 +443,7 @@ void multigrid_d2::updatePads() {
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
 }
 
-double multigrid_d2::testProlong() {
+real multigrid_d2::testProlong() {
     int iY = 0;
     vLevel = 0;
 
@@ -472,8 +472,8 @@ double multigrid_d2::testProlong() {
     return blitz::max(fabs(pressureData));
 }
 
-double multigrid_d2::testTransfer() {
-    double maxVal = 0.0;
+real multigrid_d2::testTransfer() {
+    real maxVal = 0.0;
 
     int iY = 0;
     vLevel = 0;
@@ -515,10 +515,10 @@ double multigrid_d2::testTransfer() {
     return maxVal;
 }
 
-double multigrid_d2::testPeriodic() {
+real multigrid_d2::testPeriodic() {
     int iY = 0;
-    double xCoord = 0.0;
-    double zCoord = 0.0;
+    real xCoord = 0.0;
+    real zCoord = 0.0;
 
     vLevel = 0;
 
@@ -568,7 +568,7 @@ double multigrid_d2::testPeriodic() {
     return blitz::max(fabs(pressureData));
 }
 
-double multigrid_d2::testSolve() {
+real multigrid_d2::testSolve() {
     int iY = 0;
 
     vLevel = 0;

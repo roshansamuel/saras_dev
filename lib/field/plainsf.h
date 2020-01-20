@@ -57,7 +57,7 @@ class plainsf {
         const grid &gridData;
 
     public:
-        blitz::Array<double, 3> F;
+        blitz::Array<real, 3> F;
 
         blitz::Range xColl, yColl, zColl;
 
@@ -71,11 +71,11 @@ class plainsf {
         plainsf& operator += (sfield &a);
         plainsf& operator -= (sfield &a);
 
-        plainsf& operator *= (double a);
+        plainsf& operator *= (real a);
 
         void operator = (plainsf &a);
         void operator = (sfield &a);
-        void operator = (double a);
+        void operator = (real a);
 
 /**
  ********************************************************************************************************************************************
@@ -117,15 +117,15 @@ class plainsf {
  *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
  *          the global maximum from the entire computational domain.
  *
- * \return  The double precision value of the maximum is returned (it is implicitly assumed that only double precision values are used)
+ * \return  The real value of the maximum is returned (it is implicitly assumed that only real values are used)
  ********************************************************************************************************************************************
  */
-        inline double fxMax() {
-            double localMax, globalMax;
+        inline real fxMax() {
+            real localMax, globalMax;
 
             localMax = blitz::max(F);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }

@@ -63,9 +63,9 @@ class reader {
         std::vector<field> &rFields;
 
 #ifdef PLANAR
-        blitz::Array<double, 2> fieldData;
+        blitz::Array<real, 2> fieldData;
 #else
-        blitz::Array<double, 3> fieldData;
+        blitz::Array<real, 3> fieldData;
 #endif
 
         std::vector<hid_t> sourceDSpace, targetDSpace;
@@ -79,7 +79,7 @@ class reader {
     public:
         reader(const grid &mesh, std::vector<field> &rFields);
 
-        double readData();
+        real readData();
 
         ~reader();
 };

@@ -103,7 +103,7 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
 
 
 void scalar_d2::solvePDE() {
-    double fwTime, prTime, rsTime;
+    real fwTime, prTime, rsTime;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
@@ -304,7 +304,7 @@ void scalar_d2::computeTimeStep() {
 
 void scalar_d2::solveVx() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
         int iY = 0;
@@ -356,7 +356,7 @@ void scalar_d2::solveVx() {
 
 void scalar_d2::solveVz() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
         int iY = 0;
@@ -408,7 +408,7 @@ void scalar_d2::solveVz() {
 
 void scalar_d2::solveT() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
         int iY = 0;
@@ -457,10 +457,10 @@ void scalar_d2::solveT() {
 }
 
 
-double scalar_d2::testPeriodic() {
+real scalar_d2::testPeriodic() {
     int iY = 0;
-    double xCoord = 0.0;
-    double zCoord = 0.0;
+    real xCoord = 0.0;
+    real zCoord = 0.0;
 
     nseRHS = 0.0;
     V = 0.0;

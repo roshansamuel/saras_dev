@@ -105,7 +105,7 @@ derivative::derivative(const grid &gridData, const field &F): gridData(gridData)
  *          
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative1_x(blitz::Array<double, 3> outputMat) {
+void derivative::calcDerivative1_x(blitz::Array<real, 3> outputMat) {
     outputMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central12n(F.F, 0);
     outputMat *= invDelx;
 
@@ -120,7 +120,7 @@ void derivative::calcDerivative1_x(blitz::Array<double, 3> outputMat) {
  *          
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative1_y(blitz::Array<double, 3> outputMat) {
+void derivative::calcDerivative1_y(blitz::Array<real, 3> outputMat) {
     outputMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central12n(F.F, 1);
     outputMat *= invDely;
 
@@ -135,7 +135,7 @@ void derivative::calcDerivative1_y(blitz::Array<double, 3> outputMat) {
  *          
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative1_z(blitz::Array<double, 3> outputMat) {
+void derivative::calcDerivative1_z(blitz::Array<real, 3> outputMat) {
     outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central12n(F.F, 2);
     outputMat *= invDelz;
 
@@ -150,7 +150,7 @@ void derivative::calcDerivative1_z(blitz::Array<double, 3> outputMat) {
  *          
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative2xx(blitz::Array<double, 3> outputMat) {
+void derivative::calcDerivative2xx(blitz::Array<real, 3> outputMat) {
     tempMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central12n(F.F, 0);
     tempMat *= invDelx;
 
@@ -173,7 +173,7 @@ void derivative::calcDerivative2xx(blitz::Array<double, 3> outputMat) {
  *          
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative2yy(blitz::Array<double, 3> outputMat) {
+void derivative::calcDerivative2yy(blitz::Array<real, 3> outputMat) {
     tempMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central12n(F.F, 1);
     tempMat *= invDely;
 
@@ -195,7 +195,7 @@ void derivative::calcDerivative2yy(blitz::Array<double, 3> outputMat) {
  *          
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative2zz(blitz::Array<double, 3> outputMat) {
+void derivative::calcDerivative2zz(blitz::Array<real, 3> outputMat) {
     tempMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central12n(F.F, 2);
     tempMat *= invDelz;
 

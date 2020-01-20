@@ -56,7 +56,7 @@ typedef struct dataStruct {
     int x, y, z;
 
     // Up to a maximum of 10 field variables can be probed presently
-    double probeData[10];
+    real probeData[10];
 
     // Default struct constructor for initializing all elements to 0
     dataStruct(): x(0), y(0), z(0) { for (int i=0; i<10; i++) probeData[i] = 0.0; }
@@ -66,7 +66,7 @@ class probes {
     public:
         probes(const grid &mesh, std::vector<field> &pFields);
 
-        void probeData(double time);
+        void probeData(real time);
 
         ~probes();
 

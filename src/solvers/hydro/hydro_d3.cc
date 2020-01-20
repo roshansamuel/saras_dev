@@ -126,7 +126,7 @@ void hydro_d3::solvePDE() {
     pois_time = 0.0;
 
 #else
-    double fwTime, prTime, rsTime;
+    real fwTime, prTime, rsTime;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
@@ -340,7 +340,7 @@ void hydro_d3::computeTimeStep() {
 
 void hydro_d3::solveVx() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -397,7 +397,7 @@ void hydro_d3::solveVx() {
 
 void hydro_d3::solveVy() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -454,7 +454,7 @@ void hydro_d3::solveVy() {
 
 void hydro_d3::solveVz() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -510,10 +510,10 @@ void hydro_d3::solveVz() {
 }
 
 
-double hydro_d3::testPeriodic() {
-    double xCoord = 0.0;
-    double yCoord = 0.0;
-    double zCoord = 0.0;
+real hydro_d3::testPeriodic() {
+    real xCoord = 0.0;
+    real yCoord = 0.0;
+    real zCoord = 0.0;
 
     nseRHS = 0.0;
     V = 0.0;

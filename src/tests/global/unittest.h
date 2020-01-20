@@ -48,8 +48,8 @@
 
 extern int rootRank;
 
-void testError(blitz::Array<double, 3> A, blitz::Array<double, 3> B, int errorMom, double errorTol);
+void testError(blitz::Array<real, 3> A, blitz::Array<real, 3> B, int errorMom, real errorTol);
 
-void printResult(double computedValue, double errorTolerance);
+void printResult(real computedValue, real errorTolerance);
 
 #endif

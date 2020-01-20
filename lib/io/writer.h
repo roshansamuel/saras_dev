@@ -58,8 +58,8 @@ class writer {
     public:
         writer(const grid &mesh, std::vector<field> &wFields);
 
-        void writeSolution(double time);
-        void writeRestart(double time);
+        void writeSolution(real time);
+        void writeRestart(real time);
 
         ~writer();
 
@@ -69,9 +69,9 @@ class writer {
         std::vector<field> &wFields;
 
 #ifdef PLANAR
-        blitz::Array<double, 2> fieldData;
+        blitz::Array<real, 2> fieldData;
 #else
-        blitz::Array<double, 3> fieldData;
+        blitz::Array<real, 3> fieldData;
 #endif
 
         std::vector<hid_t> sourceDSpace, targetDSpace;

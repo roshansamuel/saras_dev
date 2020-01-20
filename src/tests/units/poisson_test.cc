@@ -50,7 +50,7 @@ static void taylorGreen(sfield &rho, sfield &P_analytic, grid &mesh);
 
 void poissonTest(grid &gridData, parser &inputData) {
     // ERROR IN COMPUTED SOLUTION FROM POISSON SOLVER
-    double errorVal, errorTolerance;
+    real errorVal, errorTolerance;
 
     // POISSON SOLVER INSTANCE
     poisson *mgSolver;

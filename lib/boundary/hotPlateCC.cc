@@ -52,10 +52,10 @@
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   inField is a reference to scalar field to which the boundary conditions must be applied.
  * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
- * \param   plateRad is the const double precision value of the radius of the heating plate.
+ * \param   plateRad is the const real value of the radius of the heating plate.
  ********************************************************************************************************************************************
  */
-hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const double plateRad):
+hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const real plateRad):
                             boundary(mesh, inField, bcWall), patchRadius(plateRad) {
     setXYZ();
     createPatch(patchRadius);
@@ -85,8 +85,8 @@ void hotPlateCC::setXYZ() {
  *
  ********************************************************************************************************************************************
  */
-void hotPlateCC::createPatch(const double patchRadius) {
-    double patchCentX, patchCentY, patchCentZ;
+void hotPlateCC::createPatch(const real patchRadius) {
+    real patchCentX, patchCentY, patchCentZ;
 
     patchCentX = mesh.xLen/2.0;
     patchCentY = mesh.yLen/2.0;
@@ -103,7 +103,7 @@ void hotPlateCC::createPatch(const double patchRadius) {
     for (int iX = dField.fWalls(wallNum).lbound(0); iX <= dField.fWalls(wallNum).ubound(0); iX++) {
         for (int iY = dField.fWalls(wallNum).lbound(1); iY <= dField.fWalls(wallNum).ubound(1); iY++) {
             for (int iZ = dField.fWalls(wallNum).lbound(2); iZ <= dField.fWalls(wallNum).ubound(2); iZ++) {
-                double ptRadius = sqrt(pow((x(iX) - patchCentX), 2) + pow((y(iY) - patchCentY), 2) + pow((z(iZ) - patchCentZ), 2));
+                real ptRadius = sqrt(pow((x(iX) - patchCentX), 2) + pow((y(iY) - patchCentY), 2) + pow((z(iZ) - patchCentZ), 2));
                 if (ptRadius <= patchRadius) {
                     wallData(iX, iY, iZ) = 1.0;
                     wallMask(iX, iY, iZ) = false;

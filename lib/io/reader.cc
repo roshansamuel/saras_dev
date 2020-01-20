@@ -210,7 +210,7 @@ void reader::initLimits() {
  *
  ********************************************************************************************************************************************
  */
-double reader::readData() {
+real reader::readData() {
     hid_t plist_id;
 
     hid_t fileHandle;
@@ -219,7 +219,7 @@ double reader::readData() {
 
     herr_t status;
 
-    double time;
+    real time;
 
     // Create a property list for collectively opening a file by all processors
     plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -234,7 +234,7 @@ double reader::readData() {
     // Read the scalar value containing the time from the restart file
     hid_t timeDSpace = H5Screate(H5S_SCALAR);
     dataSet = H5Dopen2(fileHandle, "Time", H5P_DEFAULT);
-    status = H5Dread(dataSet, H5T_NATIVE_DOUBLE, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
+    status = H5Dread(dataSet, H5T_NATIVE_REAL, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
 
     // Close dataset for future use and dataspace for clearing resources
     H5Dclose(dataSet);
@@ -262,7 +262,7 @@ double reader::readData() {
 
         // Note that the targetDSpace and sourceDSpace have switched positions
         // This is another point where the reader differs from the writer
-        status = H5Dread(dataSet, H5T_NATIVE_DOUBLE, targetDSpace[i], sourceDSpace[i], plist_id, fieldData.dataFirst());
+        status = H5Dread(dataSet, H5T_NATIVE_REAL, targetDSpace[i], sourceDSpace[i], plist_id, fieldData.dataFirst());
         if (status) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "Error in reading input from HDF file. Aborting" << std::endl;

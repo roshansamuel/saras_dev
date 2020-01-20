@@ -244,10 +244,10 @@ void writer::outputCheck() {
  *          It opens a file in the output folder and all the processors write in parallel into the file
  *          Before writing however, all the data is interpolated into the cell centers for ease of post-processing.
  *
- * \param   time is a double precision value containing the time to be used for naming the file
+ * \param   time is a real value containing the time to be used for naming the file
  ********************************************************************************************************************************************
  */
-void writer::writeSolution(double time) {
+void writer::writeSolution(real time) {
     hid_t plist_id;
     hid_t fileHandle;
     hid_t dataSet;
@@ -293,14 +293,14 @@ void writer::writeSolution(double time) {
 
         // Create the dataset *for the file*, linking it to the file handle.
         // Correspondingly, it will use the *core* dataspace, as only the core has to be written excluding the pads
-        dataSet = H5Dcreate2(fileHandle, wFields[i].fieldName.c_str(), H5T_NATIVE_DOUBLE, targetDSpace[pIndex], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        dataSet = H5Dcreate2(fileHandle, wFields[i].fieldName.c_str(), H5T_NATIVE_REAL, targetDSpace[pIndex], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // Write the dataset. Most important thing to note is that the 3rd and 4th arguments represent the *source* and *destination* dataspaces.
         // The source here is the sourceDSpace pointing to the memory buffer. Note that its view has been adjusted using hyperslab.
         // The destination is the targetDSpace. Though the targetDSpace is smaller than the sourceDSpace,
         // only the appropriate hyperslab within the sourceDSpace is transferred to the destination.
 
-        status = H5Dwrite(dataSet, H5T_NATIVE_DOUBLE, sourceDSpace[pIndex], targetDSpace[pIndex], plist_id, fieldData.dataFirst());
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, sourceDSpace[pIndex], targetDSpace[pIndex], plist_id, fieldData.dataFirst());
         if (status) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "Error in writing output to HDF file. Aborting" << std::endl;
@@ -327,10 +327,10 @@ void writer::writeSolution(double time) {
  *          Unlike solution writing, the data is not interpolated and is written as is.
  *          The restart file is overwritten with each call to this function.
  *
- * \param   time is a double precision value containing the time to be added as metadata to the restart file
+ * \param   time is a real value containing the time to be added as metadata to the restart file
  ********************************************************************************************************************************************
  */
-void writer::writeRestart(double time) {
+void writer::writeRestart(real time) {
     hid_t plist_id;
     hid_t fileHandle;
     hid_t dataSet;
@@ -349,8 +349,8 @@ void writer::writeRestart(double time) {
 
     // Add a single scalar value containing the time in the restart file
     hid_t timeDSpace = H5Screate(H5S_SCALAR);
-    dataSet = H5Dcreate2(fileHandle, "Time", H5T_NATIVE_DOUBLE, timeDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Dwrite(dataSet, H5T_NATIVE_DOUBLE, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
+    dataSet = H5Dcreate2(fileHandle, "Time", H5T_NATIVE_REAL, timeDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
 
     // Close dataset for future use and dataspace for clearing resources
     H5Dclose(dataSet);
@@ -372,14 +372,14 @@ void writer::writeRestart(double time) {
 
         // Create the dataset *for the file*, linking it to the file handle.
         // Correspondingly, it will use the *core* dataspace, as only the core has to be written excluding the pads
-        dataSet = H5Dcreate2(fileHandle, wFields[i].fieldName.c_str(), H5T_NATIVE_DOUBLE, targetDSpace[i], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        dataSet = H5Dcreate2(fileHandle, wFields[i].fieldName.c_str(), H5T_NATIVE_REAL, targetDSpace[i], H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         // Write the dataset. Most important thing to note is that the 3rd and 4th arguments represent the *source* and *destination* dataspaces.
         // The source here is the sourceDSpace pointing to the memory buffer. Note that its view has been adjusted using hyperslab.
         // The destination is the targetDSpace. Though the targetDSpace is smaller than the sourceDSpace,
         // only the appropriate hyperslab within the sourceDSpace is transferred to the destination.
 
-        status = H5Dwrite(dataSet, H5T_NATIVE_DOUBLE, sourceDSpace[i], targetDSpace[i], plist_id, fieldData.dataFirst());
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, sourceDSpace[i], targetDSpace[i], plist_id, fieldData.dataFirst());
         if (status) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "Error in writing output to HDF file. Aborting" << std::endl;

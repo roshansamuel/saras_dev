@@ -253,12 +253,12 @@ void vfield::computeNLin(const vfield &V, plainvf &H) {
  ********************************************************************************************************************************************
  * \brief   Operator is used to calculate time step #dt_out for time integration using CFL Condition with desired Courant No
  *           
- * \param   dt_out is a reference to a double precision variable into which the calculated value of time-step has to be written
+ * \param   dt_out is a reference to a real variable into which the calculated value of time-step has to be written
  *********************************************************************************************************************************************
  */
-void vfield::computeTStp(double &dt_out) {
-    double Umax, Vmax, Wmax;
-    double delx, dely, delz; 
+void vfield::computeTStp(real &dt_out) {
+    real Umax, Vmax, Wmax;
+    real delx, dely, delz; 
 
     delx = gridData.dXi;
     Umax = Vx.fieldMax();
@@ -272,7 +272,7 @@ void vfield::computeTStp(double &dt_out) {
     delz = gridData.dZt;
     Wmax = Vz.fieldMax();
 
-    dt_out = double(gridData.inputParams.courantNumber*(delx/Umax + dely/Vmax + delz/Wmax));
+    dt_out = real(gridData.inputParams.courantNumber*(delx/Umax + dely/Vmax + delz/Wmax));
 }
 
 /**
@@ -410,15 +410,15 @@ vfield& vfield::operator -= (vfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to multiply a scalar value to the vector field
  *
- *          The unary operator *= multiplies a double precision value to all the fields (Vx, Vy and Vz) stored in vfield and returns
+ *          The unary operator *= multiplies a real value to all the fields (Vx, Vy and Vz) stored in vfield and returns
  *          a pointer to itself.
  *
- * \param   a is a double precision number to be multiplied to the vector field
+ * \param   a is a real number to be multiplied to the vector field
  *
  * \return  A pointer to itself is returned by the vector field class to which the operator belongs
  ********************************************************************************************************************************************
  */
-vfield& vfield::operator *= (double a) {
+vfield& vfield::operator *= (real a) {
     Vx.F *= a;
     Vy.F *= a;
     Vz.F *= a;
@@ -460,12 +460,12 @@ void vfield::operator = (vfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to assign a scalar value to the vector field
  *
- *          The operator = assigns a double precision value to all the fields (Vx, Vy and Vz) stored in vfield.
+ *          The operator = assigns a real value to all the fields (Vx, Vy and Vz) stored in vfield.
  *
- * \param   a is a double precision number to be assigned to the vector field
+ * \param   a is a real number to be assigned to the vector field
  ********************************************************************************************************************************************
  */
-void vfield::operator = (double a) {
+void vfield::operator = (real a) {
     Vx.F = a;
     Vy.F = a;
     Vz.F = a;

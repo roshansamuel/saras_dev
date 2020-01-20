@@ -381,8 +381,8 @@ void parser::parseProbes() {
 
                 } else {
                     for (unsigned int i = 0; i < numIndex; i++) {
-                        double incIndex = ((double)endIndex - (double)strIndex)/((double)numIndex - 1);
-                        int probeIndex = strIndex + (int)round((double)i*incIndex);
+                        real incIndex = ((real)endIndex - (real)strIndex)/((real)numIndex - 1);
+                        int probeIndex = strIndex + (int)round((real)i*incIndex);
                         indexVector.push_back(probeIndex);
                     }
                 }

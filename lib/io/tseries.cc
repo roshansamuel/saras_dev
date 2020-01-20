@@ -54,12 +54,12 @@
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   solverV is a reference to the velocity vector field whose data is used in calculating global quantities
  * \param   solverP is a const reference to the pressure scalar field whose dimensions are used to set array limits
- * \param   solverTime is a const reference to the double precision variable holding the value of current solver time
- * \param   timeStep is a const reference to the double precision variable holding the value of current time-step
+ * \param   solverTime is a const reference to the real variable holding the value of current solver time
+ * \param   timeStep is a const reference to the real variable holding the value of current time-step
  *
  ********************************************************************************************************************************************
  */
-tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const double &solverTime, const double &timeStep):
+tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const real &solverTime, const real &timeStep):
                  time(solverTime), tStp(timeStep), mesh(mesh), P(solverP), V(solverV), divV(mesh, P) {
     // Open TimeSeries file
     if (mesh.inputParams.restartFlag) {
@@ -87,7 +87,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
 #endif
 
     // TOTAL VOLUME FOR AVERAGING THE RESULT OF VOLUMETRIC INTEGRATION
-    double localVol = 0.0;
+    real localVol = 0.0;
 
     totalVol = 0.0;
 #ifdef PLANAR
@@ -105,7 +105,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
         }
     }
 #endif
-    MPI_Allreduce(&localVol, &totalVol, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localVol, &totalVol, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
 
     // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
     if (mesh.rankData.rank == 0) {
@@ -165,7 +165,7 @@ void tseries::writeTSData() {
         }
     }
 #endif
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
     totalEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
@@ -187,12 +187,12 @@ void tseries::writeTSData() {
  *          One line is written to the standard I/O, while another is written to the time series dat file.
  *
  * \param   T is a const reference to the temperature scalar field whose data is used to compute Nusselt number
- * \param   nu is a const reference to the double precision variable containing the value of kinematic viscosity
- * \param   kappa is a const reference to the double precision variable containing the value of thermal diffusion
+ * \param   nu is a const reference to the real variable containing the value of kinematic viscosity
+ * \param   kappa is a const reference to the real variable containing the value of thermal diffusion
  *
  ********************************************************************************************************************************************
  */
-void tseries::writeTSData(const sfield &T, const double nu, const double kappa) {
+void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     V.divergence(divV, P);
     maxDivergence = divV.fxMax();
@@ -231,8 +231,8 @@ void tseries::writeTSData(const sfield &T, const double nu, const double kappa) 
     }
 #endif
 
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
     totalEnergy /= totalVol;
     NusseltNo = 1.0 + (totalUzT/totalVol)/kappa;
 

@@ -50,6 +50,16 @@
 #include <blitz/array.h>
 #include <yaml-cpp/yaml.h>
 
+#ifndef REAL_DOUBLE
+#define H5T_NATIVE_REAL H5T_NATIVE_DOUBLE
+#define MPI_REAL MPI_DOUBLE
+#define real double
+#else
+#define H5T_NATIVE_REAL H5T_NATIVE_FLOAT
+#define MPI_REAL MPI_FLOAT
+#define real float
+#endif
+
 class parser {
     public:
         int ioCnt;
@@ -72,21 +82,21 @@ class parser {
         bool restartFlag;
         bool xPer, yPer, zPer;
 
-        double Re;
-        double Ra;
-        double Pr;
-        double Ta;
-        double Ro;
+        real Re;
+        real Ra;
+        real Pr;
+        real Ta;
+        real Ro;
 
-        double fwInt;
-        double rsInt;
-        double prInt;
-        double tolerance;
-        double Lx, Ly, Lz;
-        double tStp, tMax;
-        double patchRadius;
-        double betaX, betaY, betaZ;
-        double courantNumber;
+        real fwInt;
+        real rsInt;
+        real prInt;
+        real tolerance;
+        real Lx, Ly, Lz;
+        real tStp, tMax;
+        real patchRadius;
+        real betaX, betaY, betaZ;
+        real courantNumber;
 
         std::string dScheme;
         std::string meshType;

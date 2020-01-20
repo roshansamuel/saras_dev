@@ -70,7 +70,7 @@ class hydro {
         hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         virtual void solvePDE();
-        virtual double testPeriodic();
+        virtual real testPeriodic();
 
         virtual ~hydro() { };
 
@@ -78,16 +78,16 @@ class hydro {
         int timeStepCount;
         int maxIterations;
 
-        double time, dt;
+        real time, dt;
 
-        double hx, hy, hz;
-        double hx2, hz2, hz2hx2;
-        double hx2hy2, hy2hz2, hx2hy2hz2;
+        real hx, hy, hz;
+        real hx2, hz2, hz2hx2;
+        real hx2hy2, hy2hz2, hx2hy2hz2;
 
         const grid &mesh;
         const parser &inputParams;
 
-        const double inverseRe;
+        const real inverseRe;
 
         probes *dataProbe;
         boundary *uLft, *uRgt, *uFrn, *uBak, *uTop, *uBot;
@@ -138,7 +138,7 @@ class hydro_d2: public hydro {
         hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         void solvePDE();
-        double testPeriodic();
+        real testPeriodic();
 
         ~hydro_d2();
 
@@ -167,7 +167,7 @@ class hydro_d3: public hydro {
         hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         void solvePDE();
-        double testPeriodic();
+        real testPeriodic();
 
         ~hydro_d3();
 
@@ -175,7 +175,7 @@ class hydro_d3: public hydro {
         multigrid_d3 mgSolver;
 
 #ifdef TIME_RUN
-        double visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
+        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
 
         void solveVx();

@@ -49,7 +49,7 @@ static void taylorGreen(sfield &F, sfield &dF, grid &mesh);
 
 void differTest(grid &gridData) {
     // ERROR IN COMPUTED DIVERGENCE
-    double errorTolerance;
+    real errorTolerance;
 
     sfield F(gridData, "F", true, true, true);
     sfield dF(gridData, "dF", true, true, true);

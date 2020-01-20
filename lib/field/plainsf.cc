@@ -145,15 +145,15 @@ plainsf& plainsf::operator -= (sfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to multiply a scalar value to the scalar field
  *
- *          The unary operator *= multiplies a double precision value to the entire field stored as plainsf and returns
+ *          The unary operator *= multiplies a real value to the entire field stored as plainsf and returns
  *          a pointer to itself.
  *
- * \param   a is a double precision number to be multiplied to the scalar field
+ * \param   a is a real number to be multiplied to the scalar field
  *
  * \return  A pointer to itself is returned by the plain scalar field class to which the operator belongs
  ********************************************************************************************************************************************
  */
-plainsf& plainsf::operator *= (double a) {
+plainsf& plainsf::operator *= (real a) {
     F *= a;
 
     return *this;
@@ -189,11 +189,11 @@ void plainsf::operator = (sfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to assign a scalar value to the plain scalar field
  *
- *          The operator = assigns a double precision value to all the scalar field.
+ *          The operator = assigns a real value to all the scalar field.
  *
- * \param   a is a double precision number to be assigned to the plain scalar field
+ * \param   a is a real number to be assigned to the plain scalar field
  ********************************************************************************************************************************************
  */
-void plainsf::operator = (double a) {
+void plainsf::operator = (real a) {
     F = a;
 }
