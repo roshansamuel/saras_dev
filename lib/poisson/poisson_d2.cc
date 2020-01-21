@@ -226,7 +226,7 @@ void multigrid_d2::solve() {
             }
         }
 
-        MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (globalMax < inputParams.tolerance) {
             break;
         }
@@ -388,7 +388,7 @@ void multigrid_d2::createMGSubArrays() {
         length = 1;
         stride = strideValues(i);
 
-        MPI_Type_vector(count, length, stride, MPI_REAL, &xMGArray(i));
+        MPI_Type_vector(count, length, stride, MPI_FP_REAL, &xMGArray(i));
         MPI_Type_commit(&xMGArray(i));
 
         mgSendLft(i) =  strideValues(i), 0, 0;

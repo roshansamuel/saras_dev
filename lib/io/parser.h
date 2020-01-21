@@ -52,11 +52,11 @@
 
 #ifdef REAL_DOUBLE
 #define H5T_NATIVE_REAL H5T_NATIVE_DOUBLE
-#define MPI_REAL MPI_DOUBLE
+#define MPI_FP_REAL MPI_DOUBLE
 #define real double
 #else
 #define H5T_NATIVE_REAL H5T_NATIVE_FLOAT
-#define MPI_REAL MPI_FLOAT
+#define MPI_FP_REAL MPI_FLOAT
 #define real float
 #endif
 

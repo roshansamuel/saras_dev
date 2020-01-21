@@ -125,7 +125,7 @@ class plainsf {
 
             localMax = blitz::max(F);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }

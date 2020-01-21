@@ -639,7 +639,7 @@ real field::fieldMax() {
      * Check Ref. [4] in README for explanation.                                                                   *
      ***************************************************************************************************************/
 
-    MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
     return globalMax;
 }

@@ -99,7 +99,7 @@ class plainvf {
 
             localMax = blitz::max(Vx);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }
@@ -120,7 +120,7 @@ class plainvf {
 
             localMax = blitz::max(Vy);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }
@@ -141,7 +141,7 @@ class plainvf {
 
             localMax = blitz::max(Vz);
 
-            MPI_Allreduce(&localMax, &globalMax, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
             return globalMax;
         }

@@ -105,7 +105,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
         }
     }
 #endif
-    MPI_Allreduce(&localVol, &totalVol, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localVol, &totalVol, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
     // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
     if (mesh.rankData.rank == 0) {
@@ -165,7 +165,7 @@ void tseries::writeTSData() {
         }
     }
 #endif
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
     totalEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
@@ -231,8 +231,8 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     }
 #endif
 
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
     totalEnergy /= totalVol;
     NusseltNo = 1.0 + (totalUzT/totalVol)/kappa;
 
