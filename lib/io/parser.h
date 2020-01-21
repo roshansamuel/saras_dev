@@ -50,7 +50,7 @@
 #include <blitz/array.h>
 #include <yaml-cpp/yaml.h>
 
-#ifndef REAL_DOUBLE
+#ifdef REAL_DOUBLE
 #define H5T_NATIVE_REAL H5T_NATIVE_DOUBLE
 #define MPI_REAL MPI_DOUBLE
 #define real double
