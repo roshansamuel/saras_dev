@@ -78,15 +78,15 @@ void channelRand::initializeField(vfield &uField) {
     // END DEBUG CODE
 
     // The below factor was recommended to be set to 26.0 by Anikesh Pal, but that number appears when V is scaled with friction velocity, U_tau
-    double vScale = 1.0;
+    real vScale = 1.0;
 
 #ifdef PLANAR
     // VELOCITY PERTURBATION FOR PERIODIC CHANNEL FLOW
     // X-VELOCITY
     for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
         for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-            double uP, ndZ;
-            double randNum = double(std::rand())/RAND_MAX;
+            real uP, ndZ;
+            real randNum = real(std::rand())/RAND_MAX;
 
             ndZ = mesh.zStaggr(k)/mesh.zLen;
             uP = randNum*vScale*(4.0*ndZ*(ndZ - 1.0) + 1);
@@ -97,8 +97,8 @@ void channelRand::initializeField(vfield &uField) {
     // Z-VELOCITY
     for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
         for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
-            double uP, ndZ;
-            double randNum = double(std::rand())/RAND_MAX;
+            real uP, ndZ;
+            real randNum = real(std::rand())/RAND_MAX;
 
             ndZ = mesh.zStaggr(k)/mesh.zLen;
             uP = randNum*vScale*(4.0*ndZ*(ndZ - 1.0) + 1);
@@ -112,8 +112,8 @@ void channelRand::initializeField(vfield &uField) {
     for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
         for (int j=uField.Vx.F.lbound(1); j <= uField.Vx.F.ubound(1); j++) {
             for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-                double uP, ndZ;
-                double randNum = double(std::rand())/RAND_MAX;
+                real uP, ndZ;
+                real randNum = real(std::rand())/RAND_MAX;
 
                 ndZ = mesh.zStaggr(k)/mesh.zLen;
                 uP = randNum*vScale*(4.0*ndZ*(ndZ - 1.0) + 1);
@@ -128,8 +128,8 @@ void channelRand::initializeField(vfield &uField) {
     for (int i=uField.Vy.F.lbound(0); i <= uField.Vy.F.ubound(0); i++) {
         for (int j=uField.Vy.F.lbound(1); j <= uField.Vy.F.ubound(1); j++) {
             for (int k=uField.Vy.F.lbound(2); k <= uField.Vy.F.ubound(2); k++) {
-                double uP, ndZ;
-                double randNum = double(std::rand())/RAND_MAX;
+                real uP, ndZ;
+                real randNum = real(std::rand())/RAND_MAX;
 
                 ndZ = mesh.zStaggr(k)/mesh.zLen;
                 uP = randNum*vScale*(4.0*ndZ*(ndZ - 1.0) + 1);
@@ -142,8 +142,8 @@ void channelRand::initializeField(vfield &uField) {
     for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
         for (int j=uField.Vz.F.lbound(1); j <= uField.Vz.F.ubound(1); j++) {
             for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
-                double uP, ndZ;
-                double randNum = double(std::rand())/RAND_MAX;
+                real uP, ndZ;
+                real randNum = real(std::rand())/RAND_MAX;
 
                 ndZ = mesh.zStaggr(k)/mesh.zLen;
                 uP = randNum*vScale*(4.0*ndZ*(ndZ - 1.0) + 1);

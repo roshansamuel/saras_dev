@@ -54,7 +54,7 @@
  * \param   parallelData is a const reference to the global data contained in the parallel class
  ********************************************************************************************************************************************
  */
-mpidata::mpidata(blitz::Array<double, 3> inputArray, const parallel &parallelData): dataField(inputArray), rankData(parallelData) {
+mpidata::mpidata(blitz::Array<real, 3> inputArray, const parallel &parallelData): dataField(inputArray), rankData(parallelData) {
     recvStatus.resize(4);
     recvRequest.resize(4);
 }
@@ -116,14 +116,14 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(0) += padWidth(0);
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayX0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0);
     MPI_Type_commit(&sendSubarrayX0);
 
     // RECEIVE SUB-ARRAY ON LEFT SIDE
     saStarts = padWidth;            saStarts(0) = 0;
     loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayX0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX0);
     MPI_Type_commit(&recvSubarrayX0);
 
 
@@ -136,7 +136,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(0) -= padWidth(0);
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayX1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1);
     MPI_Type_commit(&sendSubarrayX1);
 
     // RECEIVE SUB-ARRAY ON RIGHT SIDE
@@ -149,7 +149,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     //    saStarts(0) -= padWidth(0);
     //}
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayX1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX1);
     MPI_Type_commit(&recvSubarrayX1);
 
 
@@ -167,14 +167,14 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(1) += padWidth(1);
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayY0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY0);
     MPI_Type_commit(&sendSubarrayY0);
 
     // RECEIVE SUB-ARRAY ON FRONT SIDE
     saStarts = padWidth;            saStarts(1) = 0;
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayY0);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY0);
     MPI_Type_commit(&recvSubarrayY0);
 
     // SEND SUB-ARRAY ON REAR SIDE
@@ -186,7 +186,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
         saStarts(1) -= padWidth(1);
     }
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &sendSubarrayY1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY1);
     MPI_Type_commit(&sendSubarrayY1);
 
     // RECEIVE SUB-ARRAY ON REAR SIDE
@@ -199,7 +199,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     //    saStarts(1) -= padWidth(1);
     //}
 
-    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_DOUBLE_PRECISION, &recvSubarrayY1);
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY1);
     MPI_Type_commit(&recvSubarrayY1);
 }
 

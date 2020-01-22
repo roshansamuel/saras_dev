@@ -57,7 +57,7 @@ class derivative {
 
         const field &F;
 
-        double invDelx, invDely, invDelz;
+        real invDelx, invDely, invDelz;
 
         blitz::firstIndex i;
         blitz::secondIndex j;
@@ -65,22 +65,22 @@ class derivative {
 
         blitz::Range fullRange;
 
-        blitz::Array<double, 1> x_Metric, y_Metric, z_Metric;
-        blitz::Array<double, 1> xxMetric, yyMetric, zzMetric;
-        blitz::Array<double, 1> x2Metric, y2Metric, z2Metric;
+        blitz::Array<real, 1> x_Metric, y_Metric, z_Metric;
+        blitz::Array<real, 1> xxMetric, yyMetric, zzMetric;
+        blitz::Array<real, 1> x2Metric, y2Metric, z2Metric;
 
-        blitz::Array<double, 3> tempMat;
+        blitz::Array<real, 3> tempMat;
 
     public:
         derivative(const grid &gridData, const field &F);
 
-        void calcDerivative1_x(blitz::Array<double, 3> outputMat);
-        void calcDerivative1_y(blitz::Array<double, 3> outputMat);
-        void calcDerivative1_z(blitz::Array<double, 3> outputMat);
+        void calcDerivative1_x(blitz::Array<real, 3> outputMat);
+        void calcDerivative1_y(blitz::Array<real, 3> outputMat);
+        void calcDerivative1_z(blitz::Array<real, 3> outputMat);
 
-        void calcDerivative2xx(blitz::Array<double, 3> outputMat);
-        void calcDerivative2yy(blitz::Array<double, 3> outputMat);
-        void calcDerivative2zz(blitz::Array<double, 3> outputMat);
+        void calcDerivative2xx(blitz::Array<real, 3> outputMat);
+        void calcDerivative2yy(blitz::Array<real, 3> outputMat);
+        void calcDerivative2zz(blitz::Array<real, 3> outputMat);
 };
 
 /**

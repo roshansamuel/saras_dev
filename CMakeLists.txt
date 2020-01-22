@@ -92,6 +92,18 @@ if (TIME_RUN)
     add_definitions(-DTIME_RUN)
 endif ()
 
+# Add compiler flag for using double precision calculations
+if (REAL_DOUBLE)
+    message (STATUS "Compiling Saras to solve with double precision calculations")
+    add_definitions(-DREAL_DOUBLE)
+endif ()
+
+# Add compiler flag for using single precision calculations
+if (REAL_SINGLE)
+    message (STATUS "Compiling Saras to solve with single precision calculations")
+    add_definitions(-DREAL_SINGLE)
+endif ()
+
 # Set compiler flags for normal and debug runs
 set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3")
 set (CMAKE_CXX_FLAGS_DEBUG "-Wall -g ${OpenMP_C_FLAGS} -DBZ_DEBUG")
@@ -107,3 +119,9 @@ unset (TEST_RUN CACHE)
 
 # Remove the TIME_RUN variable from cache to force user to manually set the TIME_RUN flag each time scaling run must be performed
 unset (TIME_RUN CACHE)
+
+# Remove the REAL_DOUBLE variable from cache to force user to manually set the precision each time the solver is compiled
+unset (REAL_DOUBLE CACHE)
+
+# Remove the REAL_SINGLE variable from cache to force user to manually set the precision each time the solver is compiled
+unset (REAL_SINGLE CACHE)

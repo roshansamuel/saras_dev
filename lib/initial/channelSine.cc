@@ -65,7 +65,7 @@ channelSine::channelSine(const grid &mesh): initial(mesh) { }
  ********************************************************************************************************************************************
  */
 void channelSine::initializeField(vfield &uField) {
-    double kx = 10.0;
+    real kx = 10.0;
 
     if (mesh.rankData.rank == 0) std::cout << "Imposing sinusoidal perturbation initial condition for channel flow" << std::endl << std::endl;
 

@@ -142,7 +142,7 @@ int main() {
     }
 
     gettimeofday(&runEnd, NULL);
-    double run_time = ((runEnd.tv_sec - runStart.tv_sec)*1000000u + runEnd.tv_usec - runStart.tv_usec)/1.e6;
+    real run_time = ((runEnd.tv_sec - runStart.tv_sec)*1000000u + runEnd.tv_usec - runStart.tv_usec)/1.e6;
 
     if (mpi.rank == 0) {
         std::cout << std::endl << "Simulation completed" << std::endl;

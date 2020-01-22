@@ -47,7 +47,7 @@
 
 void hydroTest(grid &gridData, parser &inputData, parallel &mpiData) {
     // ERROR IN COMPUTED SOLUTION FROM POISSON SOLVER
-    double errorVal, errorTolerance;
+    real errorVal, errorTolerance;
 
     // POISSON SOLVER INSTANCE
     hydro *nseSolver;

@@ -74,11 +74,11 @@ class boundary {
 
 class dirichletCC: public boundary {
     public:
-        dirichletCC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+        dirichletCC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
 
         inline void imposeBC();
     private:
-        const double fieldValue;
+        const real fieldValue;
 };
 
 /**
@@ -91,11 +91,11 @@ class dirichletCC: public boundary {
 
 class dirichletFC: public boundary {
     public:
-        dirichletFC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+        dirichletFC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
 
         inline void imposeBC();
     private:
-        const double fieldValue;
+        const real fieldValue;
 };
 
 /**
@@ -138,11 +138,11 @@ class periodicFC: public boundary {
 
 class neumannCC: public boundary {
     public:
-        neumannCC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+        neumannCC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
 
         inline void imposeBC();
     private:
-        const double fieldValue;
+        const real fieldValue;
 };
 
 /**
@@ -155,11 +155,11 @@ class neumannCC: public boundary {
 
 class neumannFC: public boundary {
     public:
-        neumannFC(const grid &mesh, field &inField, const int bcWall, const double bcValue);
+        neumannFC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
 
         inline void imposeBC();
     private:
-        const double fieldValue;
+        const real fieldValue;
 };
 
 /**
@@ -172,21 +172,21 @@ class neumannFC: public boundary {
 
 class hotPlateCC: public boundary {
     public:
-        hotPlateCC(const grid &mesh, field &inField, const int bcWall, const double plateRad);
+        hotPlateCC(const grid &mesh, field &inField, const int bcWall, const real plateRad);
 
         void imposeBC();
     private:
         blitz::Array<bool, 3> wallMask;
-        blitz::Array<double, 3> wallData;
+        blitz::Array<real, 3> wallData;
 
-        blitz::Array<double, 1> x, y, z;
-        blitz::Array<double, 1> xGlo, yGlo, zGlo;
+        blitz::Array<real, 1> x, y, z;
+        blitz::Array<real, 1> xGlo, yGlo, zGlo;
 
-        const double patchRadius;
+        const real patchRadius;
 
         void setXYZ();
 
-        void createPatch(double patchRadius);
+        void createPatch(real patchRadius);
 };
 
 /**

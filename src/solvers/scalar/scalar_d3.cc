@@ -117,7 +117,7 @@ void scalar_d3::solvePDE() {
     pois_time = 0.0;
 
 #else
-    double fwTime, prTime, rsTime;
+    real fwTime, prTime, rsTime;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
@@ -359,7 +359,7 @@ void scalar_d3::computeTimeStep() {
 
 void scalar_d3::solveVx() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -417,7 +417,7 @@ void scalar_d3::solveVx() {
 
 void scalar_d3::solveVy() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -475,7 +475,7 @@ void scalar_d3::solveVy() {
 
 void scalar_d3::solveVz() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -533,7 +533,7 @@ void scalar_d3::solveVz() {
 
 void scalar_d3::solveT() {
     int iterCount = 0;
-    double maxError = 0.0;
+    real maxError = 0.0;
 
     while (true) {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -589,10 +589,10 @@ void scalar_d3::solveT() {
 }
 
 
-double scalar_d3::testPeriodic() {
-    double xCoord = 0.0;
-    double yCoord = 0.0;
-    double zCoord = 0.0;
+real scalar_d3::testPeriodic() {
+    real xCoord = 0.0;
+    real yCoord = 0.0;
+    real zCoord = 0.0;
 
     nseRHS = 0.0;
     V = 0.0;

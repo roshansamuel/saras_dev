@@ -61,7 +61,7 @@ class field {
         void setInterpolationSlices();
 
     public:
-        blitz::Array<double, 3> F;
+        blitz::Array<real, 3> F;
 
         std::string fieldName;
 
@@ -87,18 +87,18 @@ class field {
 
         void syncData();
 
-        double fieldMax();
+        real fieldMax();
 
         blitz::RectDomain<3> shift(int dim, blitz::RectDomain<3> core, int steps);
 
         field& operator += (field &a);
         field& operator -= (field &a);
 
-        field& operator += (double a);
-        field& operator -= (double a);
+        field& operator += (real a);
+        field& operator -= (real a);
 
         void operator = (field &a);
-        void operator = (double a);
+        void operator = (real a);
 
         ~field();
 };

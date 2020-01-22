@@ -50,7 +50,7 @@ static void taylorGreen(vfield &V, grid &mesh);
 
 void fieldTest(grid &gridData) {
     // ERROR IN COMPUTED DIVERGENCE
-    double errorVal, errorTolerance;
+    real errorVal, errorTolerance;
 
     sfield div(gridData, "DIV", true, true, true);
     vfield V(gridData, "V");

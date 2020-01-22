@@ -254,6 +254,14 @@ void parser::checkData() {
         MPI_Finalize();
         exit(0);
     }
+
+#ifdef REAL_SINGLE
+    if (tolerance < 5.0e-6) {
+        std::cout << "ERROR: The specified tolerance for Jacobi iterations is too small for single precision calculations. Aborting" << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
+#endif
 }
 
 /**
@@ -381,8 +389,8 @@ void parser::parseProbes() {
 
                 } else {
                     for (unsigned int i = 0; i < numIndex; i++) {
-                        double incIndex = ((double)endIndex - (double)strIndex)/((double)numIndex - 1);
-                        int probeIndex = strIndex + (int)round((double)i*incIndex);
+                        real incIndex = ((real)endIndex - (real)strIndex)/((real)numIndex - 1);
+                        int probeIndex = strIndex + (int)round((real)i*incIndex);
                         indexVector.push_back(probeIndex);
                     }
                 }

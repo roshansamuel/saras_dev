@@ -54,7 +54,7 @@ class scalar: public hydro {
 
         force *tForcing;
 
-        double nu, kappa; 
+        real nu, kappa; 
 
         scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
@@ -94,7 +94,7 @@ class scalar_d2: public scalar {
         scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         void solvePDE();
-        double testPeriodic();
+        real testPeriodic();
 
         ~scalar_d2();
 
@@ -125,7 +125,7 @@ class scalar_d3: public scalar {
         scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         void solvePDE();
-        double testPeriodic();
+        real testPeriodic();
 
         ~scalar_d3();
 
@@ -133,7 +133,7 @@ class scalar_d3: public scalar {
         multigrid_d3 mgSolver;
 
 #ifdef TIME_RUN
-        double visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
+        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
 
         void solveVx();

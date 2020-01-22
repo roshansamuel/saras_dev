@@ -124,7 +124,7 @@ void probes::placeProbes() {
  *          For each variable specified in the list of fields given to the constructor, obtain the value at the probe locations.
  ********************************************************************************************************************************************
  */
-void probes::probeData(double time) {
+void probes::probeData(real time) {
     dataStruct *writeData;
     int arrayLen;
 
@@ -240,7 +240,7 @@ void probes::gatherData(dataStruct *outData) {
  ********************************************************************************************************************************************
  * \brief   Function to create the derived MPI datatype to be used for transferring probed data across processors in 3D runs
  *
- *          The probed data consists of coordinates (integers) and the field readings (double).
+ *          The probed data consists of coordinates (integers) and the field readings (real).
  *          An MPI_Struct datatype is defined accordingly to store and transmit this data across processors.
  ********************************************************************************************************************************************
  */
@@ -249,7 +249,7 @@ void probes::createMPIStruct() {
 
     // Below method of defining MPI_struct is compatible with MPICH2 since it avoids use of deprecated functions and definitions
     int bLengths[4] = {1, 1, 1, 10};
-    MPI_Datatype baseTypes[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_DOUBLE_PRECISION};
+    MPI_Datatype baseTypes[4] = {MPI_INT, MPI_INT, MPI_INT, MPI_FP_REAL};
     MPI_Aint displacements[4];
     MPI_Aint intlb, intex;
 

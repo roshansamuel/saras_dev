@@ -260,15 +260,15 @@ sfield& sfield::operator -= (sfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to multiply a scalar value to the scalar field
  *
- *          The unary operator *= multiplies a double precision value to the entire field stored as sfield and returns
+ *          The unary operator *= multiplies a real value to the entire field stored as sfield and returns
  *          a pointer to itself.
  *
- * \param   a is a double precision number to be multiplied to the scalar field
+ * \param   a is a real number to be multiplied to the scalar field
  *
  * \return  A pointer to itself is returned by the scalar field class to which the operator belongs
  ********************************************************************************************************************************************
  */
-sfield& sfield::operator *= (double a) {
+sfield& sfield::operator *= (real a) {
     F.F *= a;
 
     return *this;
@@ -304,11 +304,11 @@ void sfield::operator = (sfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to assign a scalar value to the scalar field
  *
- *          The operator = assigns a double precision value to all the scalar field.
+ *          The operator = assigns a real value to all the scalar field.
  *
- * \param   a is a double precision number to be assigned to the scalar field
+ * \param   a is a real number to be assigned to the scalar field
  ********************************************************************************************************************************************
  */
-void sfield::operator = (double a) {
+void sfield::operator = (real a) {
     F.F = a;
 }

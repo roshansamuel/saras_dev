@@ -77,7 +77,7 @@ class coriolisForce: public force {
         inline void addForcing(plainvf &Hv);
         inline void addForcing(plainsf &Ht) { };
     private:
-        double Fr;
+        real Fr;
 };
 
 /**
@@ -95,7 +95,7 @@ class buoyantForce: public force {
         inline void addForcing(plainvf &Hv);
         inline void addForcing(plainsf &Ht) { };
     private:
-        double Fb;
+        real Fb;
 
         const sfield &T;
 };
@@ -115,7 +115,7 @@ class rotatingConv: public force {
         inline void addForcing(plainvf &Hv);
         inline void addForcing(plainsf &Ht) { };
     private:
-        double Fb, Fr;
+        real Fb, Fr;
 
         const sfield &T;
 };
@@ -135,7 +135,7 @@ class randomForcing: public force {
         inline void addForcing(plainvf &Hv);
         inline void addForcing(plainsf &Ht) { };
     private:
-        blitz::Array<double, 3> Force_x, Force_y, Force_z;
+        blitz::Array<real, 3> Force_x, Force_y, Force_z;
 };
 
 /**

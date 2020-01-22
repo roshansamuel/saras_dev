@@ -42,9 +42,9 @@
 
 #include "unittest.h"
 
-void testError(blitz::Array<double, 3> A, blitz::Array<double, 3> B, int errorMom, double errorTol) {
+void testError(blitz::Array<real, 3> A, blitz::Array<real, 3> B, int errorMom, real errorTol) {
     int errorCnt;
-    double errorVal;
+    real errorVal;
 
     errorCnt = 0;
     errorVal = 0.0;
@@ -78,7 +78,7 @@ void testError(blitz::Array<double, 3> A, blitz::Array<double, 3> B, int errorMo
     printResult(errorVal, errorTol);
 }
 
-void printResult(double computedValue, double errorTolerance) {
+void printResult(real computedValue, real errorTolerance) {
     if (computedValue > errorTolerance) {
         if (rootRank == 0) {
             std::cout << "\033[31m[FAILED]\033[0m" << std::endl << std::endl;

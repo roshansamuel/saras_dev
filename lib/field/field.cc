@@ -624,11 +624,11 @@ void field::syncData() {
  *          While performing parallel computation, the function performs an <B>MPI_Allreduce()</B> to get
  *          the global maximum from the entire computational domain.
  *
- * \return  The double precision value of the maximum is returned (it is implicitly assumed that only double precision values are used)
+ * \return  The real value of the maximum is returned (it is implicitly assumed that only real values are used)
  ********************************************************************************************************************************************
  */
-double field::fieldMax() {
-    double localMax, globalMax;
+real field::fieldMax() {
+    real localMax, globalMax;
 
     localMax = blitz::max(blitz::abs(F));
 
@@ -639,7 +639,7 @@ double field::fieldMax() {
      * Check Ref. [4] in README for explanation.                                                                   *
      ***************************************************************************************************************/
 
-    MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
     return globalMax;
 }
@@ -687,12 +687,12 @@ field& field::operator -= (field &a) {
  *          The unary operator += adds a given constant scalar value to the field stored by the class and returns
  *          a pointer to itself.
  *
- * \param   a is a double precision number to be added to the field
+ * \param   a is a real number to be added to the field
  *
  * \return  A pointer to itself is returned by the field class to which the operator belongs
  ********************************************************************************************************************************************
  */
-field& field::operator += (double a) {
+field& field::operator += (real a) {
     F += a;
 
     return *this;
@@ -705,12 +705,12 @@ field& field::operator += (double a) {
  *          The unary operator -= subtracts a given constant scalar value from the field stored by the class and returns
  *          a pointer to itself.
  *
- * \param   a is a double precision number to be subtracted from the field
+ * \param   a is a real number to be subtracted from the field
  *
  * \return  A pointer to itself is returned by the field class to which the operator belongs
  ********************************************************************************************************************************************
  */
-field& field::operator -= (double a) {
+field& field::operator -= (real a) {
     F -= a;
 
     return *this;
@@ -720,12 +720,12 @@ field& field::operator -= (double a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to assign a scalar value to the field
  *
- *          The operator = assigns a double precision value to the entire field.
+ *          The operator = assigns a real value to the entire field.
  *
- * \param   a is a double precision number to be assigned to the field
+ * \param   a is a real number to be assigned to the field
  ********************************************************************************************************************************************
  */
-void field::operator = (double a) {
+void field::operator = (real a) {
     F = a;
 }
 

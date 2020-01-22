@@ -75,13 +75,13 @@ class mpidata {
         blitz::Array<MPI_Status, 1> recvStatus;
 
         /** Array of values of the data field which needs to be synchronised across processors */
-        blitz::Array<double, 3> dataField;
+        blitz::Array<real, 3> dataField;
 
     public:
         /** A const reference to the global variables stored in the parallel class to access rank data */
         const parallel &rankData;
 
-        mpidata(blitz::Array<double, 3> inputArray, const parallel &parallelData);
+        mpidata(blitz::Array<real, 3> inputArray, const parallel &parallelData);
 
         void createSubarrays(const blitz::TinyVector<int, 3> globSize,
                              const blitz::TinyVector<int, 3> coreSize,

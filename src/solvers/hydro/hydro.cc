@@ -469,4 +469,4 @@ void hydro::imposeWBCs() {
  *          It then calls imposeUBCs, imposeVBCs and imposeWBCs functions and checks if the correct values of the functions are imposed at boundaries
  ********************************************************************************************************************************************
  */
-double hydro::testPeriodic() { return 0; };
+real hydro::testPeriodic() { return 0; };

@@ -81,9 +81,9 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
 
     thBeta = inputParams.betaX, inputParams.betaY, inputParams.betaZ;
 
-    dXi = 1.0/double(globalSize(0) - 1);
-    dEt = 1.0/double(globalSize(1) - 1);
-    dZt = 1.0/double(globalSize(2) - 1);
+    dXi = 1.0/real(globalSize(0) - 1);
+    dEt = 1.0/real(globalSize(1) - 1);
+    dZt = 1.0/real(globalSize(2) - 1);
 
 #ifdef PLANAR
     padWidths(1) = 1;
@@ -337,17 +337,17 @@ void grid::globalXiEtaZeta() {
 
     // ALONG XI-DIRECTION
     for (int i=-padWidths(0); i<globalSize(0)+padWidths(0); i++) {
-        xiGlo(i) = double(i)*dXi;
+        xiGlo(i) = real(i)*dXi;
     }
 
     // ALONG ETA-DIRECTION
     for (int i=-padWidths(1); i<globalSize(1)+padWidths(1); i++) {
-        etGlo(i) = double(i)*dEt;
+        etGlo(i) = real(i)*dEt;
     }
 
     // ALONG ZETA-DIRECTION
     for (int i=-padWidths(2); i<globalSize(2)+padWidths(2); i++) {
-        ztGlo(i) = double(i)*dZt;
+        ztGlo(i) = real(i)*dZt;
     }
 }
 
@@ -531,10 +531,10 @@ void grid::createTanHypGrid(int dim) {
  ********************************************************************************************************************************************
  */
 void grid::checkAnisotropy() {
-    double xWidth, yWidth, zWidth;
-    double localMax, globalMax;
-    double xyRatio, yzRatio;
-    double cellMaxAR;
+    real xWidth, yWidth, zWidth;
+    real localMax, globalMax;
+    real xyRatio, yzRatio;
+    real cellMaxAR;
 
     localMax = 0.0;
     for (int i = 0; i < collocCoreSize.ubound(0); i++) {
@@ -551,7 +551,7 @@ void grid::checkAnisotropy() {
         }
     }
 
-    MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (globalMax > 5.0) {
@@ -607,7 +607,7 @@ void grid::gatherGlobal() {
     }
     MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_ROW_COMM);
     MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_ROW_COMM);
-    MPI_Allgatherv(xStaggr.dataFirst(), locSize, MPI_DOUBLE, xStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_ROW_COMM);
+    MPI_Allgatherv(xStaggr.dataFirst(), locSize, MPI_FP_REAL, xStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_ROW_COMM);
 
     // GATHERING THE COLLOCATED GRID ALONG X-DIRECTION
     locSize = xColloc.size() - 2*padWidths(0);
@@ -617,7 +617,7 @@ void grid::gatherGlobal() {
     }
     MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_ROW_COMM);
     MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_ROW_COMM);
-    MPI_Allgatherv(xColloc.dataFirst(), locSize, MPI_DOUBLE, xCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_ROW_COMM);
+    MPI_Allgatherv(xColloc.dataFirst(), locSize, MPI_FP_REAL, xCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_ROW_COMM);
 
 #ifndef PLANAR
     // GATHERING THE STAGGERED GRID ALONG Y-DIRECTION
@@ -628,7 +628,7 @@ void grid::gatherGlobal() {
     }
     MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_COL_COMM);
     MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_COL_COMM);
-    MPI_Allgatherv(yStaggr.dataFirst(), locSize, MPI_DOUBLE, yStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_COL_COMM);
+    MPI_Allgatherv(yStaggr.dataFirst(), locSize, MPI_FP_REAL, yStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_COL_COMM);
 
     // GATHERING THE COLLOCATED GRID ALONG Y-DIRECTION
     locSize = yColloc.size() - 2*padWidths(1);
@@ -638,7 +638,7 @@ void grid::gatherGlobal() {
     }
     MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_COL_COMM);
     MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_COL_COMM);
-    MPI_Allgatherv(yColloc.dataFirst(), locSize, MPI_DOUBLE, yCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_DOUBLE, rankData.MPI_COL_COMM);
+    MPI_Allgatherv(yColloc.dataFirst(), locSize, MPI_FP_REAL, yCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_COL_COMM);
 #endif
 
     // GLOBAL AND LOCAL STAGGERED GRIDS ALONG Z-DIRECTION ARE SAME FOR ALL RANKS

@@ -219,8 +219,8 @@ void multigrid_d3::solve() {
 #endif
 
     int iterCount = 0;
-    double tempValue;
-    double localMax, globalMax;
+    real tempValue;
+    real localMax, globalMax;
 
     iteratorTemp = 0.0;
 
@@ -292,7 +292,7 @@ void multigrid_d3::solve() {
             }
         }
 
-        MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (globalMax < inputParams.tolerance) {
             break;
         }
@@ -545,7 +545,7 @@ void multigrid_d3::createMGSubArrays() {
                 ptsCount += 1;
             }
         }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_DOUBLE_PRECISION, &xMGArray(i));
+        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &xMGArray(i));
         MPI_Type_commit(&xMGArray(i));
 
         // CREATE Y_MG_ARRAY DATATYPE
@@ -563,7 +563,7 @@ void multigrid_d3::createMGSubArrays() {
                 ptsCount += 1;
             }
         }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_DOUBLE_PRECISION, &yMGArray(i));
+        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &yMGArray(i));
         MPI_Type_commit(&yMGArray(i));
 
         mgSendLft(i) =  strideValues(i), 0, 0;
@@ -636,7 +636,7 @@ void multigrid_d3::updatePads() {
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 }
 
-double multigrid_d3::testProlong() {
+real multigrid_d3::testProlong() {
     vLevel = 0;
 
     // Fill the residualData array with correct values expected after prolongation
@@ -668,8 +668,8 @@ double multigrid_d3::testProlong() {
     return blitz::max(fabs(pressureData));
 }
 
-double multigrid_d3::testTransfer() {
-    double maxVal = 0.0;
+real multigrid_d3::testTransfer() {
+    real maxVal = 0.0;
 
     vLevel = 0;
 
@@ -725,10 +725,10 @@ double multigrid_d3::testTransfer() {
     return maxVal;
 }
 
-double multigrid_d3::testPeriodic() {
-    double xCoord = 0.0;
-    double yCoord = 0.0;
-    double zCoord = 0.0;
+real multigrid_d3::testPeriodic() {
+    real xCoord = 0.0;
+    real yCoord = 0.0;
+    real zCoord = 0.0;
 
     vLevel = 0;
 
@@ -805,7 +805,7 @@ double multigrid_d3::testPeriodic() {
     return blitz::max(fabs(pressureData));
 }
 
-double multigrid_d3::testSolve() {
+real multigrid_d3::testSolve() {
     vLevel = 0;
 
     pressureData = 0.0;

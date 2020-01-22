@@ -49,7 +49,7 @@ static void taylorGreen(vfield &V, vfield &H, grid &mesh);
 
 void nlinTest(grid &gridData) {
     // ERROR IN COMPUTED NON-LINEAR TERMS
-    double errorTolerance;
+    real errorTolerance;
 
     // VECTOR FIELDS FOR VELOCITY AND NON-LINEAR TERMS
     vfield V(gridData, "V");
