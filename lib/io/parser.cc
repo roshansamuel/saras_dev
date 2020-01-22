@@ -254,6 +254,14 @@ void parser::checkData() {
         MPI_Finalize();
         exit(0);
     }
+
+#ifdef REAL_SINGLE
+    if (tolerance < 5.0e-6) {
+        std::cout << "ERROR: The specified tolerance for Jacobi iterations is too small for single precision calculations. Aborting" << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
+#endif
 }
 
 /**
