@@ -127,6 +127,8 @@ void hydro_d3::solvePDE() {
 
 #else
     real fwTime, prTime, rsTime;
+    //set dt equal to input time step
+    dt = inputParams.tStp;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
@@ -181,7 +183,6 @@ void hydro_d3::solvePDE() {
 #endif
 
     // TIME-INTEGRATION LOOP
-    dt = inputParams.tStp;
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         computeTimeStep();
