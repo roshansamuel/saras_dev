@@ -20,6 +20,24 @@ Prerequisites:
 
 To compile and run the solver, run the compileSaras.sh shell script in the install directory
 
+Testing SARAS
+
+The Bash shell script testSaras.sh, found in the tests/ folder can be executed to test the solver post-installation.
+The script compiles Saras, and runs it with a pre-defined set of parameters.
+The parameters file necessary to test the solver with benchmark results of Ghia et al for the lid-driven cavity
+(LDC) problem can be found in the input/ folder of tests/ldcTest/.
+
+The test run uses 4 cores and takes about 12 minutes to complete on a desktop workstation.
+At the end of the test, the result file output by the solver in the ldcTest/output/ directory is read by a Python script.
+The script plots the velocity profiles calculated by Saras and compares the data with the results from Ghia et al.
+The following Python modules are necessary for the test to run:
+    - numpy
+    - matplotlib
+    - h5py
+    - yaml
+
+At the end of the test, the plot is written into a test.png file for the user to verify.
+
 
 REFERENCES:
 Various articles and pages used to make programming decisions during development of the solver are listed here:
@@ -32,3 +50,6 @@ Various articles and pages used to make programming decisions during development
 Articles on multi-grid methods:
 [a]. http://math.mit.edu/classes/18.086/2006/am63.pdf
 [b]. http://www.mgnet.org/mgnet-tuts.html
+
+Journal references:
+[1]. Ghia, U., Ghia, K. N., & Shin, C. T. (1982). High-Re solutions for incompressible flow using the Navier-Stokes equations and a multigrid method. J. Comput. Phys., 48(3), 387–411. 
