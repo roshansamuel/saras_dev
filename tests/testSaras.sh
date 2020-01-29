@@ -31,9 +31,9 @@
  #
  ############################################################################################################################################
  ##
- ##! \file compileSaras.sh
+ ##! \file testSaras.sh
  #
- #   \brief Shell script to automatically compile and run SARAS
+ #   \brief Shell script to automatically compile and run tests on SARAS
  #
  #   \author Roshan Samuel
  #   \date Jan 2020
@@ -42,68 +42,32 @@
  ############################################################################################################################################
  ##
 
-# USER SET PARAMETERS - COMMENT/UNCOMMENT AS NECESSARY
-
+# Test for 2D LDC and comparison with Ghia et al's (1982, J. Comput. Phys., 48, 387 - 411) result
 PROC=4
-REAL_TYPE="DOUBLE"
-#REAL_TYPE="SINGLE"
-#PLANAR="PLANAR"
-#TIME_RUN="TIME_RUN"
-#TEST_RUN="TEST_RUN"
-EXECUTE_AFTER_COMPILE="EXECUTE"
 
-# NO USER MODIFICATIONS NECESSARY BELOW THIS LINE
-
-# REMOVE PRE-EXISTING EXECUTATBLES
-rm -f ../saras
-rm -f ../saras_test
-
-# IF build DIRECTORY DOESN'T EXIST, CREATE IT
+# If build directory doesn't exist, create it
 if [ ! -d build ]; then
     mkdir build
 fi
 
-# SWITCH TO build DIRECTORY
+# Switch to build directory
 cd build
 
-# RUN Cmake WITH NECESSARY FLAGS AS SET BY USER
-if [ -z $PLANAR ]; then
-    if [ -z $TEST_RUN ]; then
-        if [ -z $TIME_RUN ]; then
-            if [ "$REAL_TYPE" == "DOUBLE" ]; then
-                CC=mpicc CXX=mpicxx cmake ../../ -DREAL_DOUBLE=ON
-            else
-                CC=mpicc CXX=mpicxx cmake ../../ -DREAL_SINGLE=ON
-            fi
-        else
-            CC=mpicc CXX=mpicxx cmake ../../ -DTIME_RUN=ON
-        fi
-    else
-        CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON
-    fi
-else
-    if [ -z $TEST_RUN ]; then
-        if [ -z $TIME_RUN ]; then
-            CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON
-        else
-            CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DTIME_RUN=ON
-        fi
-    else
-        CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON -DPLANAR=ON
-    fi
-fi
+# Run cmake with necessary flags for 2D LDC test
+CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DREAL_DOUBLE=ON
 
-# COMPILE
-make -j16
+# Compile
+make -j8
 
-# SWITCH TO PARENT DIRECTORY
-cd ../../
+# Move the executable to the directory where the test will be performed
+mv ../../saras ../../tests/ldcTest/
 
-# RUN CODE IF REQUESTED BY USER
-if ! [ -z $EXECUTE_AFTER_COMPILE ]; then
-    if [ -z $TEST_RUN ]; then
-        mpirun -np $PROC ./saras
-    else
-        mpirun -np $PROC ./saras_test
-    fi
-fi
+# Switch to ldcTest directory
+cd ../../tests/ldcTest/
+
+# Run the test case
+mpirun -np $PROC ./saras
+#CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON -DPLANAR=ON -DREAL_SINGLE=ON
+
+# Run the python script to read the output file and compare with Ghia results
+python validate_ldc.py
