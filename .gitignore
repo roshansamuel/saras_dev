@@ -3,9 +3,10 @@
 *.swo
 *.out
 *.png
-*.dat
 *.vtk
 *.lay
 saras
 doc/
 compile/build/
+tests/build/
+tests/ldcTest/output
