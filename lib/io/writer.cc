@@ -258,6 +258,7 @@ void writer::writeTarang(real time) {
 
     std::ostringstream constFile;
 
+    char* fieldStr;
     char* fileName;
     char* folderName;
     struct stat info;
@@ -285,6 +286,18 @@ void writer::writeTarang(real time) {
     }
 
     for (unsigned int i=0; i < wFields.size(); i++) {
+        // Below is a very dirty way to make the file names of hdf5 solution from SARAS to match those of TARANG.
+        // Clearly, it is not neat. But then, the output of TARANG itself is not neat. So what is there to say?
+        fieldStr = new char[100];
+        constFile.str(std::string());
+
+        if (!std::strcmp(wFields[i].fieldName.c_str(), "Vx")) constFile << "U.V1";
+        else if (!std::strcmp(wFields[i].fieldName.c_str(), "Vy")) constFile << "U.V2";
+        else if (!std::strcmp(wFields[i].fieldName.c_str(), "Vz")) constFile << "U.V3";
+        else if (!std::strcmp(wFields[i].fieldName.c_str(), "P")) constFile << "P.F";
+        else if (!std::strcmp(wFields[i].fieldName.c_str(), "T")) constFile << "T.F";
+        strcpy(fieldStr, constFile.str().c_str());
+
         // Create a property list for collectively opening a file by all processors
         plist_id = H5Pcreate(H5P_FILE_ACCESS);
         H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
@@ -292,7 +305,7 @@ void writer::writeTarang(real time) {
         // Generate the foldername corresponding to the time
         fileName = new char[100];
         constFile.str(std::string());
-        constFile << folderName << "/" << wFields[i].fieldName << "r.h5";
+        constFile << folderName << "/" << fieldStr << "r.h5";
         strcpy(fileName, constFile.str().c_str());
 
         // First create a file handle with the path to the output file
@@ -338,6 +351,7 @@ void writer::writeTarang(real time) {
         H5Fclose(fileHandle);
 
         delete fileName;
+        delete fieldStr;
     }
 
     delete folderName;
