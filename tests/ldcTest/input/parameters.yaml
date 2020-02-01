@@ -113,7 +113,7 @@
     "I/O Count": 10
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 1.0
+    "Solution Write Interval": 30.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 50.0

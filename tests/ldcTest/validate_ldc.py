@@ -52,7 +52,7 @@ plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams["mathtext.fontset"] = 'cm'
 plt.rcParams["font.weight"] = "medium"
 
-ptFile = False
+ptFile = True
 
 def init():
     global U, W
@@ -149,18 +149,23 @@ def plotProfile():
     axes[0].plot(u_ghia[:,2], u_ghia[:,1], marker='*', markersize=10, linestyle=' ', label='Ghia et al')
     axes[0].plot(uProfile, profAxis, linewidth=2, label='SARAS')
     axes[0].set_xlim([-0.6, 1.1])
+    axes[0].set_xlabel(r"$v_x$", fontsize=25)
+    axes[0].set_ylabel(r"$z$", fontsize=25)
     axes[0].tick_params(labelsize=20)
     axes[0].legend(fontsize=20)
-    axes[0].set_title(r"$v_x$ at $z=0.5$", fontsize=22)
+    axes[0].set_title(r"$v_x$ at $x=0.5$", fontsize=25)
 
     vProfile = W[:, int(Nz/2)]
     profAxis = np.linspace(0.0, xLen, Nx)
     axes[1].plot(v_ghia[:,1], v_ghia[:,2], marker='*', markersize=10, linestyle=' ', label='Ghia et al')
     axes[1].plot(profAxis, vProfile, linewidth=2, label='SARAS')
     axes[1].set_ylim([-0.62, 0.42])
+    axes[1].set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    axes[1].set_xlabel(r"$x$", fontsize=25)
+    axes[1].set_ylabel(r"$v_z$", fontsize=25)
     axes[1].tick_params(labelsize=20)
     axes[1].legend(fontsize=20)
-    axes[1].set_title(r"$v_z$ at $x=0.5$", fontsize=22)
+    axes[1].set_title(r"$v_z$ at $z=0.5$", fontsize=25)
 
     plt.gca().set_aspect('auto')
     plt.tight_layout()
