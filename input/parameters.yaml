@@ -107,7 +107,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.1
+    "Final Time": 0.01
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1
@@ -115,10 +115,10 @@
     # Select the format in which the output file must be written
     # 1 = AETHER Format
     # 2 = TARANG Format
-    "Solution Format": 1
+    "Solution Format": 2
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.05
+    "Solution Write Interval": 0.01
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 0.02

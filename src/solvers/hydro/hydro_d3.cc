@@ -168,8 +168,13 @@ void hydro_d3::solvePDE() {
 
     // WRITE DATA AT t = 0
     if (not inputParams.restartFlag) {
-        //dataWriter.writeSolution(time);
-        dataWriter.writeTarang(time);
+        switch (inputParams.solnFormat) {
+            case 1: dataWriter.writeSolution(time);
+                break;
+            case 2: dataWriter.writeTarang(time);
+                break;
+            default: dataWriter.writeSolution(time);
+        }
 
         if (inputParams.readProbes) {
             dataProbe->probeData(time);
@@ -208,8 +213,13 @@ void hydro_d3::solvePDE() {
         }
 
         if (std::abs(fwTime - time) < 0.5*dt) {
-            //dataWriter.writeSolution(time);
-            dataWriter.writeTarang(time);
+            switch (inputParams.solnFormat) {
+                case 1: dataWriter.writeSolution(time);
+                    break;
+                case 2: dataWriter.writeTarang(time);
+                    break;
+                default: dataWriter.writeSolution(time);
+            }
             fwTime += inputParams.fwInt;
         }
 
