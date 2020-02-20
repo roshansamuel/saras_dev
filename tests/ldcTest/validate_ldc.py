@@ -42,6 +42,7 @@
  ############################################################################################################################################
  ##
 
+from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py as hp
@@ -97,7 +98,6 @@ def loadData(timeVal):
     global U, W
 
     fileName = "output/Soln_{0:09.4f}.h5".format(float(timeVal))
-    print("Processing file " + fileName + "\n")
 
     try:
         f = hp.File(fileName, 'r')
@@ -176,6 +176,35 @@ def plotProfile():
         plt.show()
 
 
+def checkTolerance():
+    global U, W
+    global Nx, Nz
+    global u_ghia, v_ghia
+
+    uProfile = U[int(Nx/2), :]
+    profAxis = np.linspace(0.0, zLen, Nz)
+    intpAxis = u_ghia[:,1]
+    intpData = griddata(profAxis, uProfile, intpAxis)
+
+    avgError = sum(np.absolute(u_ghia[:,2] - intpData))/len(intpData)
+    avgValue = sum(np.absolute(u_ghia[:,2]))/len(intpData)
+
+    print("")
+    print("Average absolute value of horizontal velocity, Vx = " + str(avgValue) + "\n")
+    print("Average absolute value of deviation = " + str(avgError) + "\n")
+
+    vProfile = W[:, int(Nz/2)]
+    profAxis = np.linspace(0.0, xLen, Nx)
+    intpAxis = v_ghia[:,1]
+    intpData = griddata(profAxis, vProfile, intpAxis)
+
+    avgError = sum(np.absolute(v_ghia[:,2] - intpData))/len(intpData)
+    avgValue = sum(np.absolute(v_ghia[:,2]))/len(intpData)
+
+    print(r"Average absolute value of vertical velocity, Vz = " + str(avgValue) + "\n")
+    print("Average absolute value of deviation = " + str(avgError) + "\n")
+
+
 if __name__ == "__main__":
     init()
 
@@ -186,4 +215,6 @@ if __name__ == "__main__":
     loadGhia()
 
     plotProfile()
+
+    checkTolerance()
 
