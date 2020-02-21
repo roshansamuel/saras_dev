@@ -60,8 +60,13 @@ class vfield {
     public:
         field Vx, Vy, Vz;
 
+        /** derVx, derVy and derVz are three instances of the derivative class used to compute derivatives.
+         *  They correspond to finite-differencing operations along X, Y and Z directions respectively. */
+        //@{
         derivative derVx, derVy, derVz;
+        //@}
 
+        /** This string is used to identify the vector field, and is useful in file-writing */
         std::string fieldName;
 
         blitz::Array<real, 3> interTempX, interTempY, interTempZ;
