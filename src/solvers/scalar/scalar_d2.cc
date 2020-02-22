@@ -166,7 +166,7 @@ void scalar_d2::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        computeTimeStep();
+        timeAdvance();
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {
@@ -209,7 +209,7 @@ void scalar_d2::solvePDE() {
 }
 
 
-void scalar_d2::computeTimeStep() {
+void scalar_d2::timeAdvance() {
     // BELOW FLAG MAY BE TURNED OFF FOR DEBUGGING/DIGNOSTIC RUNS ONLY
     // IT IS USED TO TURN OFF COMPUTATION OF NON-LINEAR TERMS
     // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D SCALAR SOLVER

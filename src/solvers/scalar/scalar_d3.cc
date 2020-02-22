@@ -183,7 +183,7 @@ void scalar_d3::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        computeTimeStep();
+        timeAdvance();
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {
@@ -240,7 +240,7 @@ void scalar_d3::solvePDE() {
 }
 
 
-void scalar_d3::computeTimeStep() {
+void scalar_d3::timeAdvance() {
 #ifdef TIME_RUN
     struct timeval begin, end;
 #endif

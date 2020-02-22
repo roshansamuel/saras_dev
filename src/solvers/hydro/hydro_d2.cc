@@ -173,7 +173,7 @@ void hydro_d2::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        computeTimeStep();
+        timeAdvance();
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {
@@ -215,7 +215,7 @@ void hydro_d2::solvePDE() {
     }
 }
 
-void hydro_d2::computeTimeStep() {
+void hydro_d2::timeAdvance() {
     nseRHS = 0.0;
 
     // CALCULATE RHS OF NSE FROM THE NON LINEAR TERMS AND HALF THE VISCOUS TERMS
