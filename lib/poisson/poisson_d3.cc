@@ -107,6 +107,13 @@ void multigrid_d3::mgSolve(plainsf &inFn, const plainsf &rhs) {
 void multigrid_d3::vCycle() {
     vLevel = 0;
 
+    // Code to check convergence within smooth ->
+    if (mesh.rankData.rank == 0) {
+        std::cout << "\nStarting new VCycle\n" << std::endl;
+        std::cout << "\nAbout to start pre-smoothing\n" << std::endl;
+    }
+    // <- Code to check convergence within smooth
+
     // PRE-SMOOTHING
     swap(inputRHSData, residualData);
     smooth(inputParams.preSmooth);
@@ -141,6 +148,13 @@ void multigrid_d3::vCycle() {
     // SOLVE AT COARSEST MESH RESOLUTION
     solve();
 
+    // Code to check convergence within smooth ->
+    if (mesh.rankData.rank == 0) {
+        std::cout << "\nAbout to start inter-smoothing\n" << std::endl;
+    }
+    // <- Code to check convergence within smooth
+
+
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         prolong();
@@ -148,6 +162,12 @@ void multigrid_d3::vCycle() {
     }
 
     pressureData += smoothedPres;
+
+    // Code to check convergence within smooth ->
+    if (mesh.rankData.rank == 0) {
+        std::cout << "\nAbout to start post-smoothing\n" << std::endl;
+    }
+    // <- Code to check convergence within smooth
 
     // POST-SMOOTHING
     swap(inputRHSData, residualData);
@@ -230,11 +250,12 @@ void multigrid_d3::smooth(const int smoothCount) {
         MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
         // <- Code to check convergence within smooth
     }
-        // Code to check convergence within smooth ->
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Residual in smoothing:" << globalMax << std::endl;
-        }
-        // <- Code to check convergence within smooth
+
+    // Code to check convergence within smooth ->
+    if (mesh.rankData.rank == 0) {
+        std::cout << "Residual in smoothing:" << globalMax << std::endl;
+    }
+    // <- Code to check convergence within smooth
 
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);

@@ -107,7 +107,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.003
+    "Final Time": 0.1
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1
