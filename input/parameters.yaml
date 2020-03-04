@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 2
+    "Problem Type": 1
 
     # Choose from the following initial conditions
     # 1 = Taylor Green Vortices
@@ -20,7 +20,7 @@
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
     # If periodic along all directions, Domain Type = PPP, and so on
     # For 2D runs, only X and Z direction values are considered
-    "Domain Type": "PPP"
+    "Domain Type": "NNN"
 
     # For RBC, specify the non-dimensionalization to be used:
     # 1 = small U, large Pr
@@ -61,7 +61,7 @@
 "Mesh":
     # The grid spacing along each direction can be set according to one of the following:
     # U - Uniform spacing
-    # S - Single sided tangent-hyperbolic stretching (finest near one edge and coarsest at the opposite edge)
+    # S - Single sided tangent-hyperbolic stretching (finest near one edge and coarsest at the opposite edge) (under development)
     # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
     # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
     # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
@@ -84,7 +84,7 @@
 
 # Parellelization parameters
 "Parallel":
-    "Number of OMP threads": 1
+    "Number of OMP threads": 4
     "X Number of Procs": 2
     "Y Number of Procs": 2
 
@@ -113,10 +113,10 @@
     "I/O Count": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.05
+    "Solution Write Interval": 0.1
 
     # Time interval at which restart file must be written
-    "Restart Write Interval": 0.02
+    "Restart Write Interval": 0.1
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false
@@ -145,3 +145,7 @@
     "Post-Smoothing Count": 10
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
     "Inter-Smoothing Count": [10, 10, 10, 10]
+    # Flag to check for convergence of smoothing operations while prolonging
+    "Check Convergence": false
+    # Array of tolerances of smoothing operations performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
+    "Inter-Smoothing Tolerance": [1.0e-6, 1.0e-5, 1.0e-4, 1.0e-6]

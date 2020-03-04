@@ -88,17 +88,22 @@ void multigrid_d3::mgSolve(plainsf &inFn, const plainsf &rhs) {
     pressureData = 0.0;
     residualData = 0.0;
     inputRHSData = 0.0;
+    tolCount = 0;
 
     // TRANSFER DATA FROM THE INPUT SCALAR FIELD INTO THE DATA-STRUCTURES USED BY poisson
     inputRHSData(stagCore) = rhs.F(stagCore);
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
-    for (int i=0; i<inputParams.vcCount; i++) {
-        smoothedPres = 0.0;
-        iteratorTemp = 0.0;
+    //if (inputParams.checkConvergence) {
+    //    vCycle();
+    //} else {
+        for (int i=0; i<inputParams.vcCount; i++) {
+            smoothedPres = 0.0;
+            iteratorTemp = 0.0;
 
-        vCycle();
-    }
+            vCycle();
+        }
+    //}
 
     // RETURN CALCULATED PRESSURE DATA
     inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
@@ -108,15 +113,16 @@ void multigrid_d3::vCycle() {
     vLevel = 0;
 
     // Code to check convergence within smooth ->
-    if (mesh.rankData.rank == 0) {
-        std::cout << "\nStarting new VCycle\n" << std::endl;
-        std::cout << "\nAbout to start pre-smoothing\n" << std::endl;
-    }
+    //if (mesh.rankData.rank == 0) {
+    //    std::cout << "\nStarting new VCycle with tolCount = " << tolCount << "\n" << std::endl;
+    //    std::cout << "\nAbout to start pre-smoothing\n" << std::endl;
+    //}
     // <- Code to check convergence within smooth
 
     // PRE-SMOOTHING
     swap(inputRHSData, residualData);
-    smooth(inputParams.preSmooth);
+    smooth(inputParams.preSmooth, true, lsVect[tolCount]);
+    tolCount += 1;
     swap(residualData, inputRHSData);
     // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
 
@@ -141,6 +147,7 @@ void multigrid_d3::vCycle() {
     // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
 
     // RESTRICTION OPERATIONS
+    // Use full restriction operations instead of injection
     for (int i=0; i<inputParams.vcDepth; i++) {
         vLevel += 1;
     }
@@ -149,36 +156,37 @@ void multigrid_d3::vCycle() {
     solve();
 
     // Code to check convergence within smooth ->
-    if (mesh.rankData.rank == 0) {
-        std::cout << "\nAbout to start inter-smoothing\n" << std::endl;
-    }
+    //if (mesh.rankData.rank == 0) {
+    //    std::cout << "\nAbout to start inter-smoothing\n" << std::endl;
+    //}
     // <- Code to check convergence within smooth
-
 
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         prolong();
-        smooth(inputParams.interSmooth[i]);
+        smooth(inputParams.interSmooth[i], true, lsVect[tolCount]);
+        tolCount += 1;
     }
 
     pressureData += smoothedPres;
 
     // Code to check convergence within smooth ->
-    if (mesh.rankData.rank == 0) {
-        std::cout << "\nAbout to start post-smoothing\n" << std::endl;
-    }
+    //if (mesh.rankData.rank == 0) {
+    //    std::cout << "\nAbout to start post-smoothing\n" << std::endl;
+    //}
     // <- Code to check convergence within smooth
 
     // POST-SMOOTHING
     swap(inputRHSData, residualData);
-    smooth(inputParams.postSmooth);
+    smooth(inputParams.postSmooth, false, 1.0e-4);
     swap(residualData, inputRHSData);
 }
 
-void multigrid_d3::smooth(const int smoothCount) {
+void multigrid_d3::smooth(const int smoothCount, const bool checkConvergence, const double smoothTolerance) {
 #ifdef TIME_RUN
     struct timeval begin, end;
 #endif
+    int n = 0;
 
     // Code to check convergence within smooth ->
     double tempValue;
@@ -187,7 +195,11 @@ void multigrid_d3::smooth(const int smoothCount) {
 
     iteratorTemp = 0.0;
 
-    for(int n=0; n<smoothCount; n++) {
+    //if (mesh.rankData.rank == 0) {
+    //    std::cout << "Expected tolerance in this smoothing call is " << smoothTolerance << std::endl;
+    //}
+
+    while (true) {
 #ifdef TIME_RUN
         gettimeofday(&begin, NULL);
 #endif
@@ -225,36 +237,47 @@ void multigrid_d3::smooth(const int smoothCount) {
         smothTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-        // Code to check convergence within smooth ->
-        updatePads();
+        n += 1;
 
-        tempValue = 0.0;
-        localMax = -1.0e-10;
-        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-            for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
-                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                    tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                      xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                      ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
-                                      etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
-                                      ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                      ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));
+        if (checkConvergence) {
+            updatePads();
 
-                    if (tempValue > localMax) {
-                        localMax = tempValue;
+            tempValue = 0.0;
+            localMax = -1.0e-10;
+            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+                for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                    for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+                        tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                                          xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
+                                          ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
+                                          etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
+                                          ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
+                                          ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));
+
+                        if (tempValue > localMax) {
+                            localMax = tempValue;
+                        }
                     }
                 }
             }
-        }
 
-        MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        // <- Code to check convergence within smooth
+            MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+
+            if (globalMax < smoothTolerance) break;
+            if (n > 100) {
+                //if (mesh.rankData.rank == 0) std::cout << "Bump" << std::endl;
+                break;
+            }
+
+        } else {
+            if (n == smoothCount) break;
+        }
     }
 
     // Code to check convergence within smooth ->
-    if (mesh.rankData.rank == 0) {
-        std::cout << "Residual in smoothing:" << globalMax << std::endl;
-    }
+    //if (mesh.rankData.rank == 0) {
+    //    std::cout << "Residual in smoothing is " << globalMax << " with " << n << " iterations " << std::endl;
+    //}
     // <- Code to check convergence within smooth
 
 #ifdef TIME_RUN

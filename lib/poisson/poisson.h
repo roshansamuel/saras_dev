@@ -45,6 +45,7 @@
 
 #include <blitz/array.h>
 #include <sys/time.h>
+#include <algorithm>
 #include <math.h>
 
 #include "plainsf.h"
@@ -53,6 +54,7 @@
 
 class poisson {
     protected:
+        int tolCount;
         int vLevel, maxCount;
         int xStr, yStr, zStr;
         int xEnd, yEnd, zEnd;
@@ -66,6 +68,8 @@ class poisson {
 
         const grid &mesh;
         const parser &inputParams;
+
+        std::vector<double> lsVect;
 
         blitz::Array<double, 3> residualData;
         blitz::Array<double, 3> iteratorTemp;
@@ -98,7 +102,7 @@ class poisson {
 
         virtual void solve();
         virtual void prolong();
-        virtual void smooth(const int smoothCount);
+        virtual void smooth(const int smoothCount, const bool checkConvergence, const double smoothTolerance);
 
         virtual void initMeshRanges();
 
@@ -115,6 +119,7 @@ class poisson {
         virtual void vCycle();
 
         void initializeArrays();
+        void calculateTolerances();
 
     public:
         blitz::Array<double, 3> pressureData;
@@ -160,7 +165,7 @@ class multigrid_d2: public poisson {
 
         void solve();
         void prolong();
-        void smooth(const int smoothCount);
+        void smooth(const int smoothCount, const bool checkConvergence, const double smoothTolerance);
 
         void initMeshRanges();
 
@@ -204,7 +209,7 @@ class multigrid_d3: public poisson {
 
         void solve();
         void prolong();
-        void smooth(const int smoothCount);
+        void smooth(const int smoothCount, const bool checkConvergence, const double smoothTolerance);
 
         void initMeshRanges();
 

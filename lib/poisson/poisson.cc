@@ -83,6 +83,8 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
     smothTimeComp = 0.0;
     smothTimeTran = 0.0;
 #endif
+
+    calculateTolerances();
 }
 
 /**
@@ -114,6 +116,31 @@ void poisson::initializeArrays() {
     residualData.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
     residualData.reindexSelf(stagFull.lbound());
     residualData = 0.0;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to create a 2D array of tolerances for different levels of different V-Cycles
+ *
+ *          The final required accuracy of the pressure correction term is achieved by distributing the
+ *          tolerances for smoothing across the different levels of the different V cycles.
+ ********************************************************************************************************************************************
+ */
+void poisson::calculateTolerances() {
+    double lsStart = -6.0;
+    double lsEnd = -1.0;
+
+    int numValues = inputParams.vcCount*(inputParams.vcDepth + 1);
+
+    double lsInc = (lsEnd - lsStart)/double(numValues-1);
+
+    for (int i=0; i<numValues; i++) {
+        lsVect.push_back(std::pow(10, lsStart + double(i)*lsInc));
+        //if (mesh.rankData.rank == 0) std::cout << lsVect[i] << std::endl;
+    }
+
+    std::reverse(lsVect.begin(), lsVect.end());
+
 }
 
 /**
@@ -151,7 +178,7 @@ void poisson::prolong() { };
  * \param   smoothCount is the integer value of the number of smoothing iterations to be performed
  ********************************************************************************************************************************************
  */
-void poisson::smooth(const int smoothCount) { };
+void poisson::smooth(const int smoothCount, const bool checkConvergence, const double smoothTolerance) { };
 
 /**
  ********************************************************************************************************************************************
