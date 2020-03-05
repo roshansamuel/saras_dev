@@ -121,7 +121,7 @@ void multigrid_d3::vCycle() {
 
     // PRE-SMOOTHING
     swap(inputRHSData, residualData);
-    smooth(inputParams.preSmooth, true, lsVect[tolCount]);
+    smooth(inputParams.preSmooth, inputParams.checkConvergence, lsVect[tolCount]);
     tolCount += 1;
     swap(residualData, inputRHSData);
     // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
@@ -164,7 +164,7 @@ void multigrid_d3::vCycle() {
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         prolong();
-        smooth(inputParams.interSmooth[i], true, lsVect[tolCount]);
+        smooth(inputParams.interSmooth[i], inputParams.checkConvergence, lsVect[tolCount]);
         tolCount += 1;
     }
 
@@ -239,7 +239,7 @@ void multigrid_d3::smooth(const int smoothCount, const bool checkConvergence, co
 
         n += 1;
 
-        if (checkConvergence) {
+        //if (checkConvergence) {
             updatePads();
 
             tempValue = 0.0;
@@ -269,15 +269,15 @@ void multigrid_d3::smooth(const int smoothCount, const bool checkConvergence, co
                 break;
             }
 
-        } else {
-            if (n == smoothCount) break;
-        }
+        //} else {
+            //if (n == smoothCount) break;
+        //}
     }
 
     // Code to check convergence within smooth ->
-    //if (mesh.rankData.rank == 0) {
-    //    std::cout << "Residual in smoothing is " << globalMax << " with " << n << " iterations " << std::endl;
-    //}
+    if (mesh.rankData.rank == 0) {
+        std::cout << "Residual in smoothing is " << globalMax << " with " << n << " iterations " << std::endl;
+    }
     // <- Code to check convergence within smooth
 
 #ifdef TIME_RUN
