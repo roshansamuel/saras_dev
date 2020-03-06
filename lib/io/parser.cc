@@ -144,8 +144,6 @@ void parser::parseYAML() {
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
     yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
     yamlNode["Multigrid"]["Inter-Smoothing Count"] >> interSmooth;
-    yamlNode["Multigrid"]["Check Convergence"] >> checkConvergence;
-    yamlNode["Multigrid"]["Inter-Smoothing Tolerance"] >> interTolerance;
 
     inFile.close();
 }
@@ -221,15 +219,6 @@ void parser::checkData() {
     // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
     if (int(interSmooth.size()) < vcDepth) {
         std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
-
-    // CHECK IF THE LENGTH OF ARRAY interTolerance IS LESS THAN vcDepth
-    // THE SIZE OF interTolerance IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
-    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
-    if (int(interTolerance.size()) < vcDepth) {
-        std::cout << "ERROR: The length of array of inter-smoothing tolerances is less than V-Cycle depths. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);
     }

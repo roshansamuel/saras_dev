@@ -70,7 +70,6 @@ class parser {
         bool nonHgBC;
         bool readProbes;
         bool restartFlag;
-        bool checkConvergence;
         bool xPer, yPer, zPer;
 
         double Re;
@@ -93,7 +92,6 @@ class parser {
         std::string meshType;
 
         std::vector<int> interSmooth;
-        std::vector<double> interTolerance;
         std::vector<blitz::TinyVector<int, 3> > probesList;
 
         parser();

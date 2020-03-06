@@ -93,15 +93,11 @@ void multigrid_d2::mgSolve(plainsf &inFn, const plainsf &rhs) {
     inputRHSData(stagCore) = rhs.F(stagCore);
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
-    if (inputParams.checkConvergence) {
-        vCycle();
-    } else {
-        for (int i=0; i<inputParams.vcCount; i++) {
-            smoothedPres = 0.0;
-            iteratorTemp = 0.0;
+    for (int i=0; i<inputParams.vcCount; i++) {
+        smoothedPres = 0.0;
+        iteratorTemp = 0.0;
 
-            vCycle();
-        }
+        vCycle();
     }
 
     // RETURN CALCULATED PRESSURE DATA
@@ -114,7 +110,7 @@ void multigrid_d2::vCycle() {
 
     // PRE-SMOOTHING
     swap(inputRHSData, residualData);
-    smooth(inputParams.preSmooth, false, 1.0e-4);
+    smooth(inputParams.preSmooth);
     swap(residualData, inputRHSData);
     // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
 
@@ -145,18 +141,18 @@ void multigrid_d2::vCycle() {
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         prolong();
-        smooth(inputParams.interSmooth[i], true, inputParams.interTolerance[i]);
+        smooth(inputParams.interSmooth[i]);
     }
 
     pressureData += smoothedPres;
 
     // POST-SMOOTHING
     swap(inputRHSData, residualData);
-    smooth(inputParams.postSmooth, false, 1.0e-4);
+    smooth(inputParams.postSmooth);
     swap(residualData, inputRHSData);
 }
 
-void multigrid_d2::smooth(const int smoothCount, const bool checkConvergence, const double smoothTolerance) {
+void multigrid_d2::smooth(const int smoothCount) {
     iteratorTemp = 0.0;
 
     for(int n=0; n<smoothCount; n++) {
