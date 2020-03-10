@@ -91,7 +91,7 @@ class parser {
         std::string dScheme;
         std::string meshType;
 
-        std::vector<int> interSmooth;
+        std::vector<int> restrictSmooth, prolongSmooth;
         std::vector<blitz::TinyVector<int, 3> > probesList;
 
         parser();

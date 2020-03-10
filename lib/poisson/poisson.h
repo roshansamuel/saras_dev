@@ -68,11 +68,15 @@ class poisson {
         const grid &mesh;
         const parser &inputParams;
 
-        std::vector<double> lsVect;
+        blitz::Array<double, 3> pressureData;
+        blitz::Array<double, 3> inputRHSData;
 
         blitz::Array<double, 3> residualData;
         blitz::Array<double, 3> iteratorTemp;
         blitz::Array<double, 3> smoothedPres;
+
+        blitz::RectDomain<3> stagFull;
+        blitz::RectDomain<3> stagCore;
 
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;
@@ -101,6 +105,7 @@ class poisson {
 
         virtual void solve();
         virtual void prolong();
+        virtual void coarsen();
         virtual void smooth(const int smoothCount);
 
         virtual void initMeshRanges();
@@ -120,12 +125,6 @@ class poisson {
         void initializeArrays();
 
     public:
-        blitz::Array<double, 3> pressureData;
-        blitz::Array<double, 3> inputRHSData;
-
-        blitz::RectDomain<3> stagFull;
-        blitz::RectDomain<3> stagCore;
-
         poisson(const grid &mesh, const parser &solParam);
 
         virtual void mgSolve(plainsf &inFn, const plainsf &rhs);
@@ -163,6 +162,7 @@ class multigrid_d2: public poisson {
 
         void solve();
         void prolong();
+        void coarsen();
         void smooth(const int smoothCount);
 
         void initMeshRanges();
@@ -207,6 +207,7 @@ class multigrid_d3: public poisson {
 
         void solve();
         void prolong();
+        void coarsen();
         void smooth(const int smoothCount);
 
         void initMeshRanges();

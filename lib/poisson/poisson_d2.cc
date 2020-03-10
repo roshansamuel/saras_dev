@@ -132,7 +132,8 @@ void multigrid_d2::vCycle() {
 
     // RESTRICTION OPERATIONS
     for (int i=0; i<inputParams.vcDepth; i++) {
-        vLevel += 1;
+        coarsen();
+        smooth(inputParams.restrictSmooth[i]);
     }
 
     // SOLVE AT COARSEST MESH RESOLUTION
@@ -141,7 +142,7 @@ void multigrid_d2::vCycle() {
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         prolong();
-        smooth(inputParams.interSmooth[i]);
+        smooth(inputParams.prolongSmooth[i]);
     }
 
     pressureData += smoothedPres;
@@ -241,6 +242,10 @@ void multigrid_d2::solve() {
             exit(0);
         }
     }
+}
+
+void multigrid_d2::coarsen() {
+    vLevel += 1;
 }
 
 void multigrid_d2::prolong() {

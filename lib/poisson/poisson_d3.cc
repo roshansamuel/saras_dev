@@ -94,7 +94,7 @@ void multigrid_d3::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
-        smoothedPres = 0.0;
+        //smoothedPres = 0.0;
         iteratorTemp = 0.0;
 
         vCycle();
@@ -105,15 +105,31 @@ void multigrid_d3::mgSolve(plainsf &inFn, const plainsf &rhs) {
 }
 
 void multigrid_d3::vCycle() {
+    /*
+     * OUTLINE OF THE MULTI-GRID V-CYCLE
+     * 1) Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
+     * 2) Compute the residual r=b-Ax and restrict it to a coarser level,
+     * 3) perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
+     * 4) Repeat steps 2-3 until you reach the coarsest grid level,
+     * 5) perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
+     * 6) prolong the error 'e' to the next finer level.
+     * 7) perform N=2 post-smoothing iterations, 
+     * 8) Repeat steps 6-7 until the finest grid is reached,
+     * 9) Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
+     * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
+     */
+
     vLevel = 0;
 
-    // PRE-SMOOTHING
+    // Step 1) Pre-smoothing iterations of Ax = b
     swap(inputRHSData, residualData);
     smooth(inputParams.preSmooth);
     swap(residualData, inputRHSData);
     // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
 
-    // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
+    // Step 2) Compute the residual r = b - Ax
+    // Calculate Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
+    // Needed update: Substitute the below OpenMP parallel loop with vectorized Blitz operation and check for speed increase.
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
     for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
         for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
@@ -132,22 +148,31 @@ void multigrid_d3::vCycle() {
     // Shift pressureData into smoothedPres
     swap(smoothedPres, pressureData);
     // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
+    // So smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e.
 
     // RESTRICTION OPERATIONS
     // Needed update: Use full restriction operations instead of injection
     for (int i=0; i<inputParams.vcDepth; i++) {
-        vLevel += 1;
+        coarsen();
+        // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
+        smooth(inputParams.restrictSmooth[i]);
     }
 
+    // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
+
     // SOLVE AT COARSEST MESH RESOLUTION
-    solve();
+    //solve();
+    // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
+    smooth(inputParams.restrictSmooth[inputParams.vcDepth] + inputParams.prolongSmooth[inputParams.vcDepth]);
 
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
+        // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
-        smooth(inputParams.interSmooth[i]);
+        smooth(inputParams.prolongSmooth[i]);
     }
 
+    // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
     pressureData += smoothedPres;
 
     // POST-SMOOTHING
@@ -165,7 +190,8 @@ void multigrid_d3::vCycle() {
                                   ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
                                   etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
                                   ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));
+                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));// /
+                                         //fabs(residualData(iX, iY, iZ));
 
                 if (tempValue > localMax) {
                     localMax = tempValue;
@@ -182,31 +208,16 @@ void multigrid_d3::vCycle() {
     }
 
     swap(residualData, inputRHSData);
+    //if (mesh.rankData.rank == 0) std::cout << pressureData(3, 3, 3) << std::endl;
 }
 
 
 void multigrid_d3::smooth(const int smoothCount) {
-#ifdef TIME_RUN
-    struct timeval begin, end;
-#endif
-    int n = 0;
-
     iteratorTemp = 0.0;
 
-    while (true) {
-#ifdef TIME_RUN
-        gettimeofday(&begin, NULL);
-#endif
-
+    for(int n=0; n<smoothCount; n++) {
         // IMPOSE BOUNDARY CONDITION
         imposeBC();
-
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        smothTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-
-        gettimeofday(&begin, NULL);
-#endif
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
@@ -219,40 +230,19 @@ void multigrid_d3::smooth(const int smoothCount) {
                                                 hxhy(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
                                                 hxhy(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
                                         2.0 * hxhyhz(vLevel) * residualData(iX, iY, iZ))/
-                                        (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+                                       (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
                 }
             }
         }
 
         swap(iteratorTemp, pressureData);
-
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        smothTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
-
-        n += 1;
-        if (n == smoothCount) break;
     }
 
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
-#endif
-
     imposeBC();
-
-#ifdef TIME_RUN
-    gettimeofday(&end, NULL);
-    smothTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
 }
 
 
 void multigrid_d3::solve() {
-#ifdef TIME_RUN
-    struct timeval begin, end;
-#endif
-
     int iterCount = 0;
     double tempValue;
     double localMax, globalMax;
@@ -260,10 +250,6 @@ void multigrid_d3::solve() {
     iteratorTemp = 0.0;
 
     while (true) {
-#ifdef TIME_RUN
-        gettimeofday(&begin, NULL);
-#endif
-
         // GAUSS-SEIDEL ITERATIVE SOLVER - FASTEST IN BENCHMARKS
         for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
             for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
@@ -282,34 +268,15 @@ void multigrid_d3::solve() {
 
         swap(iteratorTemp, pressureData);
 
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        solveTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-
-        gettimeofday(&begin, NULL);
-#endif
-
         // Only the pads within the domain at the sub-domain boundaries are updated here.
         // Boundary conditions are *NOT* applied while solving at the coarsest level.
         // Boundary conditions are applied only while smoothing the solution.
-        updatePads();
-
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        solveTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-
-        gettimeofday(&begin, NULL);
-#endif
+        //updatePads();
+        imposeBC();
 
         // Compute the Laplacian of pressure field and subtract the residual. Find the maximum of the absolute value of this difference
         tempValue = 0.0;
         localMax = -1.0e-10;
-
-        // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
-        // the absolute of the float values without hitch.
-        // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
-        // abs in the STL which **rounds off** the number.
-        // In this case, abs has to be replaced with fabs.
         for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
             for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
                 for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
@@ -341,11 +308,76 @@ void multigrid_d3::solve() {
             MPI_Finalize();
             exit(0);
         }
+    }
+}
 
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        solveTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
+void multigrid_d3::coarsen() {
+    // Integer values of starting indices, ending indices, and index increments along each direction
+    double facePoints, edgePoints, vertPoints;
+    int xSt, xEn, xIn;
+    int ySt, yEn, yIn;
+    int zSt, zEn, zIn;
+    int shiftInc;
+
+    imposeBC();
+
+    vLevel += 1;
+
+    //if (mesh.rankData.rank == 0) std::cout << "Current level: " << strideValues(vLevel) << " Previous level: " << strideValues(vLevel - 1) << std::endl;
+
+    xSt = stagCore.lbound(0);
+    xEn = stagCore.ubound(0);
+    xIn = strideValues(vLevel);
+
+    ySt = stagCore.lbound(1);
+    yEn = stagCore.ubound(1);
+    yIn = strideValues(vLevel);
+
+    zSt = stagCore.lbound(2);
+    zEn = stagCore.ubound(2);
+    zIn = strideValues(vLevel);
+
+    shiftInc = strideValues(vLevel - 1);
+
+    // Full weighted restriction operation
+    for (int iX = xSt; iX <= xEn; iX += xIn) {
+        for (int iY = ySt; iY <= yEn; iY += yIn) {
+            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
+                facePoints = (pressureData(iX + shiftInc, iY, iZ) + pressureData(iX - shiftInc, iY, iZ) +
+                              pressureData(iX, iY + shiftInc, iZ) + pressureData(iX, iY - shiftInc, iZ) +
+                              pressureData(iX, iY, iZ + shiftInc) + pressureData(iX, iY, iZ - shiftInc))*0.0625;
+                edgePoints = (pressureData(iX + shiftInc, iY + shiftInc, iZ) + pressureData(iX + shiftInc, iY - shiftInc, iZ) + pressureData(iX - shiftInc, iY + shiftInc, iZ) + pressureData(iX - shiftInc, iY - shiftInc, iZ) +
+                              pressureData(iX, iY + shiftInc, iZ + shiftInc) + pressureData(iX, iY - shiftInc, iZ + shiftInc) + pressureData(iX, iY + shiftInc, iZ - shiftInc) + pressureData(iX, iY - shiftInc, iZ - shiftInc) +
+                              pressureData(iX + shiftInc, iY, iZ + shiftInc) + pressureData(iX + shiftInc, iY, iZ - shiftInc) + pressureData(iX - shiftInc, iY, iZ + shiftInc) + pressureData(iX - shiftInc, iY, iZ - shiftInc))*0.03125;
+                vertPoints = (pressureData(iX + shiftInc, iY + shiftInc, iZ + shiftInc) +
+                              pressureData(iX + shiftInc, iY + shiftInc, iZ - shiftInc) +
+                              pressureData(iX + shiftInc, iY - shiftInc, iZ + shiftInc) +
+                              pressureData(iX - shiftInc, iY + shiftInc, iZ + shiftInc) +
+                              pressureData(iX + shiftInc, iY - shiftInc, iZ - shiftInc) +
+                              pressureData(iX - shiftInc, iY + shiftInc, iZ - shiftInc) +
+                              pressureData(iX - shiftInc, iY - shiftInc, iZ + shiftInc) +
+                              pressureData(iX - shiftInc, iY - shiftInc, iZ - shiftInc))*0.015625;
+
+                pressureData(iX, iY, iZ) = facePoints + edgePoints + vertPoints + pressureData(iX, iY, iZ)*0.125;
+
+                facePoints = (residualData(iX + shiftInc, iY, iZ) + residualData(iX - shiftInc, iY, iZ) +
+                              residualData(iX, iY + shiftInc, iZ) + residualData(iX, iY - shiftInc, iZ) +
+                              residualData(iX, iY, iZ + shiftInc) + residualData(iX, iY, iZ - shiftInc))*0.0625;
+                edgePoints = (residualData(iX + shiftInc, iY + shiftInc, iZ) + residualData(iX + shiftInc, iY - shiftInc, iZ) + residualData(iX - shiftInc, iY + shiftInc, iZ) + residualData(iX - shiftInc, iY - shiftInc, iZ) +
+                              residualData(iX, iY + shiftInc, iZ + shiftInc) + residualData(iX, iY - shiftInc, iZ + shiftInc) + residualData(iX, iY + shiftInc, iZ - shiftInc) + residualData(iX, iY - shiftInc, iZ - shiftInc) +
+                              residualData(iX + shiftInc, iY, iZ + shiftInc) + residualData(iX + shiftInc, iY, iZ - shiftInc) + residualData(iX - shiftInc, iY, iZ + shiftInc) + residualData(iX - shiftInc, iY, iZ - shiftInc))*0.03125;
+                vertPoints = (residualData(iX + shiftInc, iY + shiftInc, iZ + shiftInc) +
+                              residualData(iX + shiftInc, iY + shiftInc, iZ - shiftInc) +
+                              residualData(iX + shiftInc, iY - shiftInc, iZ + shiftInc) +
+                              residualData(iX - shiftInc, iY + shiftInc, iZ + shiftInc) +
+                              residualData(iX + shiftInc, iY - shiftInc, iZ - shiftInc) +
+                              residualData(iX - shiftInc, iY + shiftInc, iZ - shiftInc) +
+                              residualData(iX - shiftInc, iY - shiftInc, iZ + shiftInc) +
+                              residualData(iX - shiftInc, iY - shiftInc, iZ - shiftInc))*0.015625;
+
+                residualData(iX, iY, iZ) = facePoints + edgePoints + vertPoints + residualData(iX, iY, iZ)*0.125;
+            }
+        }
     }
 }
 

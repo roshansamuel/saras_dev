@@ -130,6 +130,17 @@ void poisson::solve() { };
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to coarsen the grid down the levels of the V-Cycle
+ *
+ *          Coarsening reduces the number of points in the grid by averaging values at two adjacent nodes onto an intermediate point between them
+ *          As a result, the number of points in the domain decreases from \f$ 2^{N+1} + 1 \f$ at the input level to \f$ 2^N + 1 \f$.
+ *          The vLevel variable is accordingly incremented by 1 to reflect this descent by one step down the V-Cycle.
+ ********************************************************************************************************************************************
+ */
+void poisson::coarsen() { };
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to perform prolongation on the array being solved
  *
  *          Prolongation makes the grid finer by averaging values at two adjacent nodes onto an intermediate point between them
