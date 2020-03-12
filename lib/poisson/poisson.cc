@@ -130,6 +130,18 @@ void poisson::solve() { };
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to compute the residual at the end of each V-Cycle
+ *
+ *          To check for convergence, the residual must be computed throughout the domain.
+ *          This function offers multiple ways to compute the residual (global maximum, rms, mean, etc.)
+ *
+ * \param   residualType is an integer value used to choose the measure used to calculate the residual.
+ ********************************************************************************************************************************************
+ */
+double poisson::computeResidual(const int residualType) {  return 0.0; };
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to coarsen the grid down the levels of the V-Cycle
  *
  *          Coarsening reduces the number of points in the grid by averaging values at two adjacent nodes onto an intermediate point between them

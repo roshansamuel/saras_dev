@@ -107,6 +107,7 @@ class poisson {
         virtual void prolong();
         virtual void coarsen();
         virtual void smooth(const int smoothCount);
+        virtual double computeResidual(const int residualType);
 
         virtual void initMeshRanges();
 
@@ -164,6 +165,7 @@ class multigrid_d2: public poisson {
         void prolong();
         void coarsen();
         void smooth(const int smoothCount);
+        double computeResidual(const int residualType);
 
         void initMeshRanges();
 
@@ -205,10 +207,10 @@ class multigrid_d3: public poisson {
     private:
         blitz::Array<double, 1> hxhy, hyhz, hzhx, hxhyhz;
 
-        void solve();
         void prolong();
         void coarsen();
         void smooth(const int smoothCount);
+        double computeResidual(const int residualType);
 
         void initMeshRanges();
 

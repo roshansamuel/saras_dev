@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 2
+    "Problem Type": 1
 
     # Choose from the following initial conditions
     # 1 = Taylor Green Vortices
@@ -20,7 +20,7 @@
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
     # If periodic along all directions, Domain Type = PPP, and so on
     # For 2D runs, only X and Z direction values are considered
-    "Domain Type": "PPP"
+    "Domain Type": "NNN"
 
     # For RBC, specify the non-dimensionalization to be used:
     # 1 = small U, large Pr
@@ -138,7 +138,7 @@
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 3
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 6
+    "V-Cycle Count": 9
     # Number of smoothing iterations to be performed before V-Cycle
     "Pre-Smoothing Count": 5
     # Number of smoothing iterations to be performed after V-Cycle

@@ -244,9 +244,16 @@ void multigrid_d2::solve() {
     }
 }
 
+
+double multigrid_d2::computeResidual(const int residualType) {
+
+    return 0.0;
+}
+
 void multigrid_d2::coarsen() {
     vLevel += 1;
 }
+
 
 void multigrid_d2::prolong() {
     // Integer values of starting indices, ending indices, and index increments along each direction

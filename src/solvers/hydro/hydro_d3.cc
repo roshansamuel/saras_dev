@@ -311,6 +311,7 @@ void hydro_d3::computeTimeStep() {
     mgRHS *= 1.0/dt;
 #endif
 
+    //if (mesh.rankData.rank == 0) std::cout << "before: " << mgRHS.F(5, 5, 5) << std::endl;
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
@@ -320,6 +321,7 @@ void hydro_d3::computeTimeStep() {
 #else
     mgSolver.mgSolve(Pp, mgRHS);
 #endif
+    //if (mesh.rankData.rank == 0) std::cout << "after: " << Pp.F(5, 5, 5) << std::endl;
 
     // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
     Pp.syncData();
