@@ -87,6 +87,8 @@ class poisson {
         blitz::Array<MPI_Status, 1> recvStatus;
 
         blitz::Array<double, 1> hx, hy, hz;
+        blitz::Array<double, 1> hx2, hz2, hzhx;
+        blitz::Array<double, 1> hxhy, hyhz, hxhyhz;
 
         blitz::Array<double, 1> xixx, xix2;
         blitz::Array<double, 1> etyy, ety2;
@@ -103,19 +105,10 @@ class poisson {
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
 
-        virtual void solve();
         virtual void prolong();
         virtual void coarsen();
         virtual void smooth(const int smoothCount);
         virtual double computeResidual(const int residualType);
-
-        virtual void initMeshRanges();
-
-        virtual void setStagBounds();
-        virtual void setLocalSizeIndex();
-
-        virtual void setCoefficients();
-        virtual void copyStaggrDerivs();
 
         virtual void imposeBC();
         virtual void updatePads();
@@ -123,7 +116,12 @@ class poisson {
 
         virtual void vCycle();
 
+        void setLocalSizeIndex();
         void initializeArrays();
+        void copyStaggrDerivs();
+        void setCoefficients();
+        void initMeshRanges();
+        void setStagBounds();
 
     public:
         poisson(const grid &mesh, const parser &solParam);
@@ -133,7 +131,6 @@ class poisson {
         virtual double testTransfer();
         virtual double testProlong();
         virtual double testPeriodic();
-        virtual double testSolve();
 
         virtual ~poisson();
 };
@@ -159,21 +156,10 @@ class poisson {
 
 class multigrid_d2: public poisson {
     private:
-        blitz::Array<double, 1> hx2, hz2, hzhx;
-
-        void solve();
         void prolong();
         void coarsen();
         void smooth(const int smoothCount);
         double computeResidual(const int residualType);
-
-        void initMeshRanges();
-
-        void setStagBounds();
-        void setLocalSizeIndex();
-
-        void setCoefficients();
-        void copyStaggrDerivs();
 
         void imposeBC();
         void updatePads();
@@ -189,7 +175,6 @@ class multigrid_d2: public poisson {
         double testTransfer();
         double testProlong();
         double testPeriodic();
-        double testSolve();
 
         ~multigrid_d2() {};
 };
@@ -205,20 +190,10 @@ class multigrid_d2: public poisson {
 
 class multigrid_d3: public poisson {
     private:
-        blitz::Array<double, 1> hxhy, hyhz, hzhx, hxhyhz;
-
         void prolong();
         void coarsen();
         void smooth(const int smoothCount);
         double computeResidual(const int residualType);
-
-        void initMeshRanges();
-
-        void setStagBounds();
-        void setLocalSizeIndex();
-
-        void setCoefficients();
-        void copyStaggrDerivs();
 
         void imposeBC();
         void updatePads();
@@ -234,7 +209,6 @@ class multigrid_d3: public poisson {
         double testTransfer();
         double testProlong();
         double testPeriodic();
-        double testSolve();
 
         ~multigrid_d3() {};
 };
@@ -244,7 +218,7 @@ class multigrid_d3: public poisson {
  *  \class multigrid_d3 poisson.h "lib/poisson.h"
  *  \brief The derived class from poisson to perform multi-grid operations on a 3D grid
  *
- *  The 3D implementation of the multi-grid method differs from the 2D version in that the \ref solve \ref smooth functions use a different
+ *  The 3D implementation of the multi-grid method differs from the 2D version in that the \ref coarsen, \ref smooth etc use a different
  *  equation with extra terms, and the \ref prolong operation needs to perform extra interpolation steps in the y-direction.
  ********************************************************************************************************************************************
  */

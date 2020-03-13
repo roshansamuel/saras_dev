@@ -118,18 +118,6 @@ void poisson::initializeArrays() {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to solve the poisson equation at the coarsest multi-grid level
- *
- *          This function operates exclusively at the lowest level of the multi-grid V-cycle.
- *          It uses the Jacobi iterative solver to solve the residual of the Poisson equation on the coarsest mesh.
- *          Note that the all calculations are performed assuming that the \ref vLevel variable is maximal when the function
- *          is being called.
- ********************************************************************************************************************************************
- */
-void poisson::solve() { };
-
-/**
- ********************************************************************************************************************************************
  * \brief   Function to compute the residual at the end of each V-Cycle
  *
  *          To check for convergence, the residual must be computed throughout the domain.
@@ -184,7 +172,36 @@ void poisson::smooth(const int smoothCount) { };
  *          Since these values are required at all the grid levels, there are \ref parser#vcDepth "vcDepth" + 1 number of Range objects.
  ********************************************************************************************************************************************
  */
-void poisson::initMeshRanges() { };
+void poisson::initMeshRanges() {
+    xMeshRange.resize(inputParams.vcDepth + 1);
+#ifndef PLANAR
+    yMeshRange.resize(inputParams.vcDepth + 1);
+#endif
+    zMeshRange.resize(inputParams.vcDepth + 1);
+
+    // Range OBJECTS WITH STRIDE TO ACCESS DIFFERENT POINTS OF THE SAME ARRAY AT DIFFERENT MULTI-GRID LEVELS
+    for(int i=0; i<=inputParams.vcDepth; i++) {
+        xMeshRange(i) = blitz::Range(stagCore.lbound(0), stagCore.ubound(0), strideValues(i));
+#ifndef PLANAR
+        yMeshRange(i) = blitz::Range(stagCore.lbound(1), stagCore.ubound(1), strideValues(i));
+#endif
+        zMeshRange(i) = blitz::Range(stagCore.lbound(2), stagCore.ubound(2), strideValues(i));
+    }
+
+    // SET THE LIMTS FOR ARRAY LOOPS IN smooth FUNCTION, AND A FEW OTHER PLACES
+    // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN smooth AND vCycle.
+    // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
+    xStr = stagCore.lbound(0);
+    xEnd = stagCore.ubound(0);
+
+#ifndef PLANAR
+    yStr = stagCore.lbound(1);
+    yEnd = stagCore.ubound(1);
+#endif
+
+    zStr = stagCore.lbound(2);
+    zEnd = stagCore.ubound(2);
+};
 
 /**
  ********************************************************************************************************************************************
@@ -193,7 +210,27 @@ void poisson::initMeshRanges() { };
  *          The function sets the core and full domain staggered grid sizes for all the sub-domains.
  ********************************************************************************************************************************************
  */
-void poisson::setStagBounds() { };
+void poisson::setStagBounds() {
+    blitz::TinyVector<int, 3> loBound, upBound;
+
+    // LOWER BOUND AND UPPER BOUND OF STAGGERED CORE - USED TO CONSTRUCT THE CORE SLICE
+    loBound = 0, 0, 0;
+#ifdef PLANAR
+    upBound = mgSizeArray(localSizeIndex(0)) - 1, 0, mgSizeArray(localSizeIndex(2)) - 1;
+#else
+    upBound = mgSizeArray(localSizeIndex(0)) - 1, mgSizeArray(localSizeIndex(1)) - 1, mgSizeArray(localSizeIndex(2)) - 1;
+#endif
+    stagCore = blitz::RectDomain<3>(loBound, upBound);
+
+    // LOWER BOUND AND UPPER BOUND OF STAGGERED FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
+#ifdef PLANAR
+    loBound = -strideValues(inputParams.vcDepth), -1, -strideValues(inputParams.vcDepth);
+#else
+    loBound = -strideValues(inputParams.vcDepth), -strideValues(inputParams.vcDepth), -strideValues(inputParams.vcDepth);
+#endif
+    upBound = stagCore.ubound() - loBound;
+    stagFull = blitz::RectDomain<3>(loBound, upBound);
+};
 
 /**
  ********************************************************************************************************************************************
@@ -206,7 +243,17 @@ void poisson::setStagBounds() { };
  *          where \f$ np \f$ is the number of processors along the direction under consideration.
  ********************************************************************************************************************************************
  */
-void poisson::setLocalSizeIndex() { };
+void poisson::setLocalSizeIndex() {
+#ifdef PLANAR
+    localSizeIndex = blitz::TinyVector<int, 3>(mesh.sizeIndex(0) - int(log2(inputParams.npX)),
+                                               mesh.sizeIndex(1),
+                                               mesh.sizeIndex(2));
+#else
+    localSizeIndex = blitz::TinyVector<int, 3>(mesh.sizeIndex(0) - int(log2(inputParams.npX)),
+                                               mesh.sizeIndex(1) - int(log2(inputParams.npY)),
+                                               mesh.sizeIndex(2));
+#endif
+};
 
 /**
  ********************************************************************************************************************************************
@@ -216,7 +263,47 @@ void poisson::setLocalSizeIndex() { };
  *          These coefficients are repeatedly used at many places in the Poisson solver.
  ********************************************************************************************************************************************
  */
-void poisson::setCoefficients() { };
+void poisson::setCoefficients() {
+    hx.resize(inputParams.vcDepth + 1);
+#ifndef PLANAR
+    hy.resize(inputParams.vcDepth + 1);
+#endif
+    hz.resize(inputParams.vcDepth + 1);
+
+#ifdef PLANAR
+    hx2.resize(inputParams.vcDepth + 1);
+    hz2.resize(inputParams.vcDepth + 1);
+#else
+    hxhy.resize(inputParams.vcDepth + 1);
+    hyhz.resize(inputParams.vcDepth + 1);
+#endif
+    hzhx.resize(inputParams.vcDepth + 1);
+
+#ifndef PLANAR
+    hxhyhz.resize(inputParams.vcDepth + 1);
+#endif
+
+    for(int i=0; i<=inputParams.vcDepth; i++) {
+        hx(i) = strideValues(i)*mesh.dXi;
+#ifndef PLANAR
+        hy(i) = strideValues(i)*mesh.dEt;
+#endif
+        hz(i) = strideValues(i)*mesh.dZt;
+
+#ifdef PLANAR
+        hx2(i) = pow(strideValues(i)*mesh.dXi, 2.0);
+        hz2(i) = pow(strideValues(i)*mesh.dZt, 2.0);
+#else
+        hxhy(i) = pow(strideValues(i), 4.0)*pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
+        hyhz(i) = pow(strideValues(i), 4.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+#endif
+        hzhx(i) = pow(strideValues(i), 4.0)*pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
+
+#ifndef PLANAR
+        hxhyhz(i) = pow(strideValues(i), 6.0)*pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+#endif
+    }
+};
 
 /**
  ********************************************************************************************************************************************
@@ -229,7 +316,39 @@ void poisson::setCoefficients() { };
  *          This function serves this purpose of copying the grid derivatives.
  ********************************************************************************************************************************************
  */
-void poisson::copyStaggrDerivs() { };
+void poisson::copyStaggrDerivs() {
+    xixx.resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
+    xixx.reindexSelf(stagFull.lbound(0));
+    xixx = 0.0;
+    xixx(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore.ubound(0), 1));
+
+    xix2.resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
+    xix2.reindexSelf(stagFull.lbound(0));
+    xix2 = 0.0;
+    xix2(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore.ubound(0), 1));
+
+#ifndef PLANAR
+    etyy.resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
+    etyy.reindexSelf(stagFull.lbound(1));
+    etyy = 0.0;
+    etyy(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore.ubound(1), 1));
+
+    ety2.resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
+    ety2.reindexSelf(stagFull.lbound(1));
+    ety2 = 0.0;
+    ety2(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore.ubound(1), 1));
+#endif
+
+    ztzz.resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
+    ztzz.reindexSelf(stagFull.lbound(2));
+    ztzz = 0.0;
+    ztzz(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore.ubound(2), 1));
+
+    ztz2.resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
+    ztz2.reindexSelf(stagFull.lbound(2));
+    ztz2 = 0.0;
+    ztz2(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore.ubound(2), 1));
+};
 
 /**
  ********************************************************************************************************************************************
@@ -249,7 +368,6 @@ void poisson::imposeBC() { };
  * \brief   Function to update the pad points of the local sub-domains at different levels of the V-cycle
  *
  *          This function is called mainly during smoothing operations by the \ref imposeBC function.
- *          It is also specifically called by the \ref solve function while solving the equation at the coarsest mesh level.
  *          At the interior boundaries at the inter-processor sub-domains, data is transferred from the neighbouring cells
  *          using a combination of MPI_Irecv and MPI_Send functions.
  ********************************************************************************************************************************************
@@ -295,7 +413,8 @@ void poisson::vCycle() { };
  * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
  ********************************************************************************************************************************************
  */
-void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) { };
+void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+};
 
 /**
  ********************************************************************************************************************************************
@@ -329,17 +448,6 @@ double poisson::testProlong() { return 0; };
  ********************************************************************************************************************************************
  */
 double poisson::testPeriodic() { return 0; };
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to test the solver used at the coarsest mesh level of V-Cycle
- *
- *          The function populates the arrays with predetermined values at all locations.
- *          It then calls solve function at lowest vLevel and compares the exact analytical values
- *          This done by printing the contents of the arrays for visual inspection for now.
- ********************************************************************************************************************************************
- */
-double poisson::testSolve() { return 0; };
 
 poisson::~poisson() {
 #ifdef TIME_RUN

@@ -85,7 +85,7 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
 }
 
 void multigrid_d3::mgSolve(plainsf &inFn, const plainsf &rhs) {
-    //double mgResidual;
+    double mgResidual;
 
     pressureData = 0.0;
     residualData = 0.0;
@@ -101,11 +101,11 @@ void multigrid_d3::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         vCycle();
 
-        //mgResidual = computeResidual(1);
+        mgResidual = computeResidual(1);
 
-        //if (mesh.rankData.rank == 0) {
-        //    std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
-        //}
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+        }
     }
 
     // RETURN CALCULATED PRESSURE DATA
@@ -182,49 +182,7 @@ void multigrid_d3::vCycle() {
     // POST-SMOOTHING
     swap(inputRHSData, residualData);
     smooth(inputParams.postSmooth);
-
-    double tempValue = 0.0;
-    //double localMax = -1.0e-10;
-    double numValLoc = 0.0;
-    double denValLoc = 0.0;
-    int valCountLoc = 0;
-    for (int iX = xStr; iX < xEnd; iX += strideValues(vLevel)) {
-        for (int iY = yStr; iY < yEnd; iY += strideValues(vLevel)) {
-            for (int iZ = zStr; iZ < zEnd; iZ += strideValues(vLevel)) {
-                tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                  xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                  ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
-                                  etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
-                                  ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));
-
-                numValLoc += tempValue*tempValue;
-                denValLoc += residualData(iX, iY, iZ)*residualData(iX, iY, iZ);
-                valCountLoc += 1;
-                //double normVal = fabs(residualData(iX, iY, iZ));
-                //if (normVal > 1.0e-8) tempValue /= normVal;
-                //if (tempValue > localMax) localMax = tempValue;
-            }
-        }
-    }
-
-    //double globalMax = 0.0;
-    double numValGlo = 0.0;
-    double denValGlo = 0.0;
-    int valCountGlo = 0;
-    //MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (mesh.rankData.rank == 0) {
-        double normResidual = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
-        //double normResidual = sqrt(numValGlo/valCountGlo);
-        std::cout << "Residual after V Cycle is " << normResidual << std::endl;
-    }
-
     swap(residualData, inputRHSData);
-    //if (mesh.rankData.rank == 0) std::cout << pressureData(3, 3, 3) << std::endl;
 }
 
 
@@ -259,11 +217,19 @@ void multigrid_d3::smooth(const int smoothCount) {
 
 
 double multigrid_d3::computeResidual(const int residualType) {
+    double residualVal = 0.0;
+
     double tempValue = 0.0;
     //double localMax = -1.0e-10;
     double numValLoc = 0.0;
     double denValLoc = 0.0;
     int valCountLoc = 0;
+
+    // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
+    // the absolute of the float values without hitch.
+    // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
+    // abs in the STL which **rounds off** the number.
+    // In this case, abs has to be replaced with fabs.
     for (int iX = xStr; iX < xEnd; iX += strideValues(vLevel)) {
         for (int iY = yStr; iY < yEnd; iY += strideValues(vLevel)) {
             for (int iZ = zStr; iZ < zEnd; iZ += strideValues(vLevel)) {
@@ -272,12 +238,12 @@ double multigrid_d3::computeResidual(const int residualType) {
                                   ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
                                   etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
                                   ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - residualData(iX, iY, iZ));
+                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
 
                 numValLoc += tempValue*tempValue;
-                denValLoc += residualData(iX, iY, iZ)*residualData(iX, iY, iZ);
+                denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
                 valCountLoc += 1;
-                //double normVal = fabs(residualData(iX, iY, iZ));
+                //double normVal = fabs(inputRHSData(iX, iY, iZ));
                 //if (normVal > 1.0e-8) tempValue /= normVal;
                 //if (tempValue > localMax) localMax = tempValue;
             }
@@ -293,19 +259,15 @@ double multigrid_d3::computeResidual(const int residualType) {
     MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-    if (mesh.rankData.rank == 0) {
-        double normResidual = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
-        //double normResidual = sqrt(numValGlo/valCountGlo);
-        std::cout << "Residual after V Cycle is " << normResidual << std::endl;
-    }
+    if (mesh.rankData.rank == 0) residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
 
-    return 0.0;
+    return residualVal;
 }
 
 
 void multigrid_d3::coarsen() {
-    // Integer values of starting indices, ending indices, and index increments along each direction
     double facePoints, edgePoints, vertPoints;
+    // Integer values of starting indices, ending indices, and index increments along each direction
     int xSt, xEn, xIn;
     int ySt, yEn, yIn;
     int zSt, zEn, zIn;
@@ -329,32 +291,10 @@ void multigrid_d3::coarsen() {
 
     shiftInc = strideValues(vLevel - 1);
 
-    //if (mesh.rankData.rank == 0) std::cout << "Shift Inc: " << shiftInc << " xyz Inc: " << xIn << " " << yIn << " " << zIn << std::endl;
-
     // Full weighted restriction operation
     for (int iX = xSt; iX <= xEn; iX += xIn) {
         for (int iY = ySt; iY <= yEn; iY += yIn) {
             for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                //facePoints = (pressureData(iX + shiftInc, iY, iZ) + pressureData(iX - shiftInc, iY, iZ) +
-                //              pressureData(iX, iY + shiftInc, iZ) + pressureData(iX, iY - shiftInc, iZ) +
-                //              pressureData(iX, iY, iZ + shiftInc) + pressureData(iX, iY, iZ - shiftInc))*0.0625;
-                //edgePoints = (pressureData(iX + shiftInc, iY + shiftInc, iZ) + pressureData(iX + shiftInc, iY - shiftInc, iZ) +
-                //              pressureData(iX - shiftInc, iY - shiftInc, iZ) + pressureData(iX - shiftInc, iY + shiftInc, iZ) +
-                //              pressureData(iX, iY + shiftInc, iZ + shiftInc) + pressureData(iX, iY - shiftInc, iZ + shiftInc) +
-                //              pressureData(iX, iY - shiftInc, iZ - shiftInc) + pressureData(iX, iY + shiftInc, iZ - shiftInc) +
-                //              pressureData(iX + shiftInc, iY, iZ + shiftInc) + pressureData(iX + shiftInc, iY, iZ - shiftInc) +
-                //              pressureData(iX - shiftInc, iY, iZ - shiftInc) + pressureData(iX - shiftInc, iY, iZ + shiftInc))*0.03125;
-                //vertPoints = (pressureData(iX + shiftInc, iY + shiftInc, iZ + shiftInc) +
-                //              pressureData(iX + shiftInc, iY + shiftInc, iZ - shiftInc) +
-                //              pressureData(iX + shiftInc, iY - shiftInc, iZ + shiftInc) +
-                //              pressureData(iX - shiftInc, iY + shiftInc, iZ + shiftInc) +
-                //              pressureData(iX + shiftInc, iY - shiftInc, iZ - shiftInc) +
-                //              pressureData(iX - shiftInc, iY + shiftInc, iZ - shiftInc) +
-                //              pressureData(iX - shiftInc, iY - shiftInc, iZ + shiftInc) +
-                //              pressureData(iX - shiftInc, iY - shiftInc, iZ - shiftInc))*0.015625;
-                  
-                //pressureData(iX, iY, iZ) = facePoints + edgePoints + vertPoints + pressureData(iX, iY, iZ)*0.125;
-
                 facePoints = (residualData(iX + shiftInc, iY, iZ) + residualData(iX - shiftInc, iY, iZ) +
                               residualData(iX, iY + shiftInc, iZ) + residualData(iX, iY - shiftInc, iZ) +
                               residualData(iX, iY, iZ + shiftInc) + residualData(iX, iY, iZ - shiftInc))*0.0625;
@@ -410,7 +350,6 @@ void multigrid_d3::prolong() {
         for (int iY = ySt; iY <= yEn; iY += yIn) {
             for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
                 pressureData(iX, iY, iZ) = (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/2.0;
-                //residualData(iX, iY, iZ) = (residualData(iX + strideValues(vLevel), iY, iZ) + residualData(iX - strideValues(vLevel), iY, iZ))/2.0;
             }
         }
     }
@@ -432,7 +371,6 @@ void multigrid_d3::prolong() {
         for (int iY = ySt; iY <= yEn; iY += yIn) {
             for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
                 pressureData(iX, iY, iZ) = (pressureData(iX, iY + strideValues(vLevel), iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/2.0;
-                //residualData(iX, iY, iZ) = (residualData(iX, iY + strideValues(vLevel), iZ) + residualData(iX, iY - strideValues(vLevel), iZ))/2.0;
             }
         }
     }
@@ -454,110 +392,9 @@ void multigrid_d3::prolong() {
         for (int iY = ySt; iY <= yEn; iY += yIn) {
             for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
                 pressureData(iX, iY, iZ) = (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))/2.0;
-                //residualData(iX, iY, iZ) = (residualData(iX, iY, iZ + strideValues(vLevel)) + residualData(iX, iY, iZ - strideValues(vLevel)))/2.0;
             }
         }
     }
-}
-
-void multigrid_d3::setLocalSizeIndex() {
-    localSizeIndex = blitz::TinyVector<int, 3>(mesh.sizeIndex(0) - int(log2(inputParams.npX)),
-                                               mesh.sizeIndex(1) - int(log2(inputParams.npY)),
-                                               mesh.sizeIndex(2));
-}
-
-void multigrid_d3::setStagBounds() {
-    blitz::TinyVector<int, 3> loBound, upBound;
-
-    // LOWER BOUND AND UPPER BOUND OF STAGGERED CORE - USED TO CONSTRUCT THE CORE SLICE
-    loBound = 0, 0, 0;
-    upBound = mgSizeArray(localSizeIndex(0)) - 1, mgSizeArray(localSizeIndex(1)) - 1, mgSizeArray(localSizeIndex(2)) - 1;
-    stagCore = blitz::RectDomain<3>(loBound, upBound);
-
-    // LOWER BOUND AND UPPER BOUND OF STAGGERED FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
-    loBound = -strideValues(inputParams.vcDepth), -strideValues(inputParams.vcDepth), -strideValues(inputParams.vcDepth);
-    upBound = stagCore.ubound() - loBound;
-    stagFull = blitz::RectDomain<3>(loBound, upBound);
-}
-
-void multigrid_d3::setCoefficients() {
-    hx.resize(inputParams.vcDepth + 1);
-    hy.resize(inputParams.vcDepth + 1);
-    hz.resize(inputParams.vcDepth + 1);
-
-    hxhy.resize(inputParams.vcDepth + 1);
-    hyhz.resize(inputParams.vcDepth + 1);
-    hzhx.resize(inputParams.vcDepth + 1);
-
-    hxhyhz.resize(inputParams.vcDepth + 1);
-
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        hx(i) = strideValues(i)*mesh.dXi;
-        hy(i) = strideValues(i)*mesh.dEt;
-        hz(i) = strideValues(i)*mesh.dZt;
-
-        hxhy(i) = pow(strideValues(i), 4.0)*pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
-        hyhz(i) = pow(strideValues(i), 4.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-        hzhx(i) = pow(strideValues(i), 4.0)*pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
-
-        hxhyhz(i) = pow(strideValues(i), 6.0)*pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-    }
-}
-
-void multigrid_d3::copyStaggrDerivs() {
-    xixx.resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
-    xixx.reindexSelf(stagFull.lbound(0));
-    xixx = 0.0;
-    xixx(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore.ubound(0), 1));
-
-    xix2.resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
-    xix2.reindexSelf(stagFull.lbound(0));
-    xix2 = 0.0;
-    xix2(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore.ubound(0), 1));
-
-    etyy.resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
-    etyy.reindexSelf(stagFull.lbound(1));
-    etyy = 0.0;
-    etyy(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore.ubound(1), 1));
-
-    ety2.resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
-    ety2.reindexSelf(stagFull.lbound(1));
-    ety2 = 0.0;
-    ety2(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore.ubound(1), 1));
-
-    ztzz.resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-    ztzz.reindexSelf(stagFull.lbound(2));
-    ztzz = 0.0;
-    ztzz(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore.ubound(2), 1));
-
-    ztz2.resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-    ztz2.reindexSelf(stagFull.lbound(2));
-    ztz2 = 0.0;
-    ztz2(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore.ubound(2), 1));
-}
-
-void multigrid_d3::initMeshRanges() {
-    xMeshRange.resize(inputParams.vcDepth + 1);
-    yMeshRange.resize(inputParams.vcDepth + 1);
-    zMeshRange.resize(inputParams.vcDepth + 1);
-
-    // Range OBJECTS WITH STRIDE TO ACCESS DIFFERENT POINTS OF THE SAME ARRAY AT DIFFERENT MULTI-GRID LEVELS
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        xMeshRange(i) = blitz::Range(stagCore.lbound(0), stagCore.ubound(0), strideValues(i));
-        yMeshRange(i) = blitz::Range(stagCore.lbound(1), stagCore.ubound(1), strideValues(i));
-        zMeshRange(i) = blitz::Range(stagCore.lbound(2), stagCore.ubound(2), strideValues(i));
-    }
-
-    // SET THE LIMTS FOR ARRAY LOOPS IN solve AND smooth FUNCTIONS, AND A FEW OTHER PLACES
-    // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN solve, smooth AND vCycle.
-    // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
-    xStr = stagCore.lbound(0);
-    yStr = stagCore.lbound(1);
-    zStr = stagCore.lbound(2);
-
-    xEnd = stagCore.ubound(0);
-    yEnd = stagCore.ubound(1);
-    zEnd = stagCore.ubound(2);
 }
 
 void multigrid_d3::createMGSubArrays() {
@@ -866,35 +703,6 @@ double multigrid_d3::testPeriodic() {
     }
 
     pressureData -= residualData;
-
-    return blitz::max(fabs(pressureData));
-}
-
-double multigrid_d3::testSolve() {
-    vLevel = 0;
-
-    pressureData = 0.0;
-    residualData = 0.0;
-    smoothedPres = 0.0;
-
-    // WARNING: THE EXACT SOLUTION USED HERE ASSUMES xLen = yLen = zLen = 1.0
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                smoothedPres(iX, iY, iZ) = sin(1.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                           cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                           cos(4.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-
-                residualData(iX, iY, iZ) = -21.0*M_PI*M_PI*sin(1.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                           cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                           cos(4.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-            }
-        }
-    }
-
-    solve();
-
-    pressureData -= smoothedPres;
 
     return blitz::max(fabs(pressureData));
 }
