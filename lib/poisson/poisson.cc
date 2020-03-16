@@ -414,6 +414,57 @@ void poisson::vCycle() { };
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+    double mgResidual;
+
+    pressureData = 0.0;
+    residualData = 0.0;
+    inputRHSData = 0.0;
+
+    // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
+    inputRHSData(stagCore) = rhs.F(stagCore);
+    pressureData(stagCore) = inFn.F(stagCore);
+
+    // TO MAKE THE PROBLEM WELL-POSED, SUBTRACT THE MEAN OF THE RHS FROM THE RHS
+    double localMean = blitz::mean(inputRHSData);
+    double globalSum = 0.0;
+    //if (mesh.rankData.rank == 1) {
+    //    for (int i=0; i<=stagCore.ubound(0); i++ ) {
+    //        for (int j=0; j<=stagCore.ubound(1); j++ ) {
+    //            for (int k=0; k<=stagCore.ubound(2); k++ ) {
+    //                globalSum += inputRHSData(i, j, k);
+    //            }
+    //        }
+    //    }
+    //    std::cout << globalSum << "\t" << localSum << std::endl;
+    //}
+
+    MPI_Allreduce(&localMean, &globalSum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    globalSum /= mesh.rankData.nProc;
+
+    inputRHSData -= globalSum;
+    //if (mesh.rankData.rank == 0) std::cout << globalSum << std::endl;
+    //if (mesh.rankData.rank == 1) std::cout << stagCore.ubound() << std::endl;
+    //if (mesh.rankData.rank == 2) std::cout << stagCore.ubound() << std::endl;
+    //if (mesh.rankData.rank == 3) std::cout << stagCore.ubound() << std::endl;
+    //if (mesh.rankData.rank == 0) std::cout << globalSum << std::endl;
+    //MPI_Finalize();
+    //exit(0);
+
+    // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
+    for (int i=0; i<inputParams.vcCount; i++) {
+        smoothedPres = 0.0;
+
+        vCycle();
+
+        mgResidual = computeResidual(1);
+
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+        }
+    }
+
+    // RETURN CALCULATED PRESSURE DATA
+    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 };
 
 /**
