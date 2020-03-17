@@ -118,54 +118,6 @@ void poisson::initializeArrays() {
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to compute the residual at the end of each V-Cycle
- *
- *          To check for convergence, the residual must be computed throughout the domain.
- *          This function offers multiple ways to compute the residual (global maximum, rms, mean, etc.)
- *
- * \param   residualType is an integer value used to choose the measure used to calculate the residual.
- ********************************************************************************************************************************************
- */
-double poisson::computeResidual(const int residualType) {  return 0.0; };
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to coarsen the grid down the levels of the V-Cycle
- *
- *          Coarsening reduces the number of points in the grid by averaging values at two adjacent nodes onto an intermediate point between them
- *          As a result, the number of points in the domain decreases from \f$ 2^{N+1} + 1 \f$ at the input level to \f$ 2^N + 1 \f$.
- *          The vLevel variable is accordingly incremented by 1 to reflect this descent by one step down the V-Cycle.
- ********************************************************************************************************************************************
- */
-void poisson::coarsen() { };
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to perform prolongation on the array being solved
- *
- *          Prolongation makes the grid finer by averaging values at two adjacent nodes onto an intermediate point between them
- *          As a result, the number of points in the domain increases from \f$ 2^N + 1 \f$ at the input level to \f$ 2^{N+1} + 1 \f$.
- *          The vLevel variable is accordingly reduced by 1 to reflect this ascent by one step up the V-Cycle.
- ********************************************************************************************************************************************
- */
-void poisson::prolong() { };
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to perform smoothing operation on the input array
- *
- *          The smoothing operation is always performed on the data contained in the array \ref pressureData.
- *          The array \ref iteratorTemp is used to store the temporary data and it is continuously swapped with the
- *          \ref pressureData array at every iteration.
- *          This operation can be performed at any level of the V-cycle.
- *
- * \param   smoothCount is the integer value of the number of smoothing iterations to be performed
- ********************************************************************************************************************************************
- */
-void poisson::smooth(const int smoothCount) { };
-
-/**
- ********************************************************************************************************************************************
  * \brief   Function to initialize the Range objects for accessing mesh derivatives in transformed plane
  *
  *          The Range objects defined here are used for reading the values of grid metrics at all the V-cycle levels.
@@ -352,6 +304,117 @@ void poisson::copyStaggrDerivs() {
 
 /**
  ********************************************************************************************************************************************
+ * \brief   The core, publicly accessible function of poisson to compute the solution for the Poisson equation
+ *
+ *          The function calls the V-cycle as many times as set by the user.
+ *          Before doing so, the input data is transferred into the data-structures used by the poisson class to
+ *          perform restrictions and prolongations without copying.
+ *          Finally, the computed solution is transferred back from the internal data-structures back into the
+ *          scalar field supplied by the calling function.
+ *
+ * \param   inFn is a pointer to the plain scalar field (cell-centered) into which the computed soltuion must be transferred
+ * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
+ ********************************************************************************************************************************************
+ */
+void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+    double mgResidual;
+
+    pressureData = 0.0;
+    residualData = 0.0;
+    inputRHSData = 0.0;
+
+    // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
+    inputRHSData(stagCore) = rhs.F(stagCore);
+    pressureData(stagCore) = inFn.F(stagCore);
+
+    // TO MAKE THE PROBLEM WELL-POSED, SUBTRACT THE MEAN OF THE RHS FROM THE RHS
+    double localMean = blitz::mean(inputRHSData);
+    double globalAvg = 0.0;
+
+    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    globalAvg /= mesh.rankData.nProc;
+
+    inputRHSData -= globalAvg;
+
+    // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
+    for (int i=0; i<inputParams.vcCount; i++) {
+        smoothedPres = 0.0;
+
+        vCycle();
+
+        mgResidual = computeResidual(1);
+
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+        }
+    }
+
+    // RETURN CALCULATED PRESSURE DATA
+    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
+};
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to perform one loop of V-cycle
+ *
+ *          The V-cycle of restrictions, prolongations and smoothings are performed within this function.
+ *          First the input data contained in \ref pressureData is smoothed, after which the residual is computed and stored
+ *          in the \ref residualData array.
+ *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
+ ********************************************************************************************************************************************
+ */
+void poisson::vCycle() { };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to coarsen the grid down the levels of the V-Cycle
+ *
+ *          Coarsening reduces the number of points in the grid by averaging values at two adjacent nodes onto an intermediate point between them
+ *          As a result, the number of points in the domain decreases from \f$ 2^{N+1} + 1 \f$ at the input level to \f$ 2^N + 1 \f$.
+ *          The vLevel variable is accordingly incremented by 1 to reflect this descent by one step down the V-Cycle.
+ ********************************************************************************************************************************************
+ */
+void poisson::coarsen() { };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to perform prolongation on the array being solved
+ *
+ *          Prolongation makes the grid finer by averaging values at two adjacent nodes onto an intermediate point between them
+ *          As a result, the number of points in the domain increases from \f$ 2^N + 1 \f$ at the input level to \f$ 2^{N+1} + 1 \f$.
+ *          The vLevel variable is accordingly reduced by 1 to reflect this ascent by one step up the V-Cycle.
+ ********************************************************************************************************************************************
+ */
+void poisson::prolong() { };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to perform smoothing operation on the input array
+ *
+ *          The smoothing operation is always performed on the data contained in the array \ref pressureData.
+ *          The array \ref iteratorTemp is used to store the temporary data and it is continuously swapped with the
+ *          \ref pressureData array at every iteration.
+ *          This operation can be performed at any level of the V-cycle.
+ *
+ * \param   smoothCount is the integer value of the number of smoothing iterations to be performed
+ ********************************************************************************************************************************************
+ */
+void poisson::smooth(const int smoothCount) { };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to compute the residual at the end of each V-Cycle
+ *
+ *          To check for convergence, the residual must be computed throughout the domain.
+ *          This function offers multiple ways to compute the residual (global maximum, rms, mean, etc.)
+ *
+ * \param   residualType is an integer value used to choose the measure used to calculate the residual.
+ ********************************************************************************************************************************************
+ */
+double poisson::computeResidual(const int residualType) {  return 0.0; };
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to impose the boundary conditions of Poisson solver at different levels of the V-cycle
  *
  *          This function is called mainly during smoothing operations to impose the boundary conditions for the
@@ -386,86 +449,6 @@ void poisson::updatePads() { };
  ********************************************************************************************************************************************
  */
 void poisson::createMGSubArrays() { };
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to perform one loop of V-cycle
- *
- *          The V-cycle of restrictions, prolongations and smoothings are performed within this function.
- *          First the input data contained in \ref pressureData is smoothed, after which the residual is computed and stored
- *          in the \ref residualData array.
- *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
- ********************************************************************************************************************************************
- */
-void poisson::vCycle() { };
-
-/**
- ********************************************************************************************************************************************
- * \brief   The core, publicly accessible function of poisson to compute the solution for the Poisson equation
- *
- *          The function calls the V-cycle as many times as set by the user.
- *          Before doing so, the input data is transferred into the data-structures used by the poisson class to
- *          perform restrictions and prolongations without copying.
- *          Finally, the computed solution is transferred back from the internal data-structures back into the
- *          scalar field supplied by the calling function.
- *
- * \param   inFn is a pointer to the plain scalar field (cell-centered) into which the computed soltuion must be transferred
- * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
- ********************************************************************************************************************************************
- */
-void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
-    double mgResidual;
-
-    pressureData = 0.0;
-    residualData = 0.0;
-    inputRHSData = 0.0;
-
-    // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
-    inputRHSData(stagCore) = rhs.F(stagCore);
-    pressureData(stagCore) = inFn.F(stagCore);
-
-    // TO MAKE THE PROBLEM WELL-POSED, SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    double localMean = blitz::mean(inputRHSData);
-    double globalSum = 0.0;
-    //if (mesh.rankData.rank == 1) {
-    //    for (int i=0; i<=stagCore.ubound(0); i++ ) {
-    //        for (int j=0; j<=stagCore.ubound(1); j++ ) {
-    //            for (int k=0; k<=stagCore.ubound(2); k++ ) {
-    //                globalSum += inputRHSData(i, j, k);
-    //            }
-    //        }
-    //    }
-    //    std::cout << globalSum << "\t" << localSum << std::endl;
-    //}
-
-    MPI_Allreduce(&localMean, &globalSum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    globalSum /= mesh.rankData.nProc;
-
-    inputRHSData -= globalSum;
-    //if (mesh.rankData.rank == 0) std::cout << globalSum << std::endl;
-    //if (mesh.rankData.rank == 1) std::cout << stagCore.ubound() << std::endl;
-    //if (mesh.rankData.rank == 2) std::cout << stagCore.ubound() << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << stagCore.ubound() << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << globalSum << std::endl;
-    //MPI_Finalize();
-    //exit(0);
-
-    // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
-    for (int i=0; i<inputParams.vcCount; i++) {
-        smoothedPres = 0.0;
-
-        vCycle();
-
-        mgResidual = computeResidual(1);
-
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
-        }
-    }
-
-    // RETURN CALCULATED PRESSURE DATA
-    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
-};
 
 /**
  ********************************************************************************************************************************************

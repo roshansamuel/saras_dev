@@ -163,7 +163,6 @@ double multigrid_d2::computeResidual(const int residualType) {
     double residualVal = 0.0;
 
     double tempValue = 0.0;
-    //double localMax = -1.0e-10;
     double numValLoc = 0.0;
     double denValLoc = 0.0;
     int valCountLoc = 0;
@@ -180,20 +179,30 @@ double multigrid_d2::computeResidual(const int residualType) {
                               ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
                               ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
 
-            numValLoc += tempValue*tempValue;
-            denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
-            valCountLoc += 1;
-            //double normVal = fabs(residualData(iX, iY, iZ));
-            //if (normVal > 1.0e-8) tempValue /= normVal;
-            //if (tempValue > localMax) localMax = tempValue;
+            if (residualType == 0) {
+                if (tempValue > numValLoc) numValLoc = tempValue;
+            } else {
+                numValLoc += tempValue*tempValue;
+                denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
+                valCountLoc += 1;
+            }
         }
     }
 
-    //double globalMax = 0.0;
     double numValGlo = 0.0;
     double denValGlo = 0.0;
     int valCountGlo = 0;
-    //MPI_Allreduce(&localMax, &globalMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+    if (residualType == 0) {
+        denValLoc = blitz::max(fabs(inputRHSData));
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        residualVal = numValGlo/denValGlo;
+    } else {
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+    }
     MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);

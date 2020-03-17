@@ -227,7 +227,6 @@ double multigrid_d3::computeResidual(const int residualType) {
     int valCountGlo = 0;
     if (residualType == 0) {
         denValLoc = blitz::max(fabs(inputRHSData));
-        //if (fabs(inputRHSData(iX, iY, iZ)) > denValLoc) denValLoc = fabs(inputRHSData(iX, iY, iZ));
         MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
         MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
         residualVal = numValGlo/denValGlo;
