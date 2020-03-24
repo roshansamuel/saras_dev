@@ -82,6 +82,9 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
 
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
     createMGSubArrays();
+
+    // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
+    initDirichlet();
 }
 
 void multigrid_d3::vCycle() {
@@ -456,30 +459,102 @@ void multigrid_d3::createMGSubArrays() {
     }
 }
 
+void multigrid_d3::initDirichlet() {
+    blitz::Array<double, 1> shiftStagX, shiftStagY, shiftStagZ;
+
+    // Generate the 6 walls as 2D Blitz arrays
+    xWall_0.resize(blitz::TinyVector<int, 2>(stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    xWall_0.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(1), stagFull.lbound(2)));
+    xWall_0 = 0.0;
+
+    xWall_1.resize(blitz::TinyVector<int, 2>(stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    xWall_1.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(1), stagFull.lbound(2)));
+    xWall_1 = 0.0;
+    for (int i=stagFull.lbound(1); i<stagFull.ubound(1); i++) {
+        for (int j=stagFull.lbound(1); j<stagFull.ubound(1); j++) {
+            xWall_0(i, j) = 0.0
+        }
+    }
+
+    yWall_0.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    yWall_0.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(2)));
+    yWall_0 = 0.0;
+
+    yWall_1.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    yWall_1.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(2)));
+    yWall_1 = 0.0;
+
+    zWall_0.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
+    zWall_0.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(1)));
+    zWall_0 = 0.0;
+
+    zWall_1.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
+    zWall_1.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(1)));
+    zWall_1 = 0.0;
+
+    // Get global coordinates with origin at center of box by shifting the staggered grid coordinates
+    shiftStagX.resize(mesh.xStaggr.size());
+    shiftStagX.reindexSelf(mesh.xStaggr.lbound());
+    shiftStagX = mesh.xStaggr - mesh.xLen/2.0;
+
+    shiftStagY.resize(mesh.yStaggr.size());
+    shiftStagY.reindexSelf(mesh.yStaggr.lbound());
+    shiftStagY = mesh.yStaggr - mesh.yLen/2.0;
+
+    shiftStagZ.resize(mesh.zStaggr.size());
+    shiftStagZ.reindexSelf(mesh.zStaggr.lbound());
+    shiftStagZ = mesh.zStaggr - mesh.zLen/2.0;
+
+    if (mesh.rankData.rank == 0) std::cout << shiftStagX << std::endl;
+
+    MPI_Finalize();
+    exit(0);
+}
+
 void multigrid_d3::imposeBC() {
     updatePads();
 
     if (not inputParams.xPer) {
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
+        //if (mesh.rankData.xRank == 0) {
+        //    pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+        //}
+
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
-            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_0(yMeshRange(vLevel), zMeshRange(vLevel));
         }
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
+        //if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+        //    pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+        //}
+
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_1(yMeshRange(vLevel), zMeshRange(vLevel));
         }
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (not inputParams.yPer) {
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
+        //if (mesh.rankData.yRank == 0) {
+        //    pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), strideValues(vLevel), zMeshRange(vLevel));
+        //}
+
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
         if (mesh.rankData.yRank == 0) {
-            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), strideValues(vLevel), zMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall_0(xMeshRange(vLevel), zMeshRange(vLevel));
         }
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BACK WALL
+        //if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
+        //    pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), stagCore.ubound(1) - strideValues(vLevel), zMeshRange(vLevel));
+        //}
+
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BACK WALL
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), stagCore.ubound(1) - strideValues(vLevel), zMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall_1(xMeshRange(vLevel), zMeshRange(vLevel));
         }
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
@@ -492,10 +567,16 @@ void multigrid_d3::imposeBC() {
 
     } else {
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
+        //pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
+
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall_0(xMeshRange(vLevel), yMeshRange(vLevel));
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
+        //pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
+
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT TOP WALL
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall_1(xMeshRange(vLevel), yMeshRange(vLevel));
     }
 }
 
