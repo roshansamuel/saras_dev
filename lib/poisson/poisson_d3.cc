@@ -87,30 +87,8 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     initDirichlet();
 }
 
-void multigrid_d3::vCycle() {
-    /*
-     * OUTLINE OF THE MULTI-GRID V-CYCLE
-     * 1) Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
-     * 2) Compute the residual r=b-Ax and restrict it to a coarser level,
-     * 3) perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
-     * 4) Repeat steps 2-3 until you reach the coarsest grid level,
-     * 5) perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
-     * 6) prolong the error 'e' to the next finer level.
-     * 7) perform N=2 post-smoothing iterations, 
-     * 8) Repeat steps 6-7 until the finest grid is reached,
-     * 9) Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
-     * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
-     */
 
-    vLevel = 0;
-
-    // Step 1) Pre-smoothing iterations of Ax = b
-    swap(inputRHSData, residualData);
-    smooth(inputParams.preSmooth);
-    swap(residualData, inputRHSData);
-    // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
-
-    // Step 2) Compute the residual r = b - Ax
+void multigrid_d3::computeResidual() {
     // Calculate Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
     // Needed update: Substitute the below OpenMP parallel loop with vectorized Blitz operation and check for speed increase.
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
@@ -127,37 +105,6 @@ void multigrid_d3::vCycle() {
             }
         }
     }
-
-    // Shift pressureData into smoothedPres
-    swap(smoothedPres, pressureData);
-    // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
-    // So smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e.
-
-    // RESTRICTION OPERATIONS
-    for (int i=0; i<inputParams.vcDepth; i++) {
-        coarsen();
-        // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
-        smooth(inputParams.restrictSmooth[i]);
-    }
-    // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
-
-    // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
-    smooth(inputParams.restrictSmooth[inputParams.vcDepth] + inputParams.prolongSmooth[inputParams.vcDepth]);
-
-    // PROLONGATION OPERATIONS BACK TO FINE MESH
-    for (int i=0; i<inputParams.vcDepth; i++) {
-        // Step 6) Prolong the error 'e' to the next finer level.
-        prolong();
-        smooth(inputParams.prolongSmooth[i]);
-    }
-
-    // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
-    pressureData += smoothedPres;
-
-    // POST-SMOOTHING
-    swap(inputRHSData, residualData);
-    smooth(inputParams.postSmooth);
-    swap(residualData, inputRHSData);
 }
 
 
@@ -188,59 +135,6 @@ void multigrid_d3::smooth(const int smoothCount) {
     }
 
     imposeBC();
-}
-
-
-double multigrid_d3::computeResidual(const int residualType) {
-    double residualVal = 0.0;
-
-    double tempValue = 0.0;
-    double numValLoc = 0.0;
-    double denValLoc = 0.0;
-    int valCountLoc = 0;
-
-    // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
-    // the absolute of the float values without hitch.
-    // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
-    // abs in the STL which **rounds off** the number.
-    // In this case, abs has to be replaced with fabs.
-    for (int iX = xStr; iX < xEnd; iX += strideValues(vLevel)) {
-        for (int iY = yStr; iY < yEnd; iY += strideValues(vLevel)) {
-            for (int iZ = zStr; iZ < zEnd; iZ += strideValues(vLevel)) {
-                tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                  xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                  ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
-                                  etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
-                                  ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
-
-                if (residualType == 0) {
-                    if (tempValue > numValLoc) numValLoc = tempValue;
-                } else {
-                    numValLoc += tempValue*tempValue;
-                    denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
-                    valCountLoc += 1;
-                }
-            }
-        }
-    }
-
-    double numValGlo = 0.0;
-    double denValGlo = 0.0;
-    int valCountGlo = 0;
-    if (residualType == 0) {
-        denValLoc = blitz::max(fabs(inputRHSData));
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        residualVal = numValGlo/denValGlo;
-    } else {
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-        residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
-    }
-
-    return residualVal;
 }
 
 
@@ -297,6 +191,7 @@ void multigrid_d3::coarsen() {
         }
     }
 }
+
 
 void multigrid_d3::prolong() {
     // Integer values of starting indices, ending indices, and index increments along each direction
@@ -375,6 +270,60 @@ void multigrid_d3::prolong() {
         }
     }
 }
+
+
+double multigrid_d3::computeError(const int normOrder) {
+    double residualVal = 0.0;
+
+    double tempValue = 0.0;
+    double numValLoc = 0.0;
+    double denValLoc = 0.0;
+    int valCountLoc = 0;
+
+    // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
+    // the absolute of the float values without hitch.
+    // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
+    // abs in the STL which **rounds off** the number.
+    // In this case, abs has to be replaced with fabs.
+    for (int iX = xStr; iX < xEnd; iX += strideValues(vLevel)) {
+        for (int iY = yStr; iY < yEnd; iY += strideValues(vLevel)) {
+            for (int iZ = zStr; iZ < zEnd; iZ += strideValues(vLevel)) {
+                tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                                  xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
+                                  ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
+                                  etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
+                                  ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
+                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
+
+                if (normOrder == 0) {
+                    if (tempValue > numValLoc) numValLoc = tempValue;
+                } else {
+                    numValLoc += tempValue*tempValue;
+                    denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
+                    valCountLoc += 1;
+                }
+            }
+        }
+    }
+
+    double numValGlo = 0.0;
+    double denValGlo = 0.0;
+    int valCountGlo = 0;
+    if (normOrder == 0) {
+        denValLoc = blitz::max(fabs(inputRHSData));
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        residualVal = numValGlo/denValGlo;
+    } else {
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+    }
+
+    return residualVal;
+}
+
 
 void multigrid_d3::createMGSubArrays() {
     int ptsCount;
@@ -459,37 +408,33 @@ void multigrid_d3::createMGSubArrays() {
     }
 }
 
+
 void multigrid_d3::initDirichlet() {
     blitz::Array<double, 1> shiftStagX, shiftStagY, shiftStagZ;
 
     // Generate the 6 walls as 2D Blitz arrays
-    xWall_0.resize(blitz::TinyVector<int, 2>(stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    xWall_0.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(1), stagFull.lbound(2)));
+    xWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    xWall_0.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(1), stagFull.lbound(2)));
     xWall_0 = 0.0;
 
-    xWall_1.resize(blitz::TinyVector<int, 2>(stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    xWall_1.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(1), stagFull.lbound(2)));
+    xWall_1.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    xWall_1.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(1), stagFull.lbound(2)));
     xWall_1 = 0.0;
-    for (int i=stagFull.lbound(1); i<stagFull.ubound(1); i++) {
-        for (int j=stagFull.lbound(1); j<stagFull.ubound(1); j++) {
-            xWall_0(i, j) = 0.0
-        }
-    }
 
-    yWall_0.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    yWall_0.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(2)));
+    yWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    yWall_0.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(2)));
     yWall_0 = 0.0;
 
-    yWall_1.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    yWall_1.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(2)));
+    yWall_1.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
+    yWall_1.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(2)));
     yWall_1 = 0.0;
 
-    zWall_0.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
-    zWall_0.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(1)));
+    zWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
+    zWall_0.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(1)));
     zWall_0 = 0.0;
 
-    zWall_1.resize(blitz::TinyVector<int, 2>(stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
-    zWall_1.reindexSelf(blitz::TinyVector<int, 2>(stagFull.lbound(0), stagFull.lbound(1)));
+    zWall_1.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
+    zWall_1.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(1)));
     zWall_1 = 0.0;
 
     // Get global coordinates with origin at center of box by shifting the staggered grid coordinates
@@ -505,11 +450,21 @@ void multigrid_d3::initDirichlet() {
     shiftStagZ.reindexSelf(mesh.zStaggr.lbound());
     shiftStagZ = mesh.zStaggr - mesh.zLen/2.0;
 
-    if (mesh.rankData.rank == 0) std::cout << shiftStagX << std::endl;
+    // Compute values at the walls (at all V-Cycle depths, using the (r^2)/6 formula
+    //for (int i=0; i<inputParams.vcDepth; i++) {
+    //    for (int j=stagFull.lbound(1); j<stagFull.ubound(1); j++) {
+    //        for (int k=stagFull.lbound(1); k<stagFull.ubound(1); k++) {
+    //            xWall_0(i, j, k) = shiftStagX(mesh.xStaggr.lbound(
+    //        }
+    //    }
+    //}
+
+    if (mesh.rankData.rank == 0) std::cout << xWall_0.lbound() << std::endl;
 
     MPI_Finalize();
     exit(0);
 }
+
 
 void multigrid_d3::imposeBC() {
     updatePads();
@@ -522,7 +477,7 @@ void multigrid_d3::imposeBC() {
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
-            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_0(yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_0(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
         }
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
@@ -532,7 +487,7 @@ void multigrid_d3::imposeBC() {
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_1(yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_1(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
         }
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
@@ -544,7 +499,7 @@ void multigrid_d3::imposeBC() {
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
         if (mesh.rankData.yRank == 0) {
-            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall_0(xMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall_0(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
         }
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BACK WALL
@@ -554,7 +509,7 @@ void multigrid_d3::imposeBC() {
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BACK WALL
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall_1(xMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall_1(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
         }
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
@@ -570,15 +525,16 @@ void multigrid_d3::imposeBC() {
         //pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall_0(xMeshRange(vLevel), yMeshRange(vLevel));
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall_0(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
         //pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall_1(xMeshRange(vLevel), yMeshRange(vLevel));
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall_1(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
     }
 }
+
 
 void multigrid_d3::updatePads() {
     recvRequest = MPI_REQUEST_NULL;
@@ -594,6 +550,7 @@ void multigrid_d3::updatePads() {
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 }
+
 
 double multigrid_d3::testProlong() {
     vLevel = 0;
@@ -626,6 +583,7 @@ double multigrid_d3::testProlong() {
 
     return blitz::max(fabs(pressureData));
 }
+
 
 double multigrid_d3::testTransfer() {
     double maxVal = 0.0;
@@ -683,6 +641,7 @@ double multigrid_d3::testTransfer() {
 
     return maxVal;
 }
+
 
 double multigrid_d3::testPeriodic() {
     double xCoord = 0.0;

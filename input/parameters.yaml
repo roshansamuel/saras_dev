@@ -84,9 +84,9 @@
 
 # Parellelization parameters
 "Parallel":
-    "Number of OMP threads": 4
-    "X Number of Procs": 2
-    "Y Number of Procs": 2
+    "Number of OMP threads": 1
+    "X Number of Procs": 1
+    "Y Number of Procs": 1
 
 
 # Solver parameters

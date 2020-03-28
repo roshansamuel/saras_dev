@@ -105,16 +105,17 @@ class poisson {
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
 
-        virtual void prolong();
         virtual void coarsen();
+        virtual void prolong();
+        virtual void computeResidual();
         virtual void smooth(const int smoothCount);
-        virtual double computeResidual(const int residualType);
+        virtual double computeError(const int normOrder);
 
         virtual void imposeBC();
         virtual void updatePads();
         virtual void createMGSubArrays();
 
-        virtual void vCycle();
+        void vCycle();
 
         void setLocalSizeIndex();
         void initializeArrays();
@@ -156,16 +157,15 @@ class poisson {
 
 class multigrid_d2: public poisson {
     private:
-        void prolong();
         void coarsen();
+        void prolong();
+        void computeResidual();
         void smooth(const int smoothCount);
-        double computeResidual(const int residualType);
+        double computeError(const int normOrder);
 
         void imposeBC();
         void updatePads();
         void createMGSubArrays();
-
-        void vCycle();
 
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
@@ -188,21 +188,20 @@ class multigrid_d2: public poisson {
 
 class multigrid_d3: public poisson {
     private:
-        void prolong();
         void coarsen();
+        void prolong();
+        void computeResidual();
         void smooth(const int smoothCount);
-        double computeResidual(const int residualType);
+        double computeError(const int normOrder);
 
         void imposeBC();
         void updatePads();
         void initDirichlet();
         void createMGSubArrays();
 
-        void vCycle();
-
-        blitz::Array<double, 2> xWall_0, xWall_1;
-        blitz::Array<double, 2> yWall_0, yWall_1;
-        blitz::Array<double, 2> zWall_0, zWall_1;
+        blitz::Array<double, 3> xWall_0, xWall_1;
+        blitz::Array<double, 3> yWall_0, yWall_1;
+        blitz::Array<double, 3> zWall_0, zWall_1;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);

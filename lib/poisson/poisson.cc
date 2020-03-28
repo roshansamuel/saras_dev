@@ -85,6 +85,128 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
 #endif
 }
 
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   The core, publicly accessible function of poisson to compute the solution for the Poisson equation
+ *
+ *          The function calls the V-cycle as many times as set by the user.
+ *          Before doing so, the input data is transferred into the data-structures used by the poisson class to
+ *          perform restrictions and prolongations without copying.
+ *          Finally, the computed solution is transferred back from the internal data-structures back into the
+ *          scalar field supplied by the calling function.
+ *
+ * \param   inFn is a pointer to the plain scalar field (cell-centered) into which the computed soltuion must be transferred
+ * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
+ ********************************************************************************************************************************************
+ */
+void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+    double mgResidual;
+
+    pressureData = 0.0;
+    residualData = 0.0;
+    inputRHSData = 0.0;
+
+    // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
+    inputRHSData(stagCore) = rhs.F(stagCore);
+    pressureData(stagCore) = inFn.F(stagCore);
+
+    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
+    double localMean = blitz::mean(inputRHSData);
+    double globalAvg = 0.0;
+
+    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    globalAvg /= mesh.rankData.nProc;
+
+    inputRHSData -= globalAvg;
+
+    // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
+    for (int i=0; i<inputParams.vcCount; i++) {
+        smoothedPres = 0.0;
+
+        vCycle();
+
+        mgResidual = computeError(1);
+
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+        }
+    }
+
+    // RETURN CALCULATED PRESSURE DATA
+    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
+};
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to perform one loop of V-cycle
+ *
+ *          The V-cycle of restrictions, prolongations and smoothings are performed within this function.
+ *          First the input data contained in \ref pressureData is smoothed, after which the residual is computed and stored
+ *          in the \ref residualData array.
+ *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
+ ********************************************************************************************************************************************
+ */
+void poisson::vCycle() {
+    /*
+     * OUTLINE OF THE MULTI-GRID V-CYCLE
+     * 1) Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
+     * 2) Compute the residual r=b-Ax and restrict it to a coarser level,
+     * 3) perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
+     * 4) Repeat steps 2-3 until you reach the coarsest grid level,
+     * 5) perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
+     * 6) prolong the error 'e' to the next finer level.
+     * 7) perform N=2 post-smoothing iterations, 
+     * 8) Repeat steps 6-7 until the finest grid is reached,
+     * 9) Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
+     * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
+     */
+
+    vLevel = 0;
+
+    // Step 1) Pre-smoothing iterations of Ax = b
+    swap(inputRHSData, residualData);
+    smooth(inputParams.preSmooth);
+    swap(residualData, inputRHSData);
+    // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
+
+    // Step 2) Compute the residual r = b - Ax
+    computeResidual();
+
+    // Shift pressureData into smoothedPres
+    swap(smoothedPres, pressureData);
+    // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
+    // So smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e.
+
+    // RESTRICTION OPERATIONS
+    for (int i=0; i<inputParams.vcDepth; i++) {
+        coarsen();
+        // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
+        smooth(inputParams.restrictSmooth[i]);
+    }
+    // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
+
+    // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
+    smooth(inputParams.restrictSmooth[inputParams.vcDepth] + inputParams.prolongSmooth[inputParams.vcDepth]);
+
+    // PROLONGATION OPERATIONS BACK TO FINE MESH
+    for (int i=0; i<inputParams.vcDepth; i++) {
+        // Step 6) Prolong the error 'e' to the next finer level.
+        prolong();
+        smooth(inputParams.prolongSmooth[i]);
+    }
+
+    // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
+    pressureData += smoothedPres;
+
+    // POST-SMOOTHING
+    swap(inputRHSData, residualData);
+    smooth(inputParams.postSmooth);
+    swap(residualData, inputRHSData);
+};
+
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to initialize the arrays used in multi-grid
@@ -115,6 +237,7 @@ void poisson::initializeArrays() {
     residualData.reindexSelf(stagFull.lbound());
     residualData = 0.0;
 }
+
 
 /**
  ********************************************************************************************************************************************
@@ -155,6 +278,7 @@ void poisson::initMeshRanges() {
     zEnd = stagCore.ubound(2);
 };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to set the RectDomain variables for all future references throughout the poisson solver
@@ -184,6 +308,7 @@ void poisson::setStagBounds() {
     stagFull = blitz::RectDomain<3>(loBound, upBound);
 };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to calculate the local size indices of sub-domains after MPI domain decomposition
@@ -206,6 +331,7 @@ void poisson::setLocalSizeIndex() {
                                                mesh.sizeIndex(2));
 #endif
 };
+
 
 /**
  ********************************************************************************************************************************************
@@ -257,6 +383,7 @@ void poisson::setCoefficients() {
     }
 };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to copy the staggered grid derivatives from the grid class to local arrays
@@ -302,68 +429,6 @@ void poisson::copyStaggrDerivs() {
     ztz2(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore.ubound(2), 1));
 };
 
-/**
- ********************************************************************************************************************************************
- * \brief   The core, publicly accessible function of poisson to compute the solution for the Poisson equation
- *
- *          The function calls the V-cycle as many times as set by the user.
- *          Before doing so, the input data is transferred into the data-structures used by the poisson class to
- *          perform restrictions and prolongations without copying.
- *          Finally, the computed solution is transferred back from the internal data-structures back into the
- *          scalar field supplied by the calling function.
- *
- * \param   inFn is a pointer to the plain scalar field (cell-centered) into which the computed soltuion must be transferred
- * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
- ********************************************************************************************************************************************
- */
-void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
-    double mgResidual;
-
-    pressureData = 0.0;
-    residualData = 0.0;
-    inputRHSData = 0.0;
-
-    // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
-    inputRHSData(stagCore) = rhs.F(stagCore);
-    pressureData(stagCore) = inFn.F(stagCore);
-
-    // TO MAKE THE PROBLEM WELL-POSED, SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    double localMean = blitz::mean(inputRHSData);
-    double globalAvg = 0.0;
-
-    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    globalAvg /= mesh.rankData.nProc;
-
-    inputRHSData -= globalAvg;
-
-    // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
-    for (int i=0; i<inputParams.vcCount; i++) {
-        smoothedPres = 0.0;
-
-        vCycle();
-
-        mgResidual = computeResidual(1);
-
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
-        }
-    }
-
-    // RETURN CALCULATED PRESSURE DATA
-    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
-};
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to perform one loop of V-cycle
- *
- *          The V-cycle of restrictions, prolongations and smoothings are performed within this function.
- *          First the input data contained in \ref pressureData is smoothed, after which the residual is computed and stored
- *          in the \ref residualData array.
- *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
- ********************************************************************************************************************************************
- */
-void poisson::vCycle() { };
 
 /**
  ********************************************************************************************************************************************
@@ -376,6 +441,7 @@ void poisson::vCycle() { };
  */
 void poisson::coarsen() { };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to perform prolongation on the array being solved
@@ -386,6 +452,20 @@ void poisson::coarsen() { };
  ********************************************************************************************************************************************
  */
 void poisson::prolong() { };
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to compute the residual at the start of each V-Cycle
+ *
+ *          The Poisson solver solves for the residual r = b - Ax
+ *          This function computes this residual by calculating the Laplacian of the pressure field and
+ *          subtracting it from the RHS of Poisson equation.
+ *
+ ********************************************************************************************************************************************
+ */
+void poisson::computeResidual() { };
+
 
 /**
  ********************************************************************************************************************************************
@@ -401,17 +481,19 @@ void poisson::prolong() { };
  */
 void poisson::smooth(const int smoothCount) { };
 
+
 /**
  ********************************************************************************************************************************************
- * \brief   Function to compute the residual at the end of each V-Cycle
+ * \brief   Function to compute the error at the end of each V-Cycle
  *
  *          To check for convergence, the residual must be computed throughout the domain.
  *          This function offers multiple ways to compute the residual (global maximum, rms, mean, etc.)
  *
- * \param   residualType is an integer value used to choose the measure used to calculate the residual.
+ * \param   normOrder is the integer value of the order of norm used to calculate the residual.
  ********************************************************************************************************************************************
  */
-double poisson::computeResidual(const int residualType) {  return 0.0; };
+double poisson::computeError(const int normOrder) {  return 0.0; };
+
 
 /**
  ********************************************************************************************************************************************
@@ -426,6 +508,7 @@ double poisson::computeResidual(const int residualType) {  return 0.0; };
  */
 void poisson::imposeBC() { };
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to update the pad points of the local sub-domains at different levels of the V-cycle
@@ -436,6 +519,7 @@ void poisson::imposeBC() { };
  ********************************************************************************************************************************************
  */
 void poisson::updatePads() { };
+
 
 /**
  ********************************************************************************************************************************************
@@ -449,6 +533,7 @@ void poisson::updatePads() { };
  ********************************************************************************************************************************************
  */
 void poisson::createMGSubArrays() { };
+
 
 /**
  ********************************************************************************************************************************************

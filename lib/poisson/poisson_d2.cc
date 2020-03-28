@@ -84,15 +84,9 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     createMGSubArrays();
 }
 
-void multigrid_d2::vCycle() {
-    int iY = 0;
-    vLevel = 0;
 
-    // PRE-SMOOTHING
-    swap(inputRHSData, residualData);
-    smooth(inputParams.preSmooth);
-    swap(residualData, inputRHSData);
-    // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
+void multigrid_d2::computeResidual() {
+    int iY = 0;
 
     // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
@@ -105,32 +99,8 @@ void multigrid_d2::vCycle() {
                                         ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel)));
         }
     }
-
-    // Shift pressureData into smoothedPres
-    swap(smoothedPres, pressureData);
-    // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
-
-    // RESTRICTION OPERATIONS
-    for (int i=0; i<inputParams.vcDepth; i++) {
-        coarsen();
-        smooth(inputParams.restrictSmooth[i]);
-    }
-
-    smooth(inputParams.restrictSmooth[inputParams.vcDepth] + inputParams.prolongSmooth[inputParams.vcDepth]);
-
-    // PROLONGATION OPERATIONS BACK TO FINE MESH
-    for (int i=0; i<inputParams.vcDepth; i++) {
-        prolong();
-        smooth(inputParams.prolongSmooth[i]);
-    }
-
-    pressureData += smoothedPres;
-
-    // POST-SMOOTHING
-    swap(inputRHSData, residualData);
-    smooth(inputParams.postSmooth);
-    swap(residualData, inputRHSData);
 }
+
 
 void multigrid_d2::smooth(const int smoothCount) {
     iteratorTemp = 0.0;
@@ -158,59 +128,6 @@ void multigrid_d2::smooth(const int smoothCount) {
     imposeBC();
 }
 
-double multigrid_d2::computeResidual(const int residualType) {
-    int iY = 0;
-    double residualVal = 0.0;
-
-    double tempValue = 0.0;
-    double numValLoc = 0.0;
-    double denValLoc = 0.0;
-    int valCountLoc = 0;
-
-    // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
-    // the absolute of the float values without hitch.
-    // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
-    // abs in the STL which **rounds off** the number.
-    // In this case, abs has to be replaced with fabs.
-    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-        for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-            tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                              xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                              ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                              ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
-
-            if (residualType == 0) {
-                if (tempValue > numValLoc) numValLoc = tempValue;
-            } else {
-                numValLoc += tempValue*tempValue;
-                denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
-                valCountLoc += 1;
-            }
-        }
-    }
-
-    double numValGlo = 0.0;
-    double denValGlo = 0.0;
-    int valCountGlo = 0;
-    if (residualType == 0) {
-        denValLoc = blitz::max(fabs(inputRHSData));
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        residualVal = numValGlo/denValGlo;
-    } else {
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-        residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
-    }
-    MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (mesh.rankData.rank == 0) residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
-
-    return residualVal;
-}
 
 void multigrid_d2::coarsen() {
     double facePoints, vertPoints;
@@ -258,9 +175,9 @@ void multigrid_d2::prolong() {
 
     vLevel -= 1;
 
-    // NOTE: Currently interpolting along X first, and then Z.
+    // NOTE: Currently interpolating along X first, and then Z.
     // Test and see if this order is better or the other order, with Z first, and then X is better
-    // Depending on the order of variables in memory, one of these will give better performance
+    // Depending on the order of variables in memory, one of these may give better performance
 
     // Maybe the below values can be stored in some array instead of recomputing in each prolongation step
 
@@ -295,6 +212,62 @@ void multigrid_d2::prolong() {
     }
 }
 
+
+double multigrid_d2::computeError(const int normOrder) {
+    int iY = 0;
+    double residualVal = 0.0;
+
+    double tempValue = 0.0;
+    double numValLoc = 0.0;
+    double denValLoc = 0.0;
+    int valCountLoc = 0;
+
+    // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
+    // the absolute of the float values without hitch.
+    // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
+    // abs in the STL which **rounds off** the number.
+    // In this case, abs has to be replaced with fabs.
+    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+        for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+            tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                              xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
+                              ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
+                              ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
+
+            if (normOrder == 0) {
+                if (tempValue > numValLoc) numValLoc = tempValue;
+            } else {
+                numValLoc += tempValue*tempValue;
+                denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
+                valCountLoc += 1;
+            }
+        }
+    }
+
+    double numValGlo = 0.0;
+    double denValGlo = 0.0;
+    int valCountGlo = 0;
+    if (normOrder == 0) {
+        denValLoc = blitz::max(fabs(inputRHSData));
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        residualVal = numValGlo/denValGlo;
+    } else {
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+    }
+    MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    if (mesh.rankData.rank == 0) residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+
+    return residualVal;
+}
+
+
 void multigrid_d2::createMGSubArrays() {
     int count, length, stride;
 
@@ -321,6 +294,7 @@ void multigrid_d2::createMGSubArrays() {
 
     }
 }
+
 
 void multigrid_d2::imposeBC() {
     updatePads();
@@ -353,6 +327,7 @@ void multigrid_d2::imposeBC() {
     }
 }
 
+
 void multigrid_d2::updatePads() {
     recvRequest = MPI_REQUEST_NULL;
 
@@ -365,6 +340,7 @@ void multigrid_d2::updatePads() {
 
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
 }
+
 
 double multigrid_d2::testProlong() {
     int iY = 0;
@@ -394,6 +370,7 @@ double multigrid_d2::testProlong() {
 
     return blitz::max(fabs(pressureData));
 }
+
 
 double multigrid_d2::testTransfer() {
     double maxVal = 0.0;
@@ -437,6 +414,7 @@ double multigrid_d2::testTransfer() {
 
     return maxVal;
 }
+
 
 double multigrid_d2::testPeriodic() {
     int iY = 0;
