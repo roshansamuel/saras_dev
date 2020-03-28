@@ -147,7 +147,8 @@ void parser::parseYAML() {
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
     yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
-    yamlNode["Multigrid"]["Inter-Smoothing Count"] >> interSmooth;
+    yamlNode["Multigrid"]["Restrict-Smoothing Count"] >> restrictSmooth;
+    yamlNode["Multigrid"]["Prolong-Smoothing Count"] >> prolongSmooth;
 
     inFile.close();
 }
@@ -218,10 +219,19 @@ void parser::checkData() {
         exit(0);
     }
 
-    // CHECK IF THE LENGTH OF ARRAY interSmooth IS LESS THAN vcDepth
-    // THE SIZE OF interSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
+    // CHECK IF THE LENGTH OF ARRAY restrictSmooth IS LESS THAN vcDepth
+    // THE SIZE OF restrictSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
     // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
-    if (int(interSmooth.size()) < vcDepth) {
+    if (int(restrictSmooth.size()) < vcDepth) {
+        std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
+        MPI_Finalize();
+        exit(0);
+    }
+
+    // CHECK IF THE LENGTH OF ARRAY prolongSmooth IS LESS THAN vcDepth
+    // THE SIZE OF prolongSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
+    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
+    if (int(prolongSmooth.size()) < vcDepth) {
         std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);

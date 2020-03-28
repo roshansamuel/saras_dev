@@ -45,6 +45,7 @@
 
 #include <blitz/array.h>
 #include <sys/time.h>
+#include <algorithm>
 #include <math.h>
 
 #include "plainsf.h"
@@ -70,6 +71,12 @@ class poisson {
         blitz::Array<real, 3> iteratorTemp;
         blitz::Array<real, 3> smoothedPres;
 
+        blitz::Array<real, 3> pressureData;
+        blitz::Array<real, 3> inputRHSData;
+
+        blitz::RectDomain<3> stagFull;
+        blitz::RectDomain<3> stagCore;
+
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;
 
@@ -79,6 +86,8 @@ class poisson {
         blitz::Array<MPI_Status, 1> recvStatus;
 
         blitz::Array<real, 1> hx, hy, hz;
+        blitz::Array<real, 1> hx2, hz2, hzhx;
+        blitz::Array<real, 1> hxhy, hyhz, hxhyhz;
 
         blitz::Array<real, 1> xixx, xix2;
         blitz::Array<real, 1> etyy, ety2;
@@ -95,41 +104,36 @@ class poisson {
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
 
-        virtual void solve();
+        virtual void coarsen();
         virtual void prolong();
+        virtual void computeResidual();
         virtual void smooth(const int smoothCount);
-
-        virtual void initMeshRanges();
-
-        virtual void setStagBounds();
-        virtual void setLocalSizeIndex();
-
-        virtual void setCoefficients();
-        virtual void copyStaggrDerivs();
+        virtual double computeError(const int normOrder);
 
         virtual void imposeBC();
         virtual void updatePads();
         virtual void createMGSubArrays();
 
-        virtual void vCycle();
+        void vCycle();
 
+        void setLocalSizeIndex();
         void initializeArrays();
+        void copyStaggrDerivs();
+        void setCoefficients();
+        void initMeshRanges();
+        void setStagBounds();
 
     public:
-        blitz::Array<real, 3> pressureData;
-        blitz::Array<real, 3> inputRHSData;
-
         blitz::RectDomain<3> stagFull;
         blitz::RectDomain<3> stagCore;
 
         poisson(const grid &mesh, const parser &solParam);
 
-        virtual void mgSolve(plainsf &inFn, const plainsf &rhs);
+        void mgSolve(plainsf &inFn, const plainsf &rhs);
 
         virtual real testTransfer();
         virtual real testProlong();
         virtual real testPeriodic();
-        virtual real testSolve();
 
         virtual ~poisson();
 };
@@ -155,35 +159,22 @@ class poisson {
 
 class multigrid_d2: public poisson {
     private:
-        blitz::Array<real, 1> hx2, hz2, hzhx;
-
-        void solve();
+        void coarsen();
         void prolong();
+        void computeResidual();
         void smooth(const int smoothCount);
-
-        void initMeshRanges();
-
-        void setStagBounds();
-        void setLocalSizeIndex();
-
-        void setCoefficients();
-        void copyStaggrDerivs();
+        double computeError(const int normOrder);
 
         void imposeBC();
         void updatePads();
         void createMGSubArrays();
 
-        void vCycle();
-
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
-
-        void mgSolve(plainsf &inFn, const plainsf &rhs);
 
         real testTransfer();
         real testProlong();
         real testPeriodic();
-        real testSolve();
 
         ~multigrid_d2() {};
 };
@@ -199,35 +190,27 @@ class multigrid_d2: public poisson {
 
 class multigrid_d3: public poisson {
     private:
-        blitz::Array<real, 1> hxhy, hyhz, hzhx, hxhyhz;
-
-        void solve();
+        void coarsen();
         void prolong();
+        void computeResidual();
         void smooth(const int smoothCount);
-
-        void initMeshRanges();
-
-        void setStagBounds();
-        void setLocalSizeIndex();
-
-        void setCoefficients();
-        void copyStaggrDerivs();
+        double computeError(const int normOrder);
 
         void imposeBC();
         void updatePads();
+        void initDirichlet();
         void createMGSubArrays();
 
-        void vCycle();
+        blitz::Array<double, 3> xWall_0, xWall_1;
+        blitz::Array<double, 3> yWall_0, yWall_1;
+        blitz::Array<double, 3> zWall_0, zWall_1;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
 
-        void mgSolve(plainsf &inFn, const plainsf &rhs);
-
         real testTransfer();
         real testProlong();
         real testPeriodic();
-        real testSolve();
 
         ~multigrid_d3() {};
 };
@@ -237,7 +220,7 @@ class multigrid_d3: public poisson {
  *  \class multigrid_d3 poisson.h "lib/poisson.h"
  *  \brief The derived class from poisson to perform multi-grid operations on a 3D grid
  *
- *  The 3D implementation of the multi-grid method differs from the 2D version in that the \ref solve \ref smooth functions use a different
+ *  The 3D implementation of the multi-grid method differs from the 2D version in that the \ref coarsen, \ref smooth etc use a different
  *  equation with extra terms, and the \ref prolong operation needs to perform extra interpolation steps in the y-direction.
  ********************************************************************************************************************************************
  */
