@@ -124,9 +124,6 @@ class poisson {
         void setStagBounds();
 
     public:
-        blitz::RectDomain<3> stagFull;
-        blitz::RectDomain<3> stagCore;
-
         poisson(const grid &mesh, const parser &solParam);
 
         void mgSolve(plainsf &inFn, const plainsf &rhs);

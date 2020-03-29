@@ -72,12 +72,12 @@ void parser::parseYAML() {
     inFile.open("input/parameters.yaml", std::ifstream::in);
 
     // Below three lines are old API code
-    //YAML::Node yamlNode;
-    //YAML::Parser parser(inFile);
-    //parser.GetNextDocument(yamlNode);
+    YAML::Node yamlNode;
+    YAML::Parser parser(inFile);
+    parser.GetNextDocument(yamlNode);
 
     // Below is the new API code - needs to be tested
-    YAML::Node yamlNode = YAML::Load(inFile);
+    //YAML::Node yamlNode = YAML::Load(inFile);
 
     /********** Problem parameters **********/
 

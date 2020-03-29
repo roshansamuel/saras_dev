@@ -2,11 +2,10 @@
 *.swp
 *.swo
 *.out
-*.png
 *.vtk
 *.lay
 saras
-tests/
 doc/
 compile/build/
 tests/build/
+tests/ldcTest/*.png

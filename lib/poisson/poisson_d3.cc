@@ -83,8 +83,10 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
     createMGSubArrays();
 
-    // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
+    // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
+#ifdef TEST_POISSON
     initDirichlet();
+#endif
 }
 
 

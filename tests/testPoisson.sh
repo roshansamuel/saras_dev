@@ -31,19 +31,19 @@
  #
  ############################################################################################################################################
  ##
- ##! \file testSaras.sh
+ ##! \file testPoisson.sh
  #
- #   \brief Shell script to automatically compile and run tests on SARAS
+ #   \brief Shell script to automatically compile and run tests on the Poisson library of SARAS
  #
  #   \author Roshan Samuel
- #   \date Jan 2020
+ #   \date Mar 2020
  #   \copyright New BSD License
  #
  ############################################################################################################################################
  ##
 
-# Test for 2D LDC and comparison with Ghia et al's (1982, J. Comput. Phys., 48, 387 - 411) result
-PROC=4
+# Test of Poisson library with Dirichlet BC
+PROC=1
 
 # If build directory doesn't exist, create it
 if [ ! -d build ]; then
@@ -54,19 +54,17 @@ fi
 cd build
 
 # Run cmake with necessary flags for 2D LDC test
-CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DREAL_DOUBLE=ON
+CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
 
 # Compile
 make -j8
 
 # Move the executable to the directory where the test will be performed
-mv ../../saras ../../tests/ldcTest/
+mv ../../saras ../../tests/mgTest/
 
-# Switch to ldcTest directory
-cd ../../tests/ldcTest/
+# Switch to mgTest directory
+cd ../../tests/mgTest/
 
 # Run the test case
 mpirun -np $PROC ./saras
-
-# Run the python script to read the output file and compare with Ghia results
-python validate_ldc.py
+#CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON -DPLANAR=ON -DREAL_SINGLE=ON

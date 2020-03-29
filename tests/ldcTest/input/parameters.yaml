@@ -29,6 +29,7 @@
     # 4 = large U, small Pr
     "RBC Type": 1
 
+    # Non-dimensional parameters
     "Reynolds Number": 1000
     "Rossby Number": 12
     "Rayleigh Number": 10000
@@ -53,7 +54,7 @@
     # 2 = Coriolis force 
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
     # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
-    # 5 = Constant pressure gradient (along X-direction: used mainly for preiodic channel flows)
+    # 5 = Constant pressure gradient (along X-direction: used mainly for periodic channel flows)
     "Force": 0
 
 
@@ -61,13 +62,14 @@
 "Mesh":
     # The grid spacing along each direction can be set according to one of the following:
     # U - Uniform spacing
-    # S - Single sided tangent-hyperbolic stretching (finest near one edge and coarsest at the opposite edge)
+    # S - Single sided tangent-hyperbolic stretching (finest near one edge and coarsest at the opposite edge) (under development)
     # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
     # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
     # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
     "Mesh Type": "UUU"
 
-    # Stretching factor to be used for tangent-hyperbolic grids - considered only when Mesh Type is TanHyp
+    # Stretching factor to be used for tangent-hyperbolic grids.
+    # This option is considered only when tangent-hyperbolic stretching is specified in the Mesh Type
     "X Beta": 1.0
     "Y Beta": 1.0
     "Z Beta": 1.0
@@ -91,11 +93,14 @@
 
 # Solver parameters
 "Solver":
-    "Differentiation Scheme": "CD2"
+    # Choose from following list of differentiation stencils
+    # 1 = Second-order central-difference
+    # 2 = Fourth-order central-difference (To Be Implemented)
+    "Differentiation Scheme": 1
 
     # Choose from following list of integration schemes:
     # 1 = Implicit Crank Nicholson
-    # 2 = Euler Method (Not Implemented)
+    # 2 = Euler Method (To Be Implemented)
     "Integration Scheme": 1
 
     # Set below flag to true if restarting from a solution file
@@ -148,5 +153,7 @@
     "Pre-Smoothing Count": 10
     # Number of smoothing iterations to be performed after V-Cycle
     "Post-Smoothing Count": 10
+    # Array of numbers of smoothing iterations to be performed in between restriction operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
+    "Restrict-Smoothing Count": [5, 5, 5, 5]
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
     "Inter-Smoothing Count": [10, 10, 10, 10]

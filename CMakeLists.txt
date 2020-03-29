@@ -104,6 +104,12 @@ if (REAL_SINGLE)
     add_definitions(-DREAL_SINGLE)
 endif ()
 
+# Add compiler flag for testing the Poisson library
+if (TEST_POISSON)
+    message (STATUS "Compiling Saras to test the Poisson library")
+    add_definitions(-DTEST_POISSON)
+endif ()
+
 # Set compiler flags for normal and debug runs
 #set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3 -fprofile-generate -fprofile-dir=${PARENT_DIR}")
 #set (CMAKE_CXX_FLAGS "-Wall ${OpenMP_C_FLAGS} -O3 -fprofile-use -fprofile-correction")
