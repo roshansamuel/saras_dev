@@ -11,10 +11,11 @@
     "Problem Type": 1
 
     # Choose from the following initial conditions
+    # 0 = Zero-initial condition
     # 1 = Taylor Green Vortices
     # 2 = Sinusoidal Perturbation (for Channel Flows)
     # 3 = Random Perturbation (for Channel Flows)
-    "Initial Condition": 1
+    "Initial Condition": 0
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN

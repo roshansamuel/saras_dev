@@ -78,8 +78,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
     maxCount = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
 
 #ifdef TIME_RUN
-    solveTimeComp = 0.0;
-    solveTimeTran = 0.0;
     smothTimeComp = 0.0;
     smothTimeTran = 0.0;
 #endif
@@ -571,8 +569,6 @@ real poisson::testPeriodic() { return 0; };
 poisson::~poisson() {
 #ifdef TIME_RUN
     if (mesh.rankData.rank == 0) {
-        std::cout << std::left << std::setw(50) << "Time taken in computation within solve: "            << std::fixed << std::setprecision(6) << solveTimeComp << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken in data-transfer within solve: "          << std::fixed << std::setprecision(6) << solveTimeTran << std::endl;
         std::cout << std::left << std::setw(50) << "Time taken in computation within smooth: "           << std::fixed << std::setprecision(6) << smothTimeComp << std::endl;
         std::cout << std::left << std::setw(50) << "Time taken in data-transfer within smooth: "         << std::fixed << std::setprecision(6) << smothTimeTran << std::endl;
     }

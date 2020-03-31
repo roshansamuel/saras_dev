@@ -111,11 +111,24 @@ void multigrid_d3::computeResidual() {
 
 
 void multigrid_d3::smooth(const int smoothCount) {
+#ifdef TIME_RUN
+    struct timeval begin, end;
+#endif
     iteratorTemp = 0.0;
 
     for(int n=0; n<smoothCount; n++) {
+#ifdef TIME_RUN
+        gettimeofday(&begin, NULL);
+#endif
         // IMPOSE BOUNDARY CONDITION
         imposeBC();
+
+#ifdef TIME_RUN
+        gettimeofday(&end, NULL);
+        smothTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+
+        gettimeofday(&begin, NULL);
+#endif
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
@@ -134,9 +147,23 @@ void multigrid_d3::smooth(const int smoothCount) {
         }
 
         swap(iteratorTemp, pressureData);
+
+#ifdef TIME_RUN
+        gettimeofday(&end, NULL);
+        smothTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#endif
     }
 
+#ifdef TIME_RUN
+    gettimeofday(&begin, NULL);
+#endif
+
     imposeBC();
+
+#ifdef TIME_RUN
+    gettimeofday(&end, NULL);
+    smothTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#endif
 }
 
 
@@ -472,47 +499,51 @@ void multigrid_d3::imposeBC() {
     updatePads();
 
     if (not inputParams.xPer) {
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
-        //if (mesh.rankData.xRank == 0) {
-        //    pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
-        //}
-
+#ifdef TEST_POISSON
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
             pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_0(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
-        //if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-        //    pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
-        //}
-
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
             pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_1(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
         }
+#else
+        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
+        if (mesh.rankData.xRank == 0) {
+            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+        }
+
+        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
+        if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+        }
+#endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (not inputParams.yPer) {
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
-        //if (mesh.rankData.yRank == 0) {
-        //    pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), strideValues(vLevel), zMeshRange(vLevel));
-        //}
-
+#ifdef TEST_POISSON
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
         if (mesh.rankData.yRank == 0) {
             pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall_0(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BACK WALL
-        //if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-        //    pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), stagCore.ubound(1) - strideValues(vLevel), zMeshRange(vLevel));
-        //}
-
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BACK WALL
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
             pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall_1(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
         }
+#else
+        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
+        if (mesh.rankData.yRank == 0) {
+            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), strideValues(vLevel), zMeshRange(vLevel));
+        }
+
+        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BACK WALL
+        if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
+            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), stagCore.ubound(1) - strideValues(vLevel), zMeshRange(vLevel));
+        }
+#endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (inputParams.zPer) {
@@ -523,17 +554,19 @@ void multigrid_d3::imposeBC() {
         pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
 
     } else {
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        //pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
-
+#ifdef TEST_POISSON
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
         pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall_0(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        //pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
-
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT TOP WALL
         pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall_1(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
+#else
+        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
+
+        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
+#endif
     }
 }
 

@@ -88,6 +88,8 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
         // INITIALIZE VARIABLES
         initial *initCond;
         switch (inputParams.icType) {
+            case 0: initCond = new zeroInitial(mesh);
+                break;
             case 1: initCond = new taylorGreen(mesh);
                 break;
             case 2: initCond = new channelSine(mesh);
@@ -111,6 +113,7 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
     imposeWBCs();
 }
 
+
 void hydro_d2::solvePDE() {
     real fwTime, prTime, rsTime;
     //set dt equal to input time step
@@ -119,7 +122,7 @@ void hydro_d2::solvePDE() {
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
 
-    // Populate the vector with required fields
+    // Populate the vector with required scalar fields
     writeFields.push_back(V.Vx);
     writeFields.push_back(V.Vz);
     writeFields.push_back(P.F);
@@ -214,6 +217,7 @@ void hydro_d2::solvePDE() {
         }
     }
 }
+
 
 void hydro_d2::timeAdvance() {
     nseRHS = 0.0;

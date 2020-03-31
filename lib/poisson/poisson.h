@@ -58,8 +58,6 @@ class poisson {
         int xEnd, yEnd, zEnd;
 
 #ifdef TIME_RUN
-        real solveTimeComp;
-        real solveTimeTran;
         real smothTimeComp;
         real smothTimeTran;
 #endif

@@ -92,6 +92,8 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
         // INITIALIZE VARIABLES
         initial *initCond;
         switch (inputParams.icType) {
+            case 0: initCond = new zeroInitial(mesh);
+                break;
             case 1: initCond = new taylorGreen(mesh);
                 break;
             case 2: initCond = new channelSine(mesh);
@@ -115,6 +117,7 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
     imposeVBCs();
     imposeWBCs();
 }
+
 
 void hydro_d3::solvePDE() {
 #ifdef TIME_RUN
@@ -324,7 +327,6 @@ void hydro_d3::timeAdvance() {
     mgRHS *= 1.0/dt;
 #endif
 
-    //if (mesh.rankData.rank == 0) std::cout << "before: " << mgRHS.F(5, 5, 5) << std::endl;
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
@@ -334,7 +336,6 @@ void hydro_d3::timeAdvance() {
 #else
     mgSolver.mgSolve(Pp, mgRHS);
 #endif
-    //if (mesh.rankData.rank == 0) std::cout << "after: " << Pp.F(5, 5, 5) << std::endl;
 
     // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
     Pp.syncData();

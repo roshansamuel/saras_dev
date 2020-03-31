@@ -65,7 +65,7 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     // GET THE localSizeIndex AS IT WILL BE USED TO SET THE FULL AND CORE LIMITS OF THE STAGGERED POINTS
     setLocalSizeIndex();
 
-    // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIBLE SET ABOVE
+    // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIABLE SET ABOVE
     setStagBounds();
 
     // USING THE FULL AND CORE LIMTS SET ABOVE, CREATE ALL Range OBJECTS
