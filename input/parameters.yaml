@@ -100,9 +100,12 @@
     "Differentiation Scheme": 1
 
     # Choose from following list of integration schemes:
-    # 1 = Implicit Crank Nicholson
+    # 1 = Implicit Crank-Nicholson
     # 2 = Euler Method (To Be Implemented)
     "Integration Scheme": 1
+
+    # Tolerance used in Jacobi iterations (if Implicit Crank-Nicholson scheme is chosen above)
+    "Jacobi Tolerance": 1.0e-6
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
@@ -144,8 +147,6 @@
 
 # Poisson solver parameters
 "Multigrid":
-    # Tolerance used in Jacobi iterations
-    "Jacobi Tolerance": 1.0e-6
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 3
     # Number of V-Cycles to be performed

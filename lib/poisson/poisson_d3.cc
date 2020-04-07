@@ -168,7 +168,7 @@ void multigrid_d3::smooth(const int smoothCount) {
 
 
 void multigrid_d3::coarsen() {
-    double facePoints, edgePoints, vertPoints;
+    real facePoints, edgePoints, vertPoints;
     // Integer values of starting indices, ending indices, and index increments along each direction
     int xSt, xEn, xIn;
     int ySt, yEn, yIn;
@@ -301,12 +301,12 @@ void multigrid_d3::prolong() {
 }
 
 
-double multigrid_d3::computeError(const int normOrder) {
-    double residualVal = 0.0;
+real multigrid_d3::computeError(const int normOrder) {
+    real residualVal = 0.0;
 
-    double tempValue = 0.0;
-    double numValLoc = 0.0;
-    double denValLoc = 0.0;
+    real tempValue = 0.0;
+    real numValLoc = 0.0;
+    real denValLoc = 0.0;
     int valCountLoc = 0;
 
     // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
@@ -335,17 +335,17 @@ double multigrid_d3::computeError(const int normOrder) {
         }
     }
 
-    double numValGlo = 0.0;
-    double denValGlo = 0.0;
+    real numValGlo = 0.0;
+    real denValGlo = 0.0;
     int valCountGlo = 0;
     if (normOrder == 0) {
         denValLoc = blitz::max(fabs(inputRHSData));
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         residualVal = numValGlo/denValGlo;
     } else {
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
     }
@@ -439,7 +439,7 @@ void multigrid_d3::createMGSubArrays() {
 
 
 void multigrid_d3::initDirichlet() {
-    blitz::Array<double, 1> shiftStagX, shiftStagY, shiftStagZ;
+    blitz::Array<real, 1> shiftStagX, shiftStagY, shiftStagZ;
 
     // Generate the 6 walls as 2D Blitz arrays
     xWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));

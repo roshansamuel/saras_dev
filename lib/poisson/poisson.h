@@ -106,7 +106,7 @@ class poisson {
         virtual void prolong();
         virtual void computeResidual();
         virtual void smooth(const int smoothCount);
-        virtual double computeError(const int normOrder);
+        virtual real computeError(const int normOrder);
 
         virtual void imposeBC();
         virtual void updatePads();
@@ -158,7 +158,7 @@ class multigrid_d2: public poisson {
         void prolong();
         void computeResidual();
         void smooth(const int smoothCount);
-        double computeError(const int normOrder);
+        real computeError(const int normOrder);
 
         void imposeBC();
         void updatePads();
@@ -189,16 +189,16 @@ class multigrid_d3: public poisson {
         void prolong();
         void computeResidual();
         void smooth(const int smoothCount);
-        double computeError(const int normOrder);
+        real computeError(const int normOrder);
 
         void imposeBC();
         void updatePads();
         void initDirichlet();
         void createMGSubArrays();
 
-        blitz::Array<double, 3> xWall_0, xWall_1;
-        blitz::Array<double, 3> yWall_0, yWall_1;
-        blitz::Array<double, 3> zWall_0, zWall_1;
+        blitz::Array<real, 3> xWall_0, xWall_1;
+        blitz::Array<real, 3> yWall_0, yWall_1;
+        blitz::Array<real, 3> zWall_0, zWall_1;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);

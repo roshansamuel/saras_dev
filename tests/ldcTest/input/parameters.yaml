@@ -11,10 +11,11 @@
     "Problem Type": 1
 
     # Choose from the following initial conditions
+    # 0 = Zero-initial condition
     # 1 = Taylor Green Vortices
     # 2 = Sinusoidal Perturbation (for Channel Flows)
     # 3 = Random Perturbation (for Channel Flows)
-    "Initial Condition": 1
+    "Initial Condition": 0
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
@@ -99,9 +100,12 @@
     "Differentiation Scheme": 1
 
     # Choose from following list of integration schemes:
-    # 1 = Implicit Crank Nicholson
+    # 1 = Implicit Crank-Nicholson
     # 2 = Euler Method (To Be Implemented)
     "Integration Scheme": 1
+
+    # Tolerance used in Jacobi iterations (if Implicit Crank-Nicholson scheme is chosen above)
+    "Jacobi Tolerance": 1.0e-6
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
@@ -112,7 +116,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 30.0
+    "Final Time": 100.0
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 10
@@ -123,7 +127,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 30.0
+    "Solution Write Interval": 5.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 50.0
@@ -143,17 +147,15 @@
 
 # Poisson solver parameters
 "Multigrid":
-    # Tolerance used in Jacobi iterations
-    "Jacobi Tolerance": 1.0e-6
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 3
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 5
+    "V-Cycle Count": 9
     # Number of smoothing iterations to be performed before V-Cycle
-    "Pre-Smoothing Count": 10
+    "Pre-Smoothing Count": 5
     # Number of smoothing iterations to be performed after V-Cycle
-    "Post-Smoothing Count": 10
+    "Post-Smoothing Count": 5
     # Array of numbers of smoothing iterations to be performed in between restriction operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
     "Restrict-Smoothing Count": [5, 5, 5, 5]
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Inter-Smoothing Count": [10, 10, 10, 10]
+    "Prolong-Smoothing Count": [5, 5, 5, 5]

@@ -124,6 +124,8 @@ void parser::parseYAML() {
 
     yamlNode["Solver"]["Differentiation Scheme"] >> dScheme;
     yamlNode["Solver"]["Integration Scheme"] >> iScheme;
+    yamlNode["Solver"]["Jacobi Tolerance"] >> tolerance;
+
     yamlNode["Solver"]["Restart Run"] >> restartFlag;
 
     yamlNode["Solver"]["Use CFL Condition"] >> useCFL;
@@ -142,7 +144,6 @@ void parser::parseYAML() {
 
     /********** Multigrid parameters **********/
 
-    yamlNode["Multigrid"]["Jacobi Tolerance"] >> tolerance;
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;

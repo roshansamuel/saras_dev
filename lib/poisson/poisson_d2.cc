@@ -130,7 +130,7 @@ void multigrid_d2::smooth(const int smoothCount) {
 
 
 void multigrid_d2::coarsen() {
-    double facePoints, vertPoints;
+    real facePoints, vertPoints;
     // Integer values of starting indices, ending indices, and index increments along each direction
     int xSt, xEn, xIn;
     int zSt, zEn, zIn;
@@ -213,13 +213,13 @@ void multigrid_d2::prolong() {
 }
 
 
-double multigrid_d2::computeError(const int normOrder) {
+real multigrid_d2::computeError(const int normOrder) {
     int iY = 0;
-    double residualVal = 0.0;
+    real residualVal = 0.0;
 
-    double tempValue = 0.0;
-    double numValLoc = 0.0;
-    double denValLoc = 0.0;
+    real tempValue = 0.0;
+    real numValLoc = 0.0;
+    real denValLoc = 0.0;
     int valCountLoc = 0;
 
     // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
@@ -244,25 +244,20 @@ double multigrid_d2::computeError(const int normOrder) {
         }
     }
 
-    double numValGlo = 0.0;
-    double denValGlo = 0.0;
+    real numValGlo = 0.0;
+    real denValGlo = 0.0;
     int valCountGlo = 0;
     if (normOrder == 0) {
         denValLoc = blitz::max(fabs(inputRHSData));
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         residualVal = numValGlo/denValGlo;
     } else {
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
     }
-    MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-    if (mesh.rankData.rank == 0) residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
 
     return residualVal;
 }

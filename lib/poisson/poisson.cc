@@ -99,7 +99,13 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
-    double mgResidual;
+#ifdef POISSON_TEST
+    // The below value can be chosen to compute the residual in one of the two ways:
+    // 0 = Mean Absolute Error (MAE)
+    // 1 = Root Mean Squared Error (RMSE)
+    int normType = 1;
+    real mgResidual;
+#endif
 
     pressureData = 0.0;
     residualData = 0.0;
@@ -110,10 +116,10 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     pressureData(stagCore) = inFn.F(stagCore);
 
     // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    double localMean = blitz::mean(inputRHSData);
-    double globalAvg = 0.0;
+    real localMean = blitz::mean(inputRHSData);
+    real globalAvg = 0.0;
 
-    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
     globalAvg /= mesh.rankData.nProc;
 
     inputRHSData -= globalAvg;
@@ -124,11 +130,10 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         vCycle();
 
-        mgResidual = computeError(1);
-
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
-        }
+#ifdef POISSON_TEST
+        mgResidual = computeError(normType);
+        if (mesh.rankData.rank == 0) std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+#endif
     }
 
     // RETURN CALCULATED PRESSURE DATA
@@ -490,7 +495,7 @@ void poisson::smooth(const int smoothCount) { };
  * \param   normOrder is the integer value of the order of norm used to calculate the residual.
  ********************************************************************************************************************************************
  */
-double poisson::computeError(const int normOrder) {  return 0.0; };
+real poisson::computeError(const int normOrder) {  return 0.0; };
 
 
 /**
