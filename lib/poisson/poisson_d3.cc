@@ -86,6 +86,10 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
 #ifdef TEST_POISSON
     initDirichlet();
+
+    //if (mesh.rankData.rank == 0) std::cout << xWall << std::endl;
+    //MPI_Finalize();
+    //exit(0);
 #endif
 }
 
@@ -121,7 +125,9 @@ void multigrid_d3::smooth(const int smoothCount) {
         gettimeofday(&begin, NULL);
 #endif
         // IMPOSE BOUNDARY CONDITION
+    //std::cout << "Before BC" << pressureData(blitz::Range::all(), 8, 8) << std::endl;
         imposeBC();
+    //std::cout << "After BC" << pressureData(blitz::Range::all(), 8, 8) << std::endl;
 
 #ifdef TIME_RUN
         gettimeofday(&end, NULL);
@@ -439,59 +445,65 @@ void multigrid_d3::createMGSubArrays() {
 
 
 void multigrid_d3::initDirichlet() {
-    blitz::Array<real, 1> shiftStagX, shiftStagY, shiftStagZ;
+    // Generate the walls as 2D Blitz arrays
+    xWall.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
+    xWall.reindexSelf(blitz::TinyVector<int, 3>(0, stagCore.lbound(1), stagCore.lbound(2)));
+    xWall = 0.0;
 
-    // Generate the 6 walls as 2D Blitz arrays
-    xWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    xWall_0.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(1), stagFull.lbound(2)));
-    xWall_0 = 0.0;
+    yWall.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth + 1, stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
+    yWall.reindexSelf(blitz::TinyVector<int, 3>(0, stagCore.lbound(0), stagCore.lbound(2)));
+    yWall = 0.0;
 
-    xWall_1.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(1) - stagFull.lbound(1) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    xWall_1.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(1), stagFull.lbound(2)));
-    xWall_1 = 0.0;
+    zWall.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth + 1, stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1));
+    zWall.reindexSelf(blitz::TinyVector<int, 3>(0, stagCore.lbound(0), stagCore.lbound(1)));
+    zWall = 0.0;
 
-    yWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    yWall_0.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(2)));
-    yWall_0 = 0.0;
+    //if (mesh.rankData.rank == 0) std::cout << xWall.lbound() << std::endl;
+    //if (mesh.rankData.rank == 0) std::cout << int(mgSizeArray(4)/2)*hx(2) << std::endl;
 
-    yWall_1.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(2) - stagFull.lbound(2) + 1));
-    yWall_1.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(2)));
-    yWall_1 = 0.0;
+    // Compute values at the walls at all V-Cycle depths, using the (r^2)/6 formula
+    for (int i=0; i<=inputParams.vcDepth; i++) {
+        real xDist, yDist, zDist;
 
-    zWall_0.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
-    zWall_0.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(1)));
-    zWall_0 = 0.0;
+        // Along X-direction - Left and Right Walls
+        xDist = hx(i)*(int(mgSizeArray(localSizeIndex(0) - i)/2) + 1);
+        for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
+            yDist = hy(0)*(j - stagCore.ubound(1)/2);
+            for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
+                zDist = hz(0)*(k - stagCore.ubound(2)/2);
 
-    zWall_1.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth, stagFull.ubound(0) - stagFull.lbound(0) + 1, stagFull.ubound(1) - stagFull.lbound(1) + 1));
-    zWall_1.reindexSelf(blitz::TinyVector<int, 3>(0, stagFull.lbound(0), stagFull.lbound(1)));
-    zWall_1 = 0.0;
+                xWall(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+            }
+        }
 
-    // Get global coordinates with origin at center of box by shifting the staggered grid coordinates
-    shiftStagX.resize(mesh.xStaggr.size());
-    shiftStagX.reindexSelf(mesh.xStaggr.lbound());
-    shiftStagX = mesh.xStaggr - mesh.xLen/2.0;
+        // Along Y-direction - Front and Rear Walls
+        yDist = hy(i)*(int(mgSizeArray(localSizeIndex(1) - i)/2) + 1);
+        for (int j=stagCore.lbound(0); j<=stagCore.ubound(0); j++) {
+            xDist = hx(0)*(j - stagCore.ubound(0)/2);
+            for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
+                zDist = hz(0)*(k - stagCore.ubound(2)/2);
 
-    shiftStagY.resize(mesh.yStaggr.size());
-    shiftStagY.reindexSelf(mesh.yStaggr.lbound());
-    shiftStagY = mesh.yStaggr - mesh.yLen/2.0;
+                yWall(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+            }
+        }
 
-    shiftStagZ.resize(mesh.zStaggr.size());
-    shiftStagZ.reindexSelf(mesh.zStaggr.lbound());
-    shiftStagZ = mesh.zStaggr - mesh.zLen/2.0;
+        // Along Z-direction - Top and Bottom Walls
+        zDist = hz(i)*(int(mgSizeArray(localSizeIndex(2) - i)/2) + 1);
+        for (int j=stagCore.lbound(0); j<=stagCore.ubound(0); j++) {
+            xDist = hx(0)*(j - stagCore.ubound(0)/2);
+            for (int k=stagCore.lbound(1); k<=stagCore.ubound(1); k++) {
+                yDist = hy(0)*(k - stagCore.ubound(1)/2);
 
-    // Compute values at the walls (at all V-Cycle depths, using the (r^2)/6 formula
-    //for (int i=0; i<inputParams.vcDepth; i++) {
-    //    for (int j=stagFull.lbound(1); j<stagFull.ubound(1); j++) {
-    //        for (int k=stagFull.lbound(1); k<stagFull.ubound(1); k++) {
-    //            xWall_0(i, j, k) = shiftStagX(mesh.xStaggr.lbound(
-    //        }
-    //    }
-    //}
+                zWall(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+            }
+        }
+    }
 
-    if (mesh.rankData.rank == 0) std::cout << xWall_0.lbound() << std::endl;
-
-    MPI_Finalize();
-    exit(0);
+    //std::cout << zWall(0, blitz::Range::all(), blitz::Range::all()) << std::endl;
+    //std::cout << zWall(1, blitz::Range::all(), blitz::Range::all()) << std::endl;
+    //std::cout << zWall(2, blitz::Range::all(), blitz::Range::all()) << std::endl;
+    //MPI_Finalize();
+    //exit(0);
 }
 
 
@@ -500,15 +512,26 @@ void multigrid_d3::imposeBC() {
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
+        //if (vLevel == 2) {
+        //    std::cout << "Before BC" << pressureData(blitz::Range::all(), 5, 5) << std::endl;
+        //}
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
-            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_0(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
         }
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall_1(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
         }
+
+        //if (vLevel == 2) {
+        //    std::cout << "After BC" << pressureData(blitz::Range::all(), 4, 4) << std::endl;
+        //    std::cout << "X Wall " << xWall(blitz::Range::all(), 4, 4) << std::endl;
+        //    std::cout << "X Wall " << strideValues(vLevel) << std::endl;
+        //    MPI_Finalize();
+        //    exit(0);
+        //}
 #else
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
@@ -526,12 +549,12 @@ void multigrid_d3::imposeBC() {
 #ifdef TEST_POISSON
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
         if (mesh.rankData.yRank == 0) {
-            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall_0(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
         }
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BACK WALL
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall_1(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
         }
 #else
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
@@ -556,10 +579,10 @@ void multigrid_d3::imposeBC() {
     } else {
 #ifdef TEST_POISSON
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall_0(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
 
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall_1(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
+        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
 #else
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
         pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));

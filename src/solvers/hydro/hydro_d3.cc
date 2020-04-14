@@ -327,6 +327,12 @@ void hydro_d3::timeAdvance() {
     mgRHS *= 1.0/dt;
 #endif
 
+    // IF THE POISSON SOLVER IS BEING TESTED, THE RHS IS SET TO ONE.
+    // THIS IS FOR TESTING ONLY AND A SINGLE TIME ADVANCE IS PERFORMED IN THIS TEST
+#ifdef TEST_POISSON
+    mgRHS.F = 1.0;
+#endif
+
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);

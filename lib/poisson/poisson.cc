@@ -99,7 +99,7 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
-#ifdef POISSON_TEST
+#ifdef TEST_POISSON
     // The below value can be chosen to compute the residual in one of the two ways:
     // 0 = Mean Absolute Error (MAE)
     // 1 = Root Mean Squared Error (RMSE)
@@ -115,6 +115,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     inputRHSData(stagCore) = rhs.F(stagCore);
     pressureData(stagCore) = inFn.F(stagCore);
 
+#ifndef TEST_POISSON
     // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
     real localMean = blitz::mean(inputRHSData);
     real globalAvg = 0.0;
@@ -123,6 +124,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     globalAvg /= mesh.rankData.nProc;
 
     inputRHSData -= globalAvg;
+#endif
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
@@ -130,7 +132,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         vCycle();
 
-#ifdef POISSON_TEST
+#ifdef TEST_POISSON
         mgResidual = computeError(normType);
         if (mesh.rankData.rank == 0) std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
 #endif
@@ -154,20 +156,21 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 void poisson::vCycle() {
     /*
      * OUTLINE OF THE MULTI-GRID V-CYCLE
-     * 1) Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
-     * 2) Compute the residual r=b-Ax and restrict it to a coarser level,
-     * 3) perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
-     * 4) Repeat steps 2-3 until you reach the coarsest grid level,
-     * 5) perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
-     * 6) prolong the error 'e' to the next finer level.
-     * 7) perform N=2 post-smoothing iterations, 
-     * 8) Repeat steps 6-7 until the finest grid is reached,
-     * 9) Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
+     * 1)  Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
+     * 2)  Compute the residual r=b-Ax and restrict it to a coarser level,
+     * 3)  Perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
+     * 4)  Repeat steps 2-3 until you reach the coarsest grid level,
+     * 5)  Perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
+     * 6)  Prolong the error 'e' to the next finer level.
+     * 7)  Perform N=2 post-smoothing iterations, 
+     * 8)  Repeat steps 6-7 until the finest grid is reached,
+     * 9)  Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
      * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
      */
 
     vLevel = 0;
 
+    //std::cout << "Pre-smoothing" << std::endl;
     // Step 1) Pre-smoothing iterations of Ax = b
     swap(inputRHSData, residualData);
     smooth(inputParams.preSmooth);
@@ -177,6 +180,9 @@ void poisson::vCycle() {
     // Step 2) Compute the residual r = b - Ax
     computeResidual();
 
+    //std::cout << residualData(blitz::Range::all(), 5, 5) << std::endl;
+    //MPI_Finalize();
+    //exit(0);
     // Shift pressureData into smoothedPres
     swap(smoothedPres, pressureData);
     // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
@@ -185,11 +191,13 @@ void poisson::vCycle() {
     // RESTRICTION OPERATIONS
     for (int i=0; i<inputParams.vcDepth; i++) {
         coarsen();
+    //std::cout << "Coarsening-smoothing" << i << std::endl;
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
         smooth(inputParams.restrictSmooth[i]);
     }
     // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
 
+    //std::cout << "Final-smoothing" << std::endl;
     // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
     smooth(inputParams.restrictSmooth[inputParams.vcDepth] + inputParams.prolongSmooth[inputParams.vcDepth]);
 
@@ -197,6 +205,7 @@ void poisson::vCycle() {
     for (int i=0; i<inputParams.vcDepth; i++) {
         // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
+    //std::cout << "Prolong-smoothing" << i << std::endl;
         smooth(inputParams.prolongSmooth[i]);
     }
 
@@ -205,8 +214,12 @@ void poisson::vCycle() {
 
     // POST-SMOOTHING
     swap(inputRHSData, residualData);
+    //std::cout << "Post-smoothing" << std::endl;
     smooth(inputParams.postSmooth);
     swap(residualData, inputRHSData);
+
+    //MPI_Finalize();
+    //exit(0);
 };
 
 

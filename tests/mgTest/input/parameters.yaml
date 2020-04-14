@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 1
+    "Problem Type": 2
 
     # Choose from the following initial conditions
     # 0 = Zero-initial condition
@@ -116,7 +116,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.01
+    "Final Time": 0.001
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1

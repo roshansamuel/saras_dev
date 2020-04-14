@@ -196,9 +196,7 @@ class multigrid_d3: public poisson {
         void initDirichlet();
         void createMGSubArrays();
 
-        blitz::Array<real, 3> xWall_0, xWall_1;
-        blitz::Array<real, 3> yWall_0, yWall_1;
-        blitz::Array<real, 3> zWall_0, zWall_1;
+        blitz::Array<real, 3> xWall, yWall, zWall;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
