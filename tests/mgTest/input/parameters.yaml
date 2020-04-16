@@ -78,8 +78,8 @@
     # Choose the grid sizes (for the staggered grid) as indices from the list below
     # These sizes are set to allow multigrid operations on the staggered grid
     # 2D simulations can be run by setting Y Index to 0
-    # Grid sizes:   2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
-    # Size index:   0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
+    # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
+    # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
     "X Index": 6
     "Y Index": 6
     "Z Index": 6
@@ -127,7 +127,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.1
+    "Solution Write Interval": 0.001
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 0.1
@@ -148,14 +148,22 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 3
+    "V-Cycle Depth": 5
     # Number of V-Cycles to be performed
     "V-Cycle Count": 9
+
     # Number of smoothing iterations to be performed before V-Cycle
-    "Pre-Smoothing Count": 5
+    "Pre-Smoothing Count": 9
     # Number of smoothing iterations to be performed after V-Cycle
-    "Post-Smoothing Count": 5
+    "Post-Smoothing Count": 9
     # Array of numbers of smoothing iterations to be performed in between restriction operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Restrict-Smoothing Count": [5, 5, 5, 5]
+    "Restrict-Smoothing Count": [9, 9, 9, 9, 9]
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Prolong-Smoothing Count": [5, 5, 5, 5]
+    "Prolong-Smoothing Count": [9, 9, 9, 9, 9]
+
+    # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
+    # This value can be set as below:
+    # 0 = Do not evaluate error
+    # 1 = Compute and print Mean Absolute Error (MAE)
+    # 2 = Compute and print Root Mean Square Error (RMSE)
+    "Print Error": 2

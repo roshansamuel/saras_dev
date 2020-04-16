@@ -99,14 +99,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
-#ifdef TEST_POISSON
-    // The below value can be chosen to compute the residual in one of the two ways:
-    // 0 = Mean Absolute Error (MAE)
-    // 1 = Root Mean Squared Error (RMSE)
-    int normType = 1;
-    real mgResidual;
-#endif
-
     pressureData = 0.0;
     residualData = 0.0;
     inputRHSData = 0.0;
@@ -132,14 +124,22 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         vCycle();
 
-#ifdef TEST_POISSON
-        mgResidual = computeError(normType);
-        if (mesh.rankData.rank == 0) std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
-#endif
+        if (inputParams.mgError) {
+            real mgResidual = computeError(inputParams.mgError);
+            if (mesh.rankData.rank == 0) std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+        }
     }
 
     // RETURN CALCULATED PRESSURE DATA
     inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
+
+#ifdef TEST_POISSON
+    if (mesh.rankData.rank == 0) {
+        std::cout << std::endl;
+        std::cout << "Maximum absolute deviation from analytic solution is: " << blitz::max(fabs(pressureData(stagCore) - pAnalytic(stagCore))) << std::endl;
+        std::cout << std::endl;
+    }
+#endif
 };
 
 
@@ -170,7 +170,10 @@ void poisson::vCycle() {
 
     vLevel = 0;
 
-    //std::cout << "Pre-smoothing" << std::endl;
+    // When using Dirichlet BC, the BC is 0 for the residue, r, and specifed only for the full pressure, x.
+    // Therefore, for pre-smoothing, the Dirichlet BC imposed is not zero
+    zeroBC = false;
+
     // Step 1) Pre-smoothing iterations of Ax = b
     swap(inputRHSData, residualData);
     smooth(inputParams.preSmooth);
@@ -180,9 +183,9 @@ void poisson::vCycle() {
     // Step 2) Compute the residual r = b - Ax
     computeResidual();
 
-    //std::cout << residualData(blitz::Range::all(), 5, 5) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
+    // After computing residual, at all smoothing iterations, when using Dirichlet BC, the boundary values are 0.
+    zeroBC = true;
+
     // Shift pressureData into smoothedPres
     swap(smoothedPres, pressureData);
     // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
@@ -191,35 +194,32 @@ void poisson::vCycle() {
     // RESTRICTION OPERATIONS
     for (int i=0; i<inputParams.vcDepth; i++) {
         coarsen();
-    //std::cout << "Coarsening-smoothing" << i << std::endl;
+
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
         smooth(inputParams.restrictSmooth[i]);
     }
     // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
 
-    //std::cout << "Final-smoothing" << std::endl;
     // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
-    smooth(inputParams.restrictSmooth[inputParams.vcDepth] + inputParams.prolongSmooth[inputParams.vcDepth]);
+    smooth(inputParams.restrictSmooth[inputParams.vcDepth - 1] + inputParams.prolongSmooth[inputParams.vcDepth - 1]);
 
     // PROLONGATION OPERATIONS BACK TO FINE MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
-    //std::cout << "Prolong-smoothing" << i << std::endl;
         smooth(inputParams.prolongSmooth[i]);
     }
 
     // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
     pressureData += smoothedPres;
 
+    // Once the error/residual has been added to the solution, the Dirichlet BC to be applied is again non-zero
+    zeroBC = false;
+
     // POST-SMOOTHING
     swap(inputRHSData, residualData);
-    //std::cout << "Post-smoothing" << std::endl;
     smooth(inputParams.postSmooth);
     swap(residualData, inputRHSData);
-
-    //MPI_Finalize();
-    //exit(0);
 };
 
 

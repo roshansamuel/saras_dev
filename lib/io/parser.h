@@ -69,8 +69,8 @@ class parser {
         int forceType;
         int solnFormat;
         int xInd, yInd, zInd;
-        int vcDepth, vcCount;
         int preSmooth, postSmooth;
+        int mgError, vcDepth, vcCount;
 
         int icType;
         int dScheme;

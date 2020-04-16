@@ -57,6 +57,8 @@ class poisson {
         int xStr, yStr, zStr;
         int xEnd, yEnd, zEnd;
 
+        bool zeroBC;
+
 #ifdef TIME_RUN
         real smothTimeComp;
         real smothTimeTran;
@@ -64,6 +66,8 @@ class poisson {
 
         const grid &mesh;
         const parser &inputParams;
+
+        blitz::Array<real, 3> pAnalytic;
 
         blitz::Array<real, 3> residualData;
         blitz::Array<real, 3> iteratorTemp;
