@@ -67,8 +67,6 @@ class poisson {
         const grid &mesh;
         const parser &inputParams;
 
-        blitz::Array<real, 3> pAnalytic;
-
         blitz::Array<real, 3> residualData;
         blitz::Array<real, 3> iteratorTemp;
         blitz::Array<real, 3> smoothedPres;
@@ -200,7 +198,7 @@ class multigrid_d3: public poisson {
         void initDirichlet();
         void createMGSubArrays();
 
-        blitz::Array<real, 3> xWall, yWall, zWall;
+        blitz::Array<real, 2> xWall, yWall, zWall;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);

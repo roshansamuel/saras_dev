@@ -2,7 +2,7 @@
 "Program":
     # Choose from following list of problem types:
     # 1 = Hydrodynamics: Lid-Driven Cavity
-    # 2 = Hydrodynamics: Taylor Green Vortices
+    # 2 = Hydrodynamics: Decaying Flow
     # 3 = Hydrodynamics: Channel Flow
     # 4 = Hydrodynamics: Forced Channel Flow
     # 5 = Flows with scalar: Heated bottom plate 
@@ -148,7 +148,7 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 5
+    "V-Cycle Depth": 4
     # Number of V-Cycles to be performed
     "V-Cycle Count": 9
 

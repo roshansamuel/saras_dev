@@ -54,7 +54,7 @@
  *          vector fields necessary for solving the NS equations.
  *          The various coefficients for solving the equations are also set by a call to the \ref setCoefficients function.
  *          Based on the problem type specified by the user in the parameters file, and stored by the \ref parser class as
- *          \ref parser#probType "probType", the appropriate initial and boundary conditions are specified.
+ *          \ref parser#probType "probType", the appropriate boundary conditions are specified.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   solParam is a const reference to the user-set parameters contained in the parser class

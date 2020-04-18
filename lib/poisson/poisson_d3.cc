@@ -312,9 +312,9 @@ real multigrid_d3::computeError(const int normOrder) {
     // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
     // abs in the STL which **rounds off** the number.
     // In this case, abs has to be replaced with fabs.
-    for (int iX = xStr; iX < xEnd; iX += strideValues(vLevel)) {
-        for (int iY = yStr; iY < yEnd; iY += strideValues(vLevel)) {
-            for (int iZ = zStr; iZ < zEnd; iZ += strideValues(vLevel)) {
+    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+        for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                 tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
                                   xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
                                   ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
@@ -446,67 +446,53 @@ void multigrid_d3::initDirichlet() {
     real xDist, yDist, zDist;
 
     // Generate the walls as 2D Blitz arrays
-    xWall.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
-    xWall.reindexSelf(blitz::TinyVector<int, 3>(0, stagCore.lbound(1), stagCore.lbound(2)));
+    xWall.resize(blitz::TinyVector<int, 2>(stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
+    xWall.reindexSelf(blitz::TinyVector<int, 2>(stagCore.lbound(1), stagCore.lbound(2)));
     xWall = 0.0;
 
-    yWall.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth + 1, stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
-    yWall.reindexSelf(blitz::TinyVector<int, 3>(0, stagCore.lbound(0), stagCore.lbound(2)));
+    yWall.resize(blitz::TinyVector<int, 2>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
+    yWall.reindexSelf(blitz::TinyVector<int, 2>(stagCore.lbound(0), stagCore.lbound(2)));
     yWall = 0.0;
 
-    zWall.resize(blitz::TinyVector<int, 3>(inputParams.vcDepth + 1, stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1));
-    zWall.reindexSelf(blitz::TinyVector<int, 3>(0, stagCore.lbound(0), stagCore.lbound(1)));
+    zWall.resize(blitz::TinyVector<int, 2>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1));
+    zWall.reindexSelf(blitz::TinyVector<int, 2>(stagCore.lbound(0), stagCore.lbound(1)));
     zWall = 0.0;
 
     // Compute values at the walls at all V-Cycle depths, using the (r^2)/6 formula
     for (int i=0; i<=inputParams.vcDepth; i++) {
         // Along X-direction - Left and Right Walls
-        xDist = hx(i)*(int(mgSizeArray(localSizeIndex(0) - i)/2) + 1);
+        xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
         for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
             yDist = hy(0)*(j - stagCore.ubound(1)/2);
             for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
                 zDist = hz(0)*(k - stagCore.ubound(2)/2);
 
-                xWall(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                //xWall(j, k) = xDist*xDist;
             }
         }
 
         // Along Y-direction - Front and Rear Walls
-        yDist = hy(i)*(int(mgSizeArray(localSizeIndex(1) - i)/2) + 1);
-        for (int j=stagCore.lbound(0); j<=stagCore.ubound(0); j++) {
-            xDist = hx(0)*(j - stagCore.ubound(0)/2);
+        yDist = hy(0)*(int(mgSizeArray(localSizeIndex(1))/2) + 1);
+        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore.ubound(0)/2);
             for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
                 zDist = hz(0)*(k - stagCore.ubound(2)/2);
 
-                yWall(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                //yWall(i, k) = yDist*yDist;
             }
         }
 
         // Along Z-direction - Top and Bottom Walls
-        zDist = hz(i)*(int(mgSizeArray(localSizeIndex(2) - i)/2) + 1);
-        for (int j=stagCore.lbound(0); j<=stagCore.ubound(0); j++) {
-            xDist = hx(0)*(j - stagCore.ubound(0)/2);
-            for (int k=stagCore.lbound(1); k<=stagCore.ubound(1); k++) {
-                yDist = hy(0)*(k - stagCore.ubound(1)/2);
+        zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
+        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore.ubound(0)/2);
+            for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
+                yDist = hy(0)*(j - stagCore.ubound(1)/2);
 
-                zWall(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-            }
-        }
-    }
-
-    // Generate the analytical solution for verification
-    pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
-    pAnalytic.reindexSelf(blitz::TinyVector<int, 3>(stagCore.lbound(0), stagCore.lbound(1), stagCore.lbound(2)));
-    pAnalytic = 0.0;
-
-    for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
-        xDist = hx(0)*(i - stagCore.ubound(0)/2);
-        for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
-            yDist = hy(0)*(j - stagCore.ubound(1)/2);
-            for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
-                zDist = hz(0)*(k - stagCore.ubound(2)/2);
-
-                pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                //zWall(i, j) = zDist*zDist;
             }
         }
     }
@@ -521,19 +507,32 @@ void multigrid_d3::imposeBC() {
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
+                //std::cout << "Left Zero BC Applied " << vLevel << " " <<  -strideValues(vLevel) << std::endl;
                 pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = 0.0;
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+                //std::cout << "Right Zero BC Applied " << vLevel << " " << stagCore.ubound(0) + strideValues(vLevel) << std::endl;
                 pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = 0.0;
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
+                //std::cout << "Left Non-Zero BC Applied " << vLevel << " " <<  -strideValues(vLevel) << std::endl;
+                pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(yMeshRange(vLevel), zMeshRange(vLevel));
+                //int i = -1;
+                //real xDist = (0.5 + hx(0));
+                //for (int j = 0; j <= stagCore.ubound(1); j++) {
+                //    real yDist = hy(0)*(j - stagCore.ubound(1)/2);
+                //    for (int k = 0; k <= stagCore.ubound(2); k++) {
+                //        real zDist = hz(0)*(k - stagCore.ubound(2)/2);
+                //        pressureData(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                //    }
+                //}
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(vLevel, yMeshRange(vLevel), zMeshRange(vLevel));
+                //std::cout << "Right Non-Zero BC Applied " << vLevel << " " << stagCore.ubound(0) + strideValues(vLevel) << std::endl;
+                pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(yMeshRange(vLevel), zMeshRange(vLevel));
             }
         }
 #else
@@ -562,11 +561,29 @@ void multigrid_d3::imposeBC() {
             }
         } else {
             if (mesh.rankData.yRank == 0) {
-                pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
+                pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall(xMeshRange(vLevel), zMeshRange(vLevel));
+                //int j = -1;
+                //real yDist = (0.5 + hy(0));
+                //for (int i = 0; i <= stagCore.ubound(0); i++) {
+                //    real xDist = hx(0)*(i - stagCore.ubound(0)/2);
+                //    for (int k = 0; k <= stagCore.ubound(2); k++) {
+                //        real zDist = hz(0)*(k - stagCore.ubound(2)/2);
+                //        pressureData(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                //    }
+                //}
             }
 
             if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-                pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall(vLevel, xMeshRange(vLevel), zMeshRange(vLevel));
+                pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall(xMeshRange(vLevel), zMeshRange(vLevel));
+                //int j = stagCore.ubound(1) + 1;
+                //real yDist = (0.5 + hy(0));
+                //for (int i = 0; i <= stagCore.ubound(0); i++) {
+                //    real xDist = hx(0)*(i - stagCore.ubound(0)/2);
+                //    for (int k = 0; k <= stagCore.ubound(2); k++) {
+                //        real zDist = hz(0)*(k - stagCore.ubound(2)/2);
+                //        pressureData(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                //    }
+                //}
             }
         }
 #else
@@ -597,9 +614,9 @@ void multigrid_d3::imposeBC() {
 
             pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = 0.0;
         } else {
-            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall(xMeshRange(vLevel), yMeshRange(vLevel));
 
-            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall(vLevel, xMeshRange(vLevel), yMeshRange(vLevel));
+            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall(xMeshRange(vLevel), yMeshRange(vLevel));
         }
 #else
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL

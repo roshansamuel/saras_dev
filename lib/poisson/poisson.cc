@@ -126,7 +126,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         if (inputParams.mgError) {
             real mgResidual = computeError(inputParams.mgError);
-            if (mesh.rankData.rank == 0) std::cout << "Residual after V Cycle is " << mgResidual << std::endl;
+            if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle is " << mgResidual << std::endl;
         }
     }
 
@@ -135,8 +135,32 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
 #ifdef TEST_POISSON
     if (mesh.rankData.rank == 0) {
+        real xDist, yDist, zDist;
+        blitz::Array<real, 3> pAnalytic, tempArray;
+
+        // Generate the analytical solution for verification
+        pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
+        pAnalytic.reindexSelf(blitz::TinyVector<int, 3>(stagCore.lbound(0), stagCore.lbound(1), stagCore.lbound(2)));
+
+        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore.ubound(0)/2);
+            for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
+                yDist = hy(0)*(j - stagCore.ubound(1)/2);
+                for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
+                    zDist = hz(0)*(k - stagCore.ubound(2)/2);
+
+                    pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                }
+            }
+        }
+
+        tempArray.resize(pAnalytic.shape());
+        tempArray.reindexSelf(pAnalytic.lbound());
+
+        tempArray = pAnalytic(stagCore) - pressureData(stagCore);
+
         std::cout << std::endl;
-        std::cout << "Maximum absolute deviation from analytic solution is: " << blitz::max(fabs(pressureData(stagCore) - pAnalytic(stagCore))) << std::endl;
+        std::cout << "Maximum absolute deviation from analytic solution is: " << blitz::max(fabs(tempArray)) << std::endl;
         std::cout << std::endl;
     }
 #endif
@@ -170,8 +194,8 @@ void poisson::vCycle() {
 
     vLevel = 0;
 
-    // When using Dirichlet BC, the BC is 0 for the residue, r, and specifed only for the full pressure, x.
-    // Therefore, for pre-smoothing, the Dirichlet BC imposed is not zero
+    // When using Dirichlet BC, the residue, r, has homogeneous BC (r=0 at boundary) and only the full pressure, x has non-homogeneous BC.
+    // Since pre-smoothing is performed on x, the Dirichlet BC imposed is not zero
     zeroBC = false;
 
     // Step 1) Pre-smoothing iterations of Ax = b
@@ -183,15 +207,13 @@ void poisson::vCycle() {
     // Step 2) Compute the residual r = b - Ax
     computeResidual();
 
-    // After computing residual, at all smoothing iterations, when using Dirichlet BC, the boundary values are 0.
+    // Swap pressureData and smoothedPres so that pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
+    swap(smoothedPres, pressureData);
+
+    // At this point smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e. From now on homogeneous Dirichlet BCs are used
     zeroBC = true;
 
-    // Shift pressureData into smoothedPres
-    swap(smoothedPres, pressureData);
-    // Now pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
-    // So smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e.
-
-    // RESTRICTION OPERATIONS
+    // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         coarsen();
 
@@ -203,12 +225,15 @@ void poisson::vCycle() {
     // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
     smooth(inputParams.restrictSmooth[inputParams.vcDepth - 1] + inputParams.prolongSmooth[inputParams.vcDepth - 1]);
 
-    // PROLONGATION OPERATIONS BACK TO FINE MESH
+    // PROLONGATION OPERATIONS UP TO FINEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
         // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
+
+        // Step 7) Perform post-smoothing iterations
         smooth(inputParams.prolongSmooth[i]);
     }
+    // Step 8) Repeat steps 6-7 until you reach the finest grid level,
 
     // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
     pressureData += smoothedPres;
@@ -220,6 +245,9 @@ void poisson::vCycle() {
     swap(inputRHSData, residualData);
     smooth(inputParams.postSmooth);
     swap(residualData, inputRHSData);
+
+    //MPI_Finalize();
+    //exit(0);
 };
 
 
