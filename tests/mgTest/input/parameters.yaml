@@ -148,18 +148,23 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 4
+    "V-Cycle Depth": 5
     # Number of V-Cycles to be performed
     "V-Cycle Count": 9
 
+    # Iterative method to be used for smoothing
+    # 0 = Jacobi iteration
+    # 1 = Gauss-Seidel iteration
+    "Smoothing Method": 0
+
     # Number of smoothing iterations to be performed before V-Cycle
-    "Pre-Smoothing Count": 9
+    "Pre-Smoothing Count": 20
     # Number of smoothing iterations to be performed after V-Cycle
-    "Post-Smoothing Count": 9
+    "Post-Smoothing Count": 20
     # Array of numbers of smoothing iterations to be performed in between restriction operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Restrict-Smoothing Count": [9, 9, 9, 9, 9]
+    "Restrict-Smoothing Count": [20, 20, 20, 20, 20]
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Prolong-Smoothing Count": [9, 9, 9, 9, 9]
+    "Prolong-Smoothing Count": [20, 20, 20, 20, 20]
 
     # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
     # This value can be set as below:

@@ -152,6 +152,11 @@
     # Number of V-Cycles to be performed
     "V-Cycle Count": 9
 
+    # Iterative method to be used for smoothing
+    # 0 = Jacobi iteration
+    # 1 = Gauss-Seidel iteration
+    "Smoothing Method": 1
+
     # Number of smoothing iterations to be performed before V-Cycle
     "Pre-Smoothing Count": 5
     # Number of smoothing iterations to be performed after V-Cycle

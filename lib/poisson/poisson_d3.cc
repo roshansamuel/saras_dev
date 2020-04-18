@@ -130,18 +130,37 @@ void multigrid_d3::smooth(const int smoothCount) {
         gettimeofday(&begin, NULL);
 #endif
 
-        // GAUSS-SEIDEL ITERATIVE SMOOTHING
-        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-            for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
-                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                    iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
-                                                hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
-                                                hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + iteratorTemp(iX, iY - strideValues(vLevel), iZ))*2.0 +
-                                                hzhx(vLevel) * etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - iteratorTemp(iX, iY - strideValues(vLevel), iZ))*hy(vLevel) +
-                                                hxhy(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
-                                                hxhy(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
-                                        2.0 * hxhyhz(vLevel) * residualData(iX, iY, iZ))/
-                                       (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+        if (inputParams.gsSmooth) {
+            // GAUSS-SEIDEL ITERATIVE SMOOTHING
+            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+                for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                    for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+                        iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
+                                                    hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
+                                                    hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + iteratorTemp(iX, iY - strideValues(vLevel), iZ))*2.0 +
+                                                    hzhx(vLevel) * etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - iteratorTemp(iX, iY - strideValues(vLevel), iZ))*hy(vLevel) +
+                                                    hxhy(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
+                                                    hxhy(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
+                                            2.0 * hxhyhz(vLevel) * residualData(iX, iY, iZ))/
+                                        (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+                    }
+                }
+            }
+        } else {
+            // JACOBI ITERATIVE SMOOTHING
+#pragma omp parallel for num_threads(inputParams.nThreads) default(none)
+            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+                for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
+                    for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+                        iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
+                                                    hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
+                                                    hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))*2.0 +
+                                                    hzhx(vLevel) * etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))*hy(vLevel) +
+                                                    hxhy(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
+                                                    hxhy(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
+                                            2.0 * hxhyhz(vLevel) * residualData(iX, iY, iZ))/
+                                        (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+                    }
                 }
             }
         }
@@ -468,7 +487,6 @@ void multigrid_d3::initDirichlet() {
                 zDist = hz(0)*(k - stagCore.ubound(2)/2);
 
                 xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                //xWall(j, k) = xDist*xDist;
             }
         }
 
@@ -480,7 +498,6 @@ void multigrid_d3::initDirichlet() {
                 zDist = hz(0)*(k - stagCore.ubound(2)/2);
 
                 yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                //yWall(i, k) = yDist*yDist;
             }
         }
 
@@ -492,7 +509,6 @@ void multigrid_d3::initDirichlet() {
                 yDist = hy(0)*(j - stagCore.ubound(1)/2);
 
                 zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                //zWall(i, j) = zDist*zDist;
             }
         }
     }
@@ -507,31 +523,18 @@ void multigrid_d3::imposeBC() {
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
-                //std::cout << "Left Zero BC Applied " << vLevel << " " <<  -strideValues(vLevel) << std::endl;
                 pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = 0.0;
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                //std::cout << "Right Zero BC Applied " << vLevel << " " << stagCore.ubound(0) + strideValues(vLevel) << std::endl;
                 pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = 0.0;
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                //std::cout << "Left Non-Zero BC Applied " << vLevel << " " <<  -strideValues(vLevel) << std::endl;
                 pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(yMeshRange(vLevel), zMeshRange(vLevel));
-                //int i = -1;
-                //real xDist = (0.5 + hx(0));
-                //for (int j = 0; j <= stagCore.ubound(1); j++) {
-                //    real yDist = hy(0)*(j - stagCore.ubound(1)/2);
-                //    for (int k = 0; k <= stagCore.ubound(2); k++) {
-                //        real zDist = hz(0)*(k - stagCore.ubound(2)/2);
-                //        pressureData(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                //    }
-                //}
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                //std::cout << "Right Non-Zero BC Applied " << vLevel << " " << stagCore.ubound(0) + strideValues(vLevel) << std::endl;
                 pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(yMeshRange(vLevel), zMeshRange(vLevel));
             }
         }
@@ -562,28 +565,10 @@ void multigrid_d3::imposeBC() {
         } else {
             if (mesh.rankData.yRank == 0) {
                 pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall(xMeshRange(vLevel), zMeshRange(vLevel));
-                //int j = -1;
-                //real yDist = (0.5 + hy(0));
-                //for (int i = 0; i <= stagCore.ubound(0); i++) {
-                //    real xDist = hx(0)*(i - stagCore.ubound(0)/2);
-                //    for (int k = 0; k <= stagCore.ubound(2); k++) {
-                //        real zDist = hz(0)*(k - stagCore.ubound(2)/2);
-                //        pressureData(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                //    }
-                //}
             }
 
             if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
                 pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall(xMeshRange(vLevel), zMeshRange(vLevel));
-                //int j = stagCore.ubound(1) + 1;
-                //real yDist = (0.5 + hy(0));
-                //for (int i = 0; i <= stagCore.ubound(0); i++) {
-                //    real xDist = hx(0)*(i - stagCore.ubound(0)/2);
-                //    for (int k = 0; k <= stagCore.ubound(2); k++) {
-                //        real zDist = hz(0)*(k - stagCore.ubound(2)/2);
-                //        pressureData(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                //    }
-                //}
             }
         }
 #else

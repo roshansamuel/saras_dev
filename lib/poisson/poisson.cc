@@ -245,9 +245,6 @@ void poisson::vCycle() {
     swap(inputRHSData, residualData);
     smooth(inputParams.postSmooth);
     swap(residualData, inputRHSData);
-
-    //MPI_Finalize();
-    //exit(0);
 };
 
 

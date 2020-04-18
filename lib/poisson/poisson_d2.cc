@@ -110,15 +110,30 @@ void multigrid_d2::smooth(const int smoothCount) {
         imposeBC();
 
         int iY = 0;
+        if (inputParams.gsSmooth) {
+            // GAUSS-SEIDEL ITERATIVE SMOOTHING
+            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+                    iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
+                                                hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
+                                                hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
+                                                hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
+                                        2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
+                                        (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
+                }
+            }
+        } else {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
-                                            hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
-                                            hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
-                                            hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
-                                      2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
-                                    (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
+            // JACOBI ITERATIVE SMOOTHING
+            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
+                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+                    iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
+                                                hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
+                                                hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
+                                                hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
+                                        2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
+                                        (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
+                }
             }
         }
 
