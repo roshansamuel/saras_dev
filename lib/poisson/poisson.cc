@@ -258,66 +258,32 @@ void poisson::vCycle() {
  ********************************************************************************************************************************************
  */
 void poisson::initializeArrays() {
-    pressureData.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-    pressureData.reindexSelf(stagFull.lbound());
-    pressureData = 0.0;
+    pressureData.resize(inputParams.vcDepth + 1);
+    residualData.resize(inputParams.vcDepth + 1);
+    iteratorTemp.resize(inputParams.vcDepth + 1);
+
+    for (int i=0; i <= inputParams.vcDepth; i++) {
+        pressureData(i).resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
+        pressureData(i).reindexSelf(stagFull.lbound());
+        pressureData(i) = 0.0;
+
+        iteratorTemp(i).resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
+        iteratorTemp(i).reindexSelf(stagFull.lbound());
+        iteratorTemp(i) = 0.0;
+
+        residualData(i).resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
+        residualData(i).reindexSelf(stagFull.lbound());
+        residualData(i) = 0.0;
+    }
 
     smoothedPres.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
     smoothedPres.reindexSelf(stagFull.lbound());
     smoothedPres = 0.0;
 
-    iteratorTemp.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-    iteratorTemp.reindexSelf(stagFull.lbound());
-    iteratorTemp = 0.0;
-
     inputRHSData.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
     inputRHSData.reindexSelf(stagFull.lbound());
     inputRHSData = 0.0;
-
-    residualData.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-    residualData.reindexSelf(stagFull.lbound());
-    residualData = 0.0;
 }
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to initialize the Range objects for accessing mesh derivatives in transformed plane
- *
- *          The Range objects defined here are used for reading the values of grid metrics at all the V-cycle levels.
- *          Since these values are required at all the grid levels, there are \ref parser#vcDepth "vcDepth" + 1 number of Range objects.
- ********************************************************************************************************************************************
- */
-void poisson::initMeshRanges() {
-    xMeshRange.resize(inputParams.vcDepth + 1);
-#ifndef PLANAR
-    yMeshRange.resize(inputParams.vcDepth + 1);
-#endif
-    zMeshRange.resize(inputParams.vcDepth + 1);
-
-    // Range OBJECTS WITH STRIDE TO ACCESS DIFFERENT POINTS OF THE SAME ARRAY AT DIFFERENT MULTI-GRID LEVELS
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        xMeshRange(i) = blitz::Range(stagCore.lbound(0), stagCore.ubound(0), strideValues(i));
-#ifndef PLANAR
-        yMeshRange(i) = blitz::Range(stagCore.lbound(1), stagCore.ubound(1), strideValues(i));
-#endif
-        zMeshRange(i) = blitz::Range(stagCore.lbound(2), stagCore.ubound(2), strideValues(i));
-    }
-
-    // SET THE LIMTS FOR ARRAY LOOPS IN smooth FUNCTION, AND A FEW OTHER PLACES
-    // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN smooth AND vCycle.
-    // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
-    xStr = stagCore.lbound(0);
-    xEnd = stagCore.ubound(0);
-
-#ifndef PLANAR
-    yStr = stagCore.lbound(1);
-    yEnd = stagCore.ubound(1);
-#endif
-
-    zStr = stagCore.lbound(2);
-    zEnd = stagCore.ubound(2);
-};
 
 
 /**
@@ -330,23 +296,37 @@ void poisson::initMeshRanges() {
 void poisson::setStagBounds() {
     blitz::TinyVector<int, 3> loBound, upBound;
 
-    // LOWER BOUND AND UPPER BOUND OF STAGGERED CORE - USED TO CONSTRUCT THE CORE SLICE
-    loBound = 0, 0, 0;
-#ifdef PLANAR
-    upBound = mgSizeArray(localSizeIndex(0)) - 1, 0, mgSizeArray(localSizeIndex(2)) - 1;
-#else
-    upBound = mgSizeArray(localSizeIndex(0)) - 1, mgSizeArray(localSizeIndex(1)) - 1, mgSizeArray(localSizeIndex(2)) - 1;
-#endif
-    stagCore = blitz::RectDomain<3>(loBound, upBound);
+    stagFull.resize(inputParams.vcDepth + 1);
+    stagCore.resize(inputParams.vcDepth + 1);
 
-    // LOWER BOUND AND UPPER BOUND OF STAGGERED FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
+    xEnd.resize(inputParams.vcDepth + 1);
+    yEnd.resize(inputParams.vcDepth + 1);
+    zEnd.resize(inputParams.vcDepth + 1);
+
+    for (int i=0; i<=inputParams.vcDepth; i++) {
+        // LOWER BOUND AND UPPER BOUND OF STAGGERED CORE - USED TO CONSTRUCT THE CORE SLICE
+        loBound = 0, 0, 0;
 #ifdef PLANAR
-    loBound = -strideValues(inputParams.vcDepth), -1, -strideValues(inputParams.vcDepth);
+        upBound = mgSizeArray(localSizeIndex(0) - i) - 1, 0, mgSizeArray(localSizeIndex(2) - i) - 1;
 #else
-    loBound = -strideValues(inputParams.vcDepth), -strideValues(inputParams.vcDepth), -strideValues(inputParams.vcDepth);
+        upBound = mgSizeArray(localSizeIndex(0) - i) - 1, mgSizeArray(localSizeIndex(1) - i) - 1, mgSizeArray(localSizeIndex(2) - i) - 1;
 #endif
-    upBound = stagCore.ubound() - loBound;
-    stagFull = blitz::RectDomain<3>(loBound, upBound);
+        stagCore(i) = blitz::RectDomain<3>(loBound, upBound);
+
+        // LOWER BOUND AND UPPER BOUND OF STAGGERED FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
+        loBound = -1, -1, -1;
+        upBound = stagCore(i).ubound() - loBound;
+        stagFull(i) = blitz::RectDomain<3>(loBound, upBound);
+
+        // SET THE LIMTS FOR ARRAY LOOPS IN smooth FUNCTION, AND A FEW OTHER PLACES
+        // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN smooth AND vCycle.
+        // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
+        xEnd(i) = stagCore(i).ubound(0);
+#ifndef PLANAR
+        yEnd(i) = stagCore(i).ubound(1);
+#endif
+        zEnd(i) = stagCore(i).ubound(2);
+    }
 };
 
 
@@ -437,37 +417,48 @@ void poisson::setCoefficients() {
  ********************************************************************************************************************************************
  */
 void poisson::copyStaggrDerivs() {
-    xixx.resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
-    xixx.reindexSelf(stagFull.lbound(0));
-    xixx = 0.0;
-    xixx(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore.ubound(0), 1));
+    xixx.resize(inputParams.vcDepth + 1);
+    xix2.resize(inputParams.vcDepth + 1);
+#ifndef PLANAR
+    etyy.resize(inputParams.vcDepth + 1);
+    ety2.resize(inputParams.vcDepth + 1);
+#endif
+    ztzz.resize(inputParams.vcDepth + 1);
+    ztz2.resize(inputParams.vcDepth + 1);
 
-    xix2.resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
-    xix2.reindexSelf(stagFull.lbound(0));
-    xix2 = 0.0;
-    xix2(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore.ubound(0), 1));
+    for(int i=0; i<=inputParams.vcDepth; i++) {
+        xixx(i).resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
+        xixx(i).reindexSelf(stagFull.lbound(0));
+        xixx(i) = 0.0;
+        xixx(i)(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore.ubound(0), 1));
+
+        xix2(i).resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
+        xix2(i).reindexSelf(stagFull.lbound(0));
+        xix2(i) = 0.0;
+        xix2(i)(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore.ubound(0), 1));
 
 #ifndef PLANAR
-    etyy.resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
-    etyy.reindexSelf(stagFull.lbound(1));
-    etyy = 0.0;
-    etyy(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore.ubound(1), 1));
+        etyy(i).resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
+        etyy(i).reindexSelf(stagFull.lbound(1));
+        etyy(i) = 0.0;
+        etyy(i)(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore.ubound(1), 1));
 
-    ety2.resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
-    ety2.reindexSelf(stagFull.lbound(1));
-    ety2 = 0.0;
-    ety2(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore.ubound(1), 1));
+        ety2(i).resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
+        ety2(i).reindexSelf(stagFull.lbound(1));
+        ety2(i) = 0.0;
+        ety2(i)(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore.ubound(1), 1));
 #endif
 
-    ztzz.resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-    ztzz.reindexSelf(stagFull.lbound(2));
-    ztzz = 0.0;
-    ztzz(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore.ubound(2), 1));
+        ztzz(i).resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
+        ztzz(i).reindexSelf(stagFull.lbound(2));
+        ztzz(i) = 0.0;
+        ztzz(i)(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore.ubound(2), 1));
 
-    ztz2.resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-    ztz2.reindexSelf(stagFull.lbound(2));
-    ztz2 = 0.0;
-    ztz2(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore.ubound(2), 1));
+        ztz2(i).resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
+        ztz2(i).reindexSelf(stagFull.lbound(2));
+        ztz2(i) = 0.0;
+        ztz2(i)(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore.ubound(2), 1));
+    }
 };
 
 

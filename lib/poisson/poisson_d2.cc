@@ -68,9 +68,6 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIABLE SET ABOVE
     setStagBounds();
 
-    // USING THE FULL AND CORE LIMTS SET ABOVE, CREATE ALL Range OBJECTS
-    initMeshRanges();
-
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
 
@@ -90,13 +87,13 @@ void multigrid_d2::computeResidual() {
 
     // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-        for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
+    for (int iX = 0; iX <= xEnd(vLevel); iX += 1) {
+        for (int iZ = 0; iZ <= zEnd(vLevel); iZ += 1) {
             residualData(iX, iY, iZ) =  inputRHSData(iX, iY, iZ) -
-                                       (xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                        xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                        ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                        ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel)));
+                           (xix2(iX) * (pressureData(iX + 1, iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - 1, iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                            xixx(iX) * (pressureData(iX + 1, iY, iZ) - pressureData(iX - 1, iY, iZ))/(2.0*hx(vLevel)) +
+                            ztz2(iZ) * (pressureData(iX, iY, iZ + 1) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - 1))/(hz(vLevel)*hz(vLevel)) +
+                            ztzz(iZ) * (pressureData(iX, iY, iZ + 1) - pressureData(iX, iY, iZ - 1))/(2.0*hz(vLevel)));
         }
     }
 }
@@ -112,12 +109,12 @@ void multigrid_d2::smooth(const int smoothCount) {
         int iY = 0;
         if (inputParams.gsSmooth) {
             // GAUSS-SEIDEL ITERATIVE SMOOTHING
-            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                    iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
-                                                hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
-                                                hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
-                                                hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
+            for (int iX = 0; iX <= xEnd(vLevel); iX += 1) {
+                for (int iZ = 0; iZ <= zEnd(vLevel); iZ += 1) {
+                    iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + 1, iY, iZ) + iteratorTemp(iX - 1, iY, iZ))*2.0 +
+                                                hz2(vLevel) * xixx(iX) * (pressureData(iX + 1, iY, iZ) - iteratorTemp(iX - 1, iY, iZ))*hx(vLevel) +
+                                                hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + 1) + iteratorTemp(iX, iY, iZ - 1))*2.0 +
+                                                hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + 1) - iteratorTemp(iX, iY, iZ - 1))*hz(vLevel) -
                                         2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
                                         (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
                 }
@@ -125,12 +122,12 @@ void multigrid_d2::smooth(const int smoothCount) {
         } else {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
             // JACOBI ITERATIVE SMOOTHING
-            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-                for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                    iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
-                                                hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
-                                                hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
-                                                hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
+            for (int iX = 0; iX <= xEnd(vLevel); iX += 1) {
+                for (int iZ = 0; iZ <= zEnd(vLevel); iZ += 1) {
+                    iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + 1, iY, iZ) + pressureData(iX - 1, iY, iZ))*2.0 +
+                                                hz2(vLevel) * xixx(iX) * (pressureData(iX + 1, iY, iZ) - pressureData(iX - 1, iY, iZ))*hx(vLevel) +
+                                                hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + 1) + pressureData(iX, iY, iZ - 1))*2.0 +
+                                                hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + 1) - pressureData(iX, iY, iZ - 1))*hz(vLevel) -
                                         2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
                                         (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
                 }
@@ -237,17 +234,21 @@ real multigrid_d2::computeError(const int normOrder) {
     real denValLoc = 0.0;
     int valCountLoc = 0;
 
+    // This function is called at the finest grid level only.
+    // Moreover it called only under the TEST_POISSON flag
+    // Hence it is not written to be very fast
+
     // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
     // the absolute of the float values without hitch.
     // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
     // abs in the STL which **rounds off** the number.
     // In this case, abs has to be replaced with fabs.
-    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-        for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-            tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                              xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                              ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                              ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
+    for (int iX = 0; iX <= xEnd(0); iX += 1) {
+        for (int iZ = 0; iZ <= zEnd(0); iZ += 1) {
+            tempValue = fabs((xix2(iX) * (pressureData(0)(iX + 1, iY, iZ) - 2.0*pressureData(0)(iX, iY, iZ) + pressureData(0)(iX - 1, iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                              xixx(iX) * (pressureData(0)(iX + 1, iY, iZ) - pressureData(0)(iX - 1, iY, iZ))/(2.0*hx(vLevel)) +
+                              ztz2(iZ) * (pressureData(0)(iX, iY, iZ + 1) - 2.0*pressureData(0)(iX, iY, iZ) + pressureData(0)(iX, iY, iZ - 1))/(hz(vLevel)*hz(vLevel)) +
+                              ztzz(iZ) * (pressureData(0)(iX, iY, iZ + 1) - pressureData(0)(iX, iY, iZ - 1))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
 
             if (normOrder == 0) {
                 if (tempValue > numValLoc) numValLoc = tempValue;
@@ -312,28 +313,28 @@ void multigrid_d2::imposeBC() {
     if (not inputParams.xPer) {
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
-            pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = pressureData(strideValues(vLevel), 0, zMeshRange(vLevel));
+            pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
         }
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), 0, zMeshRange(vLevel));
+            pressureData(vLevel)(stagCore.ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore.ubound(0) - 1, 0, all);
         }
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (inputParams.zPer) {
         // PERIODIC BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), 0, -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) - strideValues(vLevel));
+        pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, stagCore.ubound(2) - 1);
 
         // PERIODIC BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, strideValues(vLevel));
+        pressureData(vLevel)(all, 0, stagCore.ubound(2) + 1) = pressureData(vLevel)(all, 0, 1);
 
     } else {
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), 0, -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, strideValues(vLevel));
+        pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) - strideValues(vLevel));
+        pressureData(vLevel)(all, 0, stagCore.ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore.ubound(2) - 1);
     }
 }
 

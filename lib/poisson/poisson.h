@@ -54,8 +54,6 @@
 class poisson {
     protected:
         int vLevel, maxCount;
-        int xStr, yStr, zStr;
-        int xEnd, yEnd, zEnd;
 
         bool zeroBC;
 
@@ -67,15 +65,18 @@ class poisson {
         const grid &mesh;
         const parser &inputParams;
 
-        blitz::Array<real, 3> residualData;
-        blitz::Array<real, 3> iteratorTemp;
-        blitz::Array<real, 3> smoothedPres;
+        const blitz::Range all = blitz::Range::all();
 
-        blitz::Array<real, 3> pressureData;
+        blitz::Array<blitz::Array<real, 3>, 1> pressureData;
+        blitz::Array<blitz::Array<real, 3>, 1> residualData;
+        blitz::Array<blitz::Array<real, 3>, 1> iteratorTemp;
+
+        blitz::Array<real, 3> smoothedPres;
         blitz::Array<real, 3> inputRHSData;
 
-        blitz::RectDomain<3> stagFull;
-        blitz::RectDomain<3> stagCore;
+        blitz::Array<blitz::RectDomain<3>, 1> stagFull;
+        blitz::Array<blitz::RectDomain<3>, 1> stagCore;
+        blitz::Array<int, 1> xEnd, yEnd, zEnd;
 
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;
@@ -89,11 +90,9 @@ class poisson {
         blitz::Array<real, 1> hx2, hz2, hzhx;
         blitz::Array<real, 1> hxhy, hyhz, hxhyhz;
 
-        blitz::Array<real, 1> xixx, xix2;
-        blitz::Array<real, 1> etyy, ety2;
-        blitz::Array<real, 1> ztzz, ztz2;
-
-        blitz::Array<blitz::Range, 1> xMeshRange, yMeshRange, zMeshRange;
+        blitz::Array<blitz::Array<real, 1>, 1> xixx, xix2;
+        blitz::Array<blitz::Array<real, 1>, 1> etyy, ety2;
+        blitz::Array<blitz::Array<real, 1>, 1> ztzz, ztz2;
 
         blitz::Array<MPI_Datatype, 1> xMGArray;
         blitz::Array<MPI_Datatype, 1> yMGArray;
@@ -120,7 +119,6 @@ class poisson {
         void initializeArrays();
         void copyStaggrDerivs();
         void setCoefficients();
-        void initMeshRanges();
         void setStagBounds();
 
     public:
