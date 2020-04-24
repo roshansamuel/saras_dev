@@ -152,6 +152,7 @@ void multigrid_d2::smooth(const int smoothCount) {
 
 void multigrid_d2::coarsen() {
     real facePoints, vertPoints;
+
     // Integer values of starting indices, ending indices, and index increments along each direction
     int xSt, xEn, xIn;
     int zSt, zEn, zIn;
@@ -246,12 +247,12 @@ real multigrid_d2::computeError(const int normOrder) {
     // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
     // abs in the STL which **rounds off** the number.
     // In this case, abs has to be replaced with fabs.
-    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-        for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-            tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                              xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                              ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                              ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
+    for (int iX = xStr; iX <= xEnd; iX += 1) {
+        for (int iZ = zStr; iZ <= zEnd; iZ += 1) {
+            tempValue = fabs((xix2(iX) * (pressureData(iX + 1, iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - 1, iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                              xixx(iX) * (pressureData(iX + 1, iY, iZ) - pressureData(iX - 1, iY, iZ))/(2.0*hx(vLevel)) +
+                              ztz2(iZ) * (pressureData(iX, iY, iZ + 1) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - 1))/(hz(vLevel)*hz(vLevel)) +
+                              ztzz(iZ) * (pressureData(iX, iY, iZ + 1) - pressureData(iX, iY, iZ - 1))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
 
             switch (normOrder) {
                 case 1:
@@ -265,7 +266,6 @@ real multigrid_d2::computeError(const int normOrder) {
             }
         }
     }
-    //std::cout << numValLoc << "\t" << denValLoc << "\t" << normOrder << "\t" << inputRHSData << std::endl;
 
     real numValGlo = 0.0;
     real denValGlo = 0.0;
@@ -358,21 +358,25 @@ void multigrid_d2::imposeBC() {
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
-                pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+                //pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+                pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = -pressureData(strideValues(vLevel), 0, zMeshRange(vLevel));
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+                //pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+                pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = -pressureData(stagCore.ubound(0) - strideValues(vLevel), 0, zMeshRange(vLevel));
             }
         } else {
             if (mesh.rankData.xRank == 0) {
                 //pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = xWall(zMeshRange(vLevel));
-                pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 1.0;
+                //pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 1.0;
+                pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 2.0 - pressureData(strideValues(vLevel), 0, zMeshRange(vLevel));
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
                 //pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = xWall(zMeshRange(vLevel));
-                pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+                //pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+                pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = -pressureData(stagCore.ubound(0) - strideValues(vLevel), 0, zMeshRange(vLevel));
             }
         }
 #else
