@@ -112,6 +112,7 @@ class poisson {
 
         virtual void imposeBC();
         virtual void updatePads();
+        virtual void initDirichlet();
         virtual void createMGSubArrays();
 
         void vCycle();
@@ -164,7 +165,10 @@ class multigrid_d2: public poisson {
 
         void imposeBC();
         void updatePads();
+        void initDirichlet();
         void createMGSubArrays();
+
+        blitz::Array<real, 1> xWall, zWall;
 
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);

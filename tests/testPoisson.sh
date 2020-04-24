@@ -54,7 +54,8 @@ fi
 cd build
 
 # Run cmake with necessary flags for 2D LDC test
-CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
+#CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
+CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DTEST_POISSON=ON -DREAL_DOUBLE=ON
 
 # Compile
 make -j8
@@ -67,4 +68,3 @@ cd ../../tests/mgTest/
 
 # Run the test case
 mpirun -np $PROC ./saras
-#CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON -DPLANAR=ON -DREAL_SINGLE=ON

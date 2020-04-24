@@ -135,8 +135,25 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
 #ifdef TEST_POISSON
     if (mesh.rankData.rank == 0) {
-        real xDist, yDist, zDist;
         blitz::Array<real, 3> pAnalytic, tempArray;
+
+#ifdef PLANAR
+        real xDist, zDist;
+
+        // Generate the analytical solution for verification
+        pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore.ubound(0) - stagCore.lbound(0) + 1, 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
+        pAnalytic.reindexSelf(blitz::TinyVector<int, 3>(stagCore.lbound(0), 0, stagCore.lbound(2)));
+
+        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore.ubound(0)/2);
+            for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
+                zDist = hz(0)*(k - stagCore.ubound(2)/2);
+
+                pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
+            }
+        }
+#else
+        real xDist, yDist, zDist;
 
         // Generate the analytical solution for verification
         pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
@@ -153,6 +170,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
                 }
             }
         }
+#endif
 
         tempArray.resize(pAnalytic.shape());
         tempArray.reindexSelf(pAnalytic.lbound());
@@ -574,6 +592,17 @@ void poisson::updatePads() { };
  ********************************************************************************************************************************************
  */
 void poisson::createMGSubArrays() { };
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to initialize the Dirichlet BC used for testing the Poisson solver
+ *
+ *          This function is called only if the TEST_POISSON compiler flag is enabled.
+ *          It uses an r^2/6 function for the 3D version and a test case suggested by Prof Ravi Samtaney for the 2D version.
+ ********************************************************************************************************************************************
+ */
+void poisson::initDirichlet() { };
 
 
 /**

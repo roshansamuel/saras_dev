@@ -82,6 +82,11 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
 
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
     createMGSubArrays();
+
+    // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
+#ifdef TEST_POISSON
+    initDirichlet();
+#endif
 }
 
 
@@ -89,14 +94,15 @@ void multigrid_d2::computeResidual() {
     int iY = 0;
 
     // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
+    // Needed update: Substitute the below OpenMP parallel loop with vectorized Blitz operation and check for speed increase.
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
     for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
         for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
             residualData(iX, iY, iZ) =  inputRHSData(iX, iY, iZ) -
-                                       (xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                        xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                        ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                        ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel)));
+                           (xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                            xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
+                            ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
+                            ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel)));
         }
     }
 }
@@ -118,21 +124,21 @@ void multigrid_d2::smooth(const int smoothCount) {
                                                 hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
                                                 hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
                                                 hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
-                                        2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
-                                        (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
+                                         2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
+                                        (4.0 * (hz2(vLevel) * xix2(iX) + hx2(vLevel)*ztz2(iZ)));
                 }
             }
         } else {
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
             // JACOBI ITERATIVE SMOOTHING
+#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
             for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
                 for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
                     iteratorTemp(iX, iY, iZ) = (hz2(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
                                                 hz2(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
                                                 hx2(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
                                                 hx2(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
-                                        2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
-                                        (4.0 * (hz2(vLevel)*xix2(iX) + hx2(vLevel)*ztz2(iZ)));
+                                         2.0 * hzhx(vLevel) * residualData(iX, iY, iZ))/
+                                        (4.0 * (hz2(vLevel) * xix2(iX) + hx2(vLevel)*ztz2(iZ)));
                 }
             }
         }
@@ -151,8 +157,6 @@ void multigrid_d2::coarsen() {
     int zSt, zEn, zIn;
     int shiftInc;
     int iY = 0;
-
-    imposeBC();
 
     vLevel += 1;
 
@@ -249,29 +253,38 @@ real multigrid_d2::computeError(const int normOrder) {
                               ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
                               ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
 
-            if (normOrder == 0) {
-                if (tempValue > numValLoc) numValLoc = tempValue;
-            } else {
-                numValLoc += tempValue*tempValue;
-                denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
-                valCountLoc += 1;
+            switch (normOrder) {
+                case 1:
+                    if (tempValue > numValLoc) numValLoc = tempValue;
+                    break;
+                case 2:
+                    numValLoc += tempValue*tempValue;
+                    denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
+                    valCountLoc += 1;
+                    break;
             }
         }
     }
+    //std::cout << numValLoc << "\t" << denValLoc << "\t" << normOrder << "\t" << inputRHSData << std::endl;
 
     real numValGlo = 0.0;
     real denValGlo = 0.0;
     int valCountGlo = 0;
-    if (normOrder == 0) {
-        denValLoc = blitz::max(fabs(inputRHSData));
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-        residualVal = numValGlo/denValGlo;
-    } else {
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-        residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+    switch (normOrder) {
+        case 1:
+            denValLoc = blitz::max(fabs(inputRHSData));
+            MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+            //residualVal = numValGlo/denValGlo;
+            residualVal = numValGlo;
+            break;
+        case 2:
+            MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+            //residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            residualVal = sqrt(numValGlo/valCountGlo);
+            break;
     }
 
     return residualVal;
@@ -306,10 +319,63 @@ void multigrid_d2::createMGSubArrays() {
 }
 
 
+void multigrid_d2::initDirichlet() {
+    real xDist, zDist;
+
+    // Generate the walls as 1D Blitz arrays
+    xWall.resize(stagCore.ubound(2) - stagCore.lbound(2) + 1);
+    xWall.reindexSelf(stagCore.lbound(2));
+    xWall = 0.0;
+
+    zWall.resize(stagCore.ubound(0) - stagCore.lbound(0) + 1);
+    zWall.reindexSelf(stagCore.lbound(0));
+    zWall = 0.0;
+
+    // Compute values at the walls at all V-Cycle depths, using the (r^2)/4 formula
+    for (int i=0; i<=inputParams.vcDepth; i++) {
+        // Along X-direction - Left and Right Walls
+        xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
+        for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
+            zDist = hz(0)*(k - stagCore.ubound(2)/2);
+            xWall(k) = (xDist*xDist + zDist*zDist)/4.0;
+        }
+
+        // Along Z-direction - Top and Bottom Walls
+        zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
+        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore.ubound(0)/2);
+            zWall(i) = (xDist*xDist + zDist*zDist)/4.0;
+        }
+    }
+}
+
+
 void multigrid_d2::imposeBC() {
     updatePads();
 
     if (not inputParams.xPer) {
+#ifdef TEST_POISSON
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
+        if (zeroBC) {
+            if (mesh.rankData.xRank == 0) {
+                pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+            }
+
+            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+                pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+            }
+        } else {
+            if (mesh.rankData.xRank == 0) {
+                //pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = xWall(zMeshRange(vLevel));
+                pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = 1.0;
+            }
+
+            if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
+                //pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = xWall(zMeshRange(vLevel));
+                pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = 0.0;
+            }
+        }
+#else
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
         if (mesh.rankData.xRank == 0) {
             pressureData(-strideValues(vLevel), 0, zMeshRange(vLevel)) = pressureData(strideValues(vLevel), 0, zMeshRange(vLevel));
@@ -319,6 +385,7 @@ void multigrid_d2::imposeBC() {
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
             pressureData(stagCore.ubound(0) + strideValues(vLevel), 0, zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), 0, zMeshRange(vLevel));
         }
+#endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (inputParams.zPer) {
@@ -329,11 +396,24 @@ void multigrid_d2::imposeBC() {
         pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, strideValues(vLevel));
 
     } else {
+#ifdef TEST_POISSON
+        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM AND TOP WALLS
+        if (zeroBC) {
+            pressureData(xMeshRange(vLevel), 0, -strideValues(vLevel)) = 0.0;
+
+            pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = 0.0;
+        } else {
+            pressureData(xMeshRange(vLevel), 0, -strideValues(vLevel)) = zWall(xMeshRange(vLevel));
+
+            pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = zWall(xMeshRange(vLevel));
+        }
+#else
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
         pressureData(xMeshRange(vLevel), 0, -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, strideValues(vLevel));
 
         // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
         pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), 0, stagCore.ubound(2) - strideValues(vLevel));
+#endif
     }
 }
 
