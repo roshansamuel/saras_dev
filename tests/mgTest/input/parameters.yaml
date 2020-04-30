@@ -155,16 +155,16 @@
     # Iterative method to be used for smoothing
     # 0 = Jacobi iteration
     # 1 = Gauss-Seidel iteration
-    "Smoothing Method": 0
+    "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed before V-Cycle
-    "Pre-Smoothing Count": 20
+    "Pre-Smoothing Count": 2
     # Number of smoothing iterations to be performed after V-Cycle
-    "Post-Smoothing Count": 20
+    "Post-Smoothing Count": 2
     # Array of numbers of smoothing iterations to be performed in between restriction operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Restrict-Smoothing Count": [20, 20, 20, 20, 20]
+    "Restrict-Smoothing Count": [2, 2, 2, 2, 2]
     # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Prolong-Smoothing Count": [20, 20, 20, 20, 20]
+    "Prolong-Smoothing Count": [2, 2, 2, 2, 2]
 
     # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
     # This value can be set as below:

@@ -99,29 +99,31 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
-    pressureData = 0.0;
-    residualData = 0.0;
-    inputRHSData = 0.0;
+    for (int i=0; i <= inputParams.vcDepth; i++) {
+        pressureData(i) = 0.0;
+        residualData(i) = 0.0;
+
+        // This was originally inside the V-Cycle loop. Check if this line being here is okay.
+        smoothedPres(i) = 0.0;
+    }
 
     // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
-    inputRHSData(stagCore) = rhs.F(stagCore);
-    pressureData(stagCore) = inFn.F(stagCore);
+    residualData(0)(stagCore(0)) = rhs.F(stagCore(0));
+    pressureData(0)(stagCore(0)) = inFn.F(stagCore(0));
 
 #ifndef TEST_POISSON
     // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    real localMean = blitz::mean(inputRHSData);
+    real localMean = blitz::mean(residualData(0));
     real globalAvg = 0.0;
 
     MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
     globalAvg /= mesh.rankData.nProc;
 
-    inputRHSData -= globalAvg;
+    residualData(0) -= globalAvg;
 #endif
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
-        smoothedPres = 0.0;
-
         vCycle();
 
         if (inputParams.mgError) {
@@ -131,23 +133,24 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     }
 
     // RETURN CALCULATED PRESSURE DATA
-    inFn.F = pressureData(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
+    inFn.F = pressureData(0)(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 
+    /*
 #ifdef TEST_POISSON
     if (mesh.rankData.rank == 0) {
         real xDist, yDist, zDist;
         blitz::Array<real, 3> pAnalytic, tempArray;
 
         // Generate the analytical solution for verification
-        pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
-        pAnalytic.reindexSelf(blitz::TinyVector<int, 3>(stagCore.lbound(0), stagCore.lbound(1), stagCore.lbound(2)));
+        pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound(0) - stagCore(0).lbound(0) + 1, stagCore(0).ubound(1) - stagCore(0).lbound(1) + 1, stagCore(0).ubound(2) - stagCore(0).lbound(2) + 1));
+        pAnalytic.reindexSelf(blitz::TinyVector<int, 3>(stagCore(0).lbound(0), stagCore(0).lbound(1), stagCore(0).lbound(2)));
 
-        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
-            xDist = hx(0)*(i - stagCore.ubound(0)/2);
-            for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
-                yDist = hy(0)*(j - stagCore.ubound(1)/2);
-                for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
-                    zDist = hz(0)*(k - stagCore.ubound(2)/2);
+        for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
+            for (int j=stagCore(0).lbound(1); j<=stagCore(0).ubound(1); j++) {
+                yDist = hy(0)*(j - stagCore(0).ubound(1)/2);
+                for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
+                    zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
 
                     pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
                 }
@@ -157,13 +160,14 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         tempArray.resize(pAnalytic.shape());
         tempArray.reindexSelf(pAnalytic.lbound());
 
-        tempArray = pAnalytic(stagCore) - pressureData(stagCore);
+        tempArray = pAnalytic(stagCore(0)) - pressureData(0)(stagCore(0));
 
         std::cout << std::endl;
         std::cout << "Maximum absolute deviation from analytic solution is: " << blitz::max(fabs(tempArray)) << std::endl;
         std::cout << std::endl;
     }
 #endif
+*/
 };
 
 
@@ -199,22 +203,20 @@ void poisson::vCycle() {
     zeroBC = false;
 
     // Step 1) Pre-smoothing iterations of Ax = b
-    swap(inputRHSData, residualData);
     smooth(inputParams.preSmooth);
-    swap(residualData, inputRHSData);
-    // After above 3 lines, pressureData has the pre-smoothed values of pressure, inputRHSData has original RHS data, and residualData = 0.0
-
-    // Step 2) Compute the residual r = b - Ax
-    computeResidual();
-
-    // Swap pressureData and smoothedPres so that pressureData = 0.0 (since smoothedPres was 0.0), and smoothedPres has the pre-smoothed values of pressure
-    swap(smoothedPres, pressureData);
 
     // At this point smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e. From now on homogeneous Dirichlet BCs are used
     zeroBC = true;
 
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
+        // Copy pressureData into smoothedPres
+        smoothedPres(vLevel) = pressureData(vLevel);
+
+        // Step 2) Compute the residual r = b - Ax
+        computeResidual();
+
+        // Restrict the residual to a coarser level
         coarsen();
 
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
@@ -230,21 +232,19 @@ void poisson::vCycle() {
         // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
 
+        // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
+        pressureData(vLevel) += smoothedPres(vLevel);
+
         // Step 7) Perform post-smoothing iterations
         smooth(inputParams.prolongSmooth[i]);
     }
     // Step 8) Repeat steps 6-7 until you reach the finest grid level,
 
-    // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
-    pressureData += smoothedPres;
-
     // Once the error/residual has been added to the solution, the Dirichlet BC to be applied is again non-zero
     zeroBC = false;
 
     // POST-SMOOTHING
-    swap(inputRHSData, residualData);
     smooth(inputParams.postSmooth);
-    swap(residualData, inputRHSData);
 };
 
 
@@ -260,29 +260,26 @@ void poisson::vCycle() {
 void poisson::initializeArrays() {
     pressureData.resize(inputParams.vcDepth + 1);
     residualData.resize(inputParams.vcDepth + 1);
-    iteratorTemp.resize(inputParams.vcDepth + 1);
+    tmpDataArray.resize(inputParams.vcDepth + 1);
+    smoothedPres.resize(inputParams.vcDepth + 1);
 
     for (int i=0; i <= inputParams.vcDepth; i++) {
-        pressureData(i).resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-        pressureData(i).reindexSelf(stagFull.lbound());
+        pressureData(i).resize(blitz::TinyVector<int, 3>(stagFull(i).ubound() - stagFull(i).lbound() + 1));
+        pressureData(i).reindexSelf(stagFull(i).lbound());
         pressureData(i) = 0.0;
 
-        iteratorTemp(i).resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-        iteratorTemp(i).reindexSelf(stagFull.lbound());
-        iteratorTemp(i) = 0.0;
+        tmpDataArray(i).resize(blitz::TinyVector<int, 3>(stagFull(i).ubound() - stagFull(i).lbound() + 1));
+        tmpDataArray(i).reindexSelf(stagFull(i).lbound());
+        tmpDataArray(i) = 0.0;
 
-        residualData(i).resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-        residualData(i).reindexSelf(stagFull.lbound());
+        residualData(i).resize(blitz::TinyVector<int, 3>(stagFull(i).ubound() - stagFull(i).lbound() + 1));
+        residualData(i).reindexSelf(stagFull(i).lbound());
         residualData(i) = 0.0;
+
+        smoothedPres(i).resize(blitz::TinyVector<int, 3>(stagFull(i).ubound() - stagFull(i).lbound() + 1));
+        smoothedPres(i).reindexSelf(stagFull(i).lbound());
+        smoothedPres(i) = 0.0;
     }
-
-    smoothedPres.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-    smoothedPres.reindexSelf(stagFull.lbound());
-    smoothedPres = 0.0;
-
-    inputRHSData.resize(blitz::TinyVector<int, 3>(stagFull.ubound() - stagFull.lbound() + 1));
-    inputRHSData.reindexSelf(stagFull.lbound());
-    inputRHSData = 0.0;
 }
 
 
@@ -426,38 +423,39 @@ void poisson::copyStaggrDerivs() {
     ztzz.resize(inputParams.vcDepth + 1);
     ztz2.resize(inputParams.vcDepth + 1);
 
+    // WARNING:: BELOW METHOD IS WRONG! CORRECT THE STRIDES FOR EACH RANGE
     for(int i=0; i<=inputParams.vcDepth; i++) {
-        xixx(i).resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
-        xixx(i).reindexSelf(stagFull.lbound(0));
+        xixx(i).resize(stagFull(i).ubound(0) - stagFull(i).lbound(0) + 1);
+        xixx(i).reindexSelf(stagFull(i).lbound(0));
         xixx(i) = 0.0;
-        xixx(i)(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore.ubound(0), 1));
+        xixx(i)(blitz::Range(0, stagCore(i).ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore(i).ubound(0), 1));
 
-        xix2(i).resize(stagFull.ubound(0) - stagFull.lbound(0) + 1);
-        xix2(i).reindexSelf(stagFull.lbound(0));
+        xix2(i).resize(stagFull(i).ubound(0) - stagFull(i).lbound(0) + 1);
+        xix2(i).reindexSelf(stagFull(i).lbound(0));
         xix2(i) = 0.0;
-        xix2(i)(blitz::Range(0, stagCore.ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore.ubound(0), 1));
+        xix2(i)(blitz::Range(0, stagCore(i).ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore(i).ubound(0), 1));
 
 #ifndef PLANAR
-        etyy(i).resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
-        etyy(i).reindexSelf(stagFull.lbound(1));
+        etyy(i).resize(stagFull(i).ubound(1) - stagFull(i).lbound(1) + 1);
+        etyy(i).reindexSelf(stagFull(i).lbound(1));
         etyy(i) = 0.0;
-        etyy(i)(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore.ubound(1), 1));
+        etyy(i)(blitz::Range(0, stagCore(i).ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore(i).ubound(1), 1));
 
-        ety2(i).resize(stagFull.ubound(1) - stagFull.lbound(1) + 1);
-        ety2(i).reindexSelf(stagFull.lbound(1));
+        ety2(i).resize(stagFull(i).ubound(1) - stagFull(i).lbound(1) + 1);
+        ety2(i).reindexSelf(stagFull(i).lbound(1));
         ety2(i) = 0.0;
-        ety2(i)(blitz::Range(0, stagCore.ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore.ubound(1), 1));
+        ety2(i)(blitz::Range(0, stagCore(i).ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore(i).ubound(1), 1));
 #endif
 
-        ztzz(i).resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        ztzz(i).reindexSelf(stagFull.lbound(2));
+        ztzz(i).resize(stagFull(i).ubound(2) - stagFull(i).lbound(2) + 1);
+        ztzz(i).reindexSelf(stagFull(i).lbound(2));
         ztzz(i) = 0.0;
-        ztzz(i)(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore.ubound(2), 1));
+        ztzz(i)(blitz::Range(0, stagCore(i).ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore(i).ubound(2), 1));
 
-        ztz2(i).resize(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        ztz2(i).reindexSelf(stagFull.lbound(2));
+        ztz2(i).resize(stagFull(i).ubound(2) - stagFull(i).lbound(2) + 1);
+        ztz2(i).reindexSelf(stagFull(i).lbound(2));
         ztz2(i) = 0.0;
-        ztz2(i)(blitz::Range(0, stagCore.ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore.ubound(2), 1));
+        ztz2(i)(blitz::Range(0, stagCore(i).ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore(i).ubound(2), 1));
     }
 };
 
@@ -504,7 +502,7 @@ void poisson::computeResidual() { };
  * \brief   Function to perform smoothing operation on the input array
  *
  *          The smoothing operation is always performed on the data contained in the array \ref pressureData.
- *          The array \ref iteratorTemp is used to store the temporary data and it is continuously swapped with the
+ *          The array \ref tmpDataArray is used to store the temporary data and it is continuously swapped with the
  *          \ref pressureData array at every iteration.
  *          This operation can be performed at any level of the V-cycle.
  *

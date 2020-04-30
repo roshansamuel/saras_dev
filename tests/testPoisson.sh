@@ -45,6 +45,9 @@
 # Test of Poisson library with Dirichlet BC
 PROC=1
 
+# REMOVE PRE-EXISTING EXECUTATBLES
+rm -f mgTest/saras
+
 # If build directory doesn't exist, create it
 if [ ! -d build ]; then
     mkdir build
@@ -53,8 +56,9 @@ fi
 # Switch to build directory
 cd build
 
-# Run cmake with necessary flags for 2D LDC test
-CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
+# Run cmake with necessary flags for 2D Poisson test
+CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DTEST_POISSON=ON -DREAL_DOUBLE=ON
+#CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
 
 # Compile
 make -j8

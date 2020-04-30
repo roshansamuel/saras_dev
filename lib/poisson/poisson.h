@@ -69,10 +69,8 @@ class poisson {
 
         blitz::Array<blitz::Array<real, 3>, 1> pressureData;
         blitz::Array<blitz::Array<real, 3>, 1> residualData;
-        blitz::Array<blitz::Array<real, 3>, 1> iteratorTemp;
-
-        blitz::Array<real, 3> smoothedPres;
-        blitz::Array<real, 3> inputRHSData;
+        blitz::Array<blitz::Array<real, 3>, 1> tmpDataArray;
+        blitz::Array<blitz::Array<real, 3>, 1> smoothedPres;
 
         blitz::Array<blitz::RectDomain<3>, 1> stagFull;
         blitz::Array<blitz::RectDomain<3>, 1> stagCore;
@@ -103,6 +101,14 @@ class poisson {
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
 
+        static inline bool isOdd(int x) { return x % 2; };
+
+        void setLocalSizeIndex();
+        void initializeArrays();
+        void copyStaggrDerivs();
+        void setCoefficients();
+        void setStagBounds();
+
         virtual void coarsen();
         virtual void prolong();
         virtual void computeResidual();
@@ -114,12 +120,6 @@ class poisson {
         virtual void createMGSubArrays();
 
         void vCycle();
-
-        void setLocalSizeIndex();
-        void initializeArrays();
-        void copyStaggrDerivs();
-        void setCoefficients();
-        void setStagBounds();
 
     public:
         poisson(const grid &mesh, const parser &solParam);
@@ -161,15 +161,15 @@ class multigrid_d2: public poisson {
         real computeError(const int normOrder);
 
         void imposeBC();
-        void updatePads();
+        //void updatePads();
         void createMGSubArrays();
 
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
 
-        real testTransfer();
-        real testProlong();
-        real testPeriodic();
+        //real testTransfer();
+        //real testProlong();
+        //real testPeriodic();
 
         ~multigrid_d2() {};
 };
@@ -192,7 +192,7 @@ class multigrid_d3: public poisson {
         real computeError(const int normOrder);
 
         void imposeBC();
-        void updatePads();
+        //void updatePads();
         void initDirichlet();
         void createMGSubArrays();
 
@@ -201,9 +201,9 @@ class multigrid_d3: public poisson {
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
 
-        real testTransfer();
-        real testProlong();
-        real testPeriodic();
+        //real testTransfer();
+        //real testProlong();
+        //real testPeriodic();
 
         ~multigrid_d3() {};
 };

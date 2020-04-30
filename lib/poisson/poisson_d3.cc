@@ -94,13 +94,13 @@ void multigrid_d3::computeResidual() {
     for (int iX = 0; iX <= xEnd(vLevel); iX += 1) {
         for (int iY = 0; iY <= yEnd(vLevel); iY += 1) {
             for (int iZ = 0; iZ <= zEnd(vLevel); iZ += 1) {
-                residualData(iX, iY, iZ) =  inputRHSData(iX, iY, iZ) -
-                               (xix2(iX) * (pressureData(iX + 1, iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - 1, iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                xixx(iX) * (pressureData(iX + 1, iY, iZ) - pressureData(iX - 1, iY, iZ))/(2.0*hx(vLevel)) +
-                                ety2(iY) * (pressureData(iX, iY + 1, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - 1, iZ))/(hy(vLevel)*hy(vLevel)) +
-                                etyy(iY) * (pressureData(iX, iY + 1, iZ) - pressureData(iX, iY - 1, iZ))/(2.0*hy(vLevel)) +
-                                ztz2(iZ) * (pressureData(iX, iY, iZ + 1) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - 1))/(hz(vLevel)*hz(vLevel)) +
-                                ztzz(iZ) * (pressureData(iX, iY, iZ + 1) - pressureData(iX, iY, iZ - 1))/(2.0*hz(vLevel)));
+                tmpDataArray(vLevel)(iX, iY, iZ) =  residualData(vLevel)(iX, iY, iZ) -
+                               (xix2(vLevel)(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) - 2.0*pressureData(vLevel)(iX, iY, iZ) + pressureData(vLevel)(iX - 1, iY, iZ))/(hx(vLevel)*hx(vLevel)) +
+                                xixx(vLevel)(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) - pressureData(vLevel)(iX - 1, iY, iZ))/(2.0*hx(vLevel)) +
+                                ety2(vLevel)(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) - 2.0*pressureData(vLevel)(iX, iY, iZ) + pressureData(vLevel)(iX, iY - 1, iZ))/(hy(vLevel)*hy(vLevel)) +
+                                etyy(vLevel)(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) - pressureData(vLevel)(iX, iY - 1, iZ))/(2.0*hy(vLevel)) +
+                                ztz2(vLevel)(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) - 2.0*pressureData(vLevel)(iX, iY, iZ) + pressureData(vLevel)(iX, iY, iZ - 1))/(hz(vLevel)*hz(vLevel)) +
+                                ztzz(vLevel)(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) - pressureData(vLevel)(iX, iY, iZ - 1))/(2.0*hz(vLevel)));
             }
         }
     }
@@ -111,7 +111,7 @@ void multigrid_d3::smooth(const int smoothCount) {
 #ifdef TIME_RUN
     struct timeval begin, end;
 #endif
-    iteratorTemp = 0.0;
+    tmpDataArray(vLevel) = 0.0;
 
     for(int n=0; n<smoothCount; n++) {
 #ifdef TIME_RUN
@@ -132,14 +132,14 @@ void multigrid_d3::smooth(const int smoothCount) {
             for (int iX = 0; iX <= xEnd(vLevel); iX += 1) {
                 for (int iY = 0; iY <= yEnd(vLevel); iY += 1) {
                     for (int iZ = 0; iZ <= zEnd(vLevel); iZ += 1) {
-                        iteratorTemp(vLevel)(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) + iteratorTemp(vLevel)(iX - 1, iY, iZ))*2.0 +
-                                                            hyhz(vLevel) * xixx(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) - iteratorTemp(vLevel)(iX - 1, iY, iZ))*hx(vLevel) +
-                                                            hzhx(vLevel) * ety2(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) + iteratorTemp(vLevel)(iX, iY - 1, iZ))*2.0 +
-                                                            hzhx(vLevel) * etyy(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) - iteratorTemp(vLevel)(iX, iY - 1, iZ))*hy(vLevel) +
-                                                            hxhy(vLevel) * ztz2(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) + iteratorTemp(vLevel)(iX, iY, iZ - 1))*2.0 +
-                                                            hxhy(vLevel) * ztzz(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) - iteratorTemp(vLevel)(iX, iY, iZ - 1))*hz(vLevel) -
+                        tmpDataArray(vLevel)(iX, iY, iZ) = (hyhz(vLevel) * xix2(vLevel)(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) + tmpDataArray(vLevel)(iX - 1, iY, iZ))*2.0 +
+                                                            hyhz(vLevel) * xixx(vLevel)(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) - tmpDataArray(vLevel)(iX - 1, iY, iZ))*hx(vLevel) +
+                                                            hzhx(vLevel) * ety2(vLevel)(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) + tmpDataArray(vLevel)(iX, iY - 1, iZ))*2.0 +
+                                                            hzhx(vLevel) * etyy(vLevel)(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) - tmpDataArray(vLevel)(iX, iY - 1, iZ))*hy(vLevel) +
+                                                            hxhy(vLevel) * ztz2(vLevel)(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) + tmpDataArray(vLevel)(iX, iY, iZ - 1))*2.0 +
+                                                            hxhy(vLevel) * ztzz(vLevel)(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) - tmpDataArray(vLevel)(iX, iY, iZ - 1))*hz(vLevel) -
                                                     2.0 * hxhyhz(vLevel) * residualData(vLevel)(iX, iY, iZ))/
-                                                   (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+                                                   (4.0 * (hyhz(vLevel)*xix2(vLevel)(iX) + hzhx(vLevel)*ety2(vLevel)(iY) + hxhy(vLevel)*ztz2(vLevel)(iZ)));
                     }
                 }
             }
@@ -149,20 +149,20 @@ void multigrid_d3::smooth(const int smoothCount) {
             for (int iX = 0; iX <= xEnd(vLevel); iX += 1) {
                 for (int iY = 0; iY <= yEnd(vLevel); iY += 1) {
                     for (int iZ = 0; iZ <= zEnd(vLevel); iZ += 1) {
-                        iteratorTemp(vLevel)(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) + pressureData(vLevel)(iX - 1, iY, iZ))*2.0 +
-                                                            hyhz(vLevel) * xixx(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) - pressureData(vLevel)(iX - 1, iY, iZ))*hx(vLevel) +
-                                                            hzhx(vLevel) * ety2(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) + pressureData(vLevel)(iX, iY - 1, iZ))*2.0 +
-                                                            hzhx(vLevel) * etyy(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) - pressureData(vLevel)(iX, iY - 1, iZ))*hy(vLevel) +
-                                                            hxhy(vLevel) * ztz2(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) + pressureData(vLevel)(iX, iY, iZ - 1))*2.0 +
-                                                            hxhy(vLevel) * ztzz(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) - pressureData(vLevel)(iX, iY, iZ - 1))*hz(vLevel) -
+                        tmpDataArray(vLevel)(iX, iY, iZ) = (hyhz(vLevel) * xix2(vLevel)(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) + pressureData(vLevel)(iX - 1, iY, iZ))*2.0 +
+                                                            hyhz(vLevel) * xixx(vLevel)(iX) * (pressureData(vLevel)(iX + 1, iY, iZ) - pressureData(vLevel)(iX - 1, iY, iZ))*hx(vLevel) +
+                                                            hzhx(vLevel) * ety2(vLevel)(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) + pressureData(vLevel)(iX, iY - 1, iZ))*2.0 +
+                                                            hzhx(vLevel) * etyy(vLevel)(iY) * (pressureData(vLevel)(iX, iY + 1, iZ) - pressureData(vLevel)(iX, iY - 1, iZ))*hy(vLevel) +
+                                                            hxhy(vLevel) * ztz2(vLevel)(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) + pressureData(vLevel)(iX, iY, iZ - 1))*2.0 +
+                                                            hxhy(vLevel) * ztzz(vLevel)(iZ) * (pressureData(vLevel)(iX, iY, iZ + 1) - pressureData(vLevel)(iX, iY, iZ - 1))*hz(vLevel) -
                                                     2.0 * hxhyhz(vLevel) * residualData(vLevel)(iX, iY, iZ))/
-                                                   (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+                                                   (4.0 * (hyhz(vLevel)*xix2(vLevel)(iX) + hzhx(vLevel)*ety2(vLevel)(iY) + hxhy(vLevel)*ztz2(vLevel)(iZ)));
                     }
                 }
             }
         }
 
-        swap(iteratorTemp, pressureData);
+        swap(tmpDataArray, pressureData);
 
 #ifdef TIME_RUN
         gettimeofday(&end, NULL);
@@ -182,54 +182,41 @@ void multigrid_d3::smooth(const int smoothCount) {
 #endif
 }
 
-
 void multigrid_d3::coarsen() {
     real facePoints, edgePoints, vertPoints;
-    // Integer values of starting indices, ending indices, and index increments along each direction
-    int xSt, xEn, xIn;
-    int ySt, yEn, yIn;
-    int zSt, zEn, zIn;
-    int shiftInc;
 
+    int i2, j2, k2;
+    int pLevel;
+
+    pLevel = vLevel;
     vLevel += 1;
 
-    xSt = stagCore.lbound(0);
-    xEn = stagCore.ubound(0);
-    xIn = strideValues(vLevel);
-
-    ySt = stagCore.lbound(1);
-    yEn = stagCore.ubound(1);
-    yIn = strideValues(vLevel);
-
-    zSt = stagCore.lbound(2);
-    zEn = stagCore.ubound(2);
-    zIn = strideValues(vLevel);
-
-    shiftInc = strideValues(vLevel - 1);
-
     // Full weighted restriction operation
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                facePoints = (residualData(iX + shiftInc, iY, iZ) + residualData(iX - shiftInc, iY, iZ) +
-                              residualData(iX, iY + shiftInc, iZ) + residualData(iX, iY - shiftInc, iZ) +
-                              residualData(iX, iY, iZ + shiftInc) + residualData(iX, iY, iZ - shiftInc))*0.0625;
-                edgePoints = (residualData(iX + shiftInc, iY + shiftInc, iZ) + residualData(iX + shiftInc, iY - shiftInc, iZ) +
-                              residualData(iX - shiftInc, iY - shiftInc, iZ) + residualData(iX - shiftInc, iY + shiftInc, iZ) +
-                              residualData(iX, iY + shiftInc, iZ + shiftInc) + residualData(iX, iY - shiftInc, iZ + shiftInc) +
-                              residualData(iX, iY - shiftInc, iZ - shiftInc) + residualData(iX, iY + shiftInc, iZ - shiftInc) +
-                              residualData(iX + shiftInc, iY, iZ + shiftInc) + residualData(iX + shiftInc, iY, iZ - shiftInc) +
-                              residualData(iX - shiftInc, iY, iZ - shiftInc) + residualData(iX - shiftInc, iY, iZ + shiftInc))*0.03125;
-                vertPoints = (residualData(iX + shiftInc, iY + shiftInc, iZ + shiftInc) +
-                              residualData(iX + shiftInc, iY + shiftInc, iZ - shiftInc) +
-                              residualData(iX + shiftInc, iY - shiftInc, iZ + shiftInc) +
-                              residualData(iX - shiftInc, iY + shiftInc, iZ + shiftInc) +
-                              residualData(iX + shiftInc, iY - shiftInc, iZ - shiftInc) +
-                              residualData(iX - shiftInc, iY + shiftInc, iZ - shiftInc) +
-                              residualData(iX - shiftInc, iY - shiftInc, iZ + shiftInc) +
-                              residualData(iX - shiftInc, iY - shiftInc, iZ - shiftInc))*0.015625;
+    for (int i = 0; i <= stagCore(vLevel).ubound(0); i++) {
+        i2 = i*2;
+        for (int j = 0; j <= stagCore(vLevel).ubound(1); j++) {
+            j2 = j*2;
+            for (int k = 0; k <= stagCore(vLevel).ubound(2); k++) {
+                k2 = k*2;
+                facePoints = (tmpDataArray(pLevel)(i2 + 1, j2, k2) + tmpDataArray(pLevel)(i2 - 1, j2, k2) +
+                              tmpDataArray(pLevel)(i2, j2 + 1, k2) + tmpDataArray(pLevel)(i2, j2 - 1, k2) +
+                              tmpDataArray(pLevel)(i2, j2, k2 + 1) + tmpDataArray(pLevel)(i2, j2, k2 - 1))*0.0625;
+                edgePoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2) + tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2) + tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2) +
+                              tmpDataArray(pLevel)(i2, j2 + 1, k2 + 1) + tmpDataArray(pLevel)(i2, j2 - 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2, j2 - 1, k2 - 1) + tmpDataArray(pLevel)(i2, j2 + 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2, k2 + 1) + tmpDataArray(pLevel)(i2 + 1, j2, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2, k2 - 1) + tmpDataArray(pLevel)(i2 - 1, j2, k2 + 1))*0.03125;
+                vertPoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 - 1))*0.015625;
 
-                residualData(iX, iY, iZ) = facePoints + edgePoints + vertPoints + residualData(iX, iY, iZ)*0.125;
+                residualData(vLevel)(i, j, k) = facePoints + edgePoints + vertPoints + tmpDataArray(pLevel)(i2, j2, k2)*0.125;
             }
         }
     }
@@ -332,15 +319,15 @@ real multigrid_d3::computeError(const int normOrder) {
     // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
     // abs in the STL which **rounds off** the number.
     // In this case, abs has to be replaced with fabs.
-    for (int iX = 0; iX <= xEnd(0); iX += 1) {
-        for (int iY = 0; iY <= yEnd(0); iY += 1) {
-            for (int iZ = 0; iZ <= zEnd(0); iZ += 1) {
-                tempValue = fabs((xix2(iX) * (pressureData(0)(iX + 1, iY, iZ) - 2.0*pressureData(0)(iX, iY, iZ) + pressureData(0)(iX - 1, iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                  xixx(iX) * (pressureData(0)(iX + 1, iY, iZ) - pressureData(0)(iX - 1, iY, iZ))/(2.0*hx(vLevel)) +
-                                  ety2(iY) * (pressureData(0)(iX, iY + 1, iZ) - 2.0*pressureData(0)(iX, iY, iZ) + pressureData(0)(iX, iY - 1, iZ))/(hy(vLevel)*hy(vLevel)) +
-                                  etyy(iY) * (pressureData(0)(iX, iY + 1, iZ) - pressureData(0)(iX, iY - 1, iZ))/(2.0*hy(vLevel)) +
-                                  ztz2(iZ) * (pressureData(0)(iX, iY, iZ + 1) - 2.0*pressureData(0)(iX, iY, iZ) + pressureData(0)(iX, iY, iZ - 1))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(iZ) * (pressureData(0)(iX, iY, iZ + 1) - pressureData(0)(iX, iY, iZ - 1))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
+    for (int i = 0; i <= xEnd(0); i += 1) {
+        for (int j = 0; j <= yEnd(0); j += 1) {
+            for (int k = 0; k <= zEnd(0); k += 1) {
+                tempValue = fabs((xix2(0)(i) * (pressureData(0)(i + 1, j, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
+                                  xixx(0)(i) * (pressureData(0)(i + 1, j, k) - pressureData(0)(i - 1, j, k))/(2.0*hx(vLevel)) +
+                                  ety2(0)(j) * (pressureData(0)(i, j + 1, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
+                                  etyy(0)(j) * (pressureData(0)(i, j + 1, k) - pressureData(0)(i, j - 1, k))/(2.0*hy(vLevel)) +
+                                  ztz2(0)(k) * (pressureData(0)(i, j, k + 1) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
+                                  ztzz(0)(k) * (pressureData(0)(i, j, k + 1) - pressureData(0)(i, j, k - 1))/(2.0*hz(vLevel))) - residualData(0)(i, j, k));
 
                 switch (normOrder) {
                     case 1:
@@ -348,7 +335,7 @@ real multigrid_d3::computeError(const int normOrder) {
                         break;
                     case 2:
                         numValLoc += tempValue*tempValue;
-                        denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
+                        denValLoc += residualData(0)(i, j, k)*residualData(0)(i, j, k);
                         valCountLoc += 1;
                         break;
                 }
@@ -361,16 +348,18 @@ real multigrid_d3::computeError(const int normOrder) {
     int valCountGlo = 0;
     switch (normOrder) {
         case 1:
-            denValLoc = blitz::max(fabs(inputRHSData));
+            denValLoc = blitz::max(fabs(residualData(0)));
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-            residualVal = numValGlo/denValGlo;
+            //residualVal = numValGlo/denValGlo;
+            residualVal = numValGlo;
             break;
         case 2:
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            //residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            residualVal = sqrt(numValGlo/valCountGlo);
             break;
     }
 
@@ -517,7 +506,7 @@ void multigrid_d3::initDirichlet() {
 
 
 void multigrid_d3::imposeBC() {
-    updatePads();
+    //updatePads();
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
@@ -615,8 +604,11 @@ void multigrid_d3::imposeBC() {
 }
 
 
+/*
 void multigrid_d3::updatePads() {
     recvRequest = MPI_REQUEST_NULL;
+
+    // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
     MPI_Irecv(&pressureData(mgRecvLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(&pressureData(mgRecvRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
     MPI_Irecv(&pressureData(mgRecvFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
@@ -801,3 +793,4 @@ real multigrid_d3::testPeriodic() {
 
     return blitz::max(fabs(pressureData));
 }
+*/
