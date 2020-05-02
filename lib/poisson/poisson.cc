@@ -196,6 +196,68 @@ void poisson::vCycle() {
      * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
      */
 
+    /******* TEST CODE *******/
+    // TWO-GRID V-CYCLE
+
+    /*
+    vLevel = 0;
+    zeroBC = false;
+
+    smooth(3);
+    computeResidual();
+
+    smoothedPres(vLevel) = pressureData(vLevel);
+    zeroBC = true;
+
+    coarsen();
+    pressureData(vLevel) = 0.0;
+    smooth(3);
+
+    prolong();
+    pressureData(vLevel) += smoothedPres(vLevel);
+
+    zeroBC = false;
+    smooth(3);
+    */
+
+    /******* END TEST CODE *******/
+
+    /******* TEST CODE *******/
+    // THREE-GRID V-CYCLE
+
+    /*
+    vLevel = 0;
+    zeroBC = false;
+
+    smooth(3);
+    computeResidual();
+
+    smoothedPres(vLevel) = pressureData(vLevel);
+    zeroBC = true;
+
+    coarsen();
+    smooth(3);
+
+    computeResidual();
+    smoothedPres(vLevel) = pressureData(vLevel);
+
+    coarsen();
+    pressureData(vLevel) = 0.0;
+    smooth(3);
+
+    prolong();
+    pressureData(vLevel) += smoothedPres(vLevel);
+    smooth(3);
+
+    prolong();
+    pressureData(vLevel) += smoothedPres(vLevel);
+
+    zeroBC = false;
+    smooth(3);
+    */
+
+    /******* END TEST CODE *******/
+
     vLevel = 0;
 
     // When using Dirichlet BC, the residue, r, has homogeneous BC (r=0 at boundary) and only the full pressure, x has non-homogeneous BC.
@@ -209,12 +271,12 @@ void poisson::vCycle() {
     zeroBC = true;
 
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
-    for (int i=0; i<inputParams.vcDepth; i++) {
-        // Copy pressureData into smoothedPres
-        smoothedPres(vLevel) = pressureData(vLevel);
-
+    for (int i=0; i<inputParams.vcDepth - 1; i++) {
         // Step 2) Compute the residual r = b - Ax
         computeResidual();
+
+        // Copy pressureData into smoothedPres
+        smoothedPres(vLevel) = pressureData(vLevel);
 
         // Restrict the residual to a coarser level
         coarsen();
@@ -224,11 +286,22 @@ void poisson::vCycle() {
     }
     // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
 
+    // Compute the residual r = b - Ax
+    computeResidual();
+
+    // Copy pressureData into smoothedPres
+    smoothedPres(vLevel) = pressureData(vLevel);
+
+    // Restrict the residual to a coarser level
+    coarsen();
+
+    pressureData(vLevel) = 0.0;
+
     // Step 5) Perform pre+post smoothing iterations to solve for the error 'e',
-    smooth(inputParams.restrictSmooth[inputParams.vcDepth - 1] + inputParams.prolongSmooth[inputParams.vcDepth - 1]);
+    smooth(inputParams.restrictSmooth[inputParams.vcDepth - 1]);
 
     // PROLONGATION OPERATIONS UP TO FINEST MESH
-    for (int i=0; i<inputParams.vcDepth; i++) {
+    for (int i=0; i<inputParams.vcDepth - 1; i++) {
         // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
 
@@ -240,7 +313,13 @@ void poisson::vCycle() {
     }
     // Step 8) Repeat steps 6-7 until you reach the finest grid level,
 
-    // Once the error/residual has been added to the solution, the Dirichlet BC to be applied is again non-zero
+    // Prolong the error 'e' to the next finer level.
+    prolong();
+
+    // Add error 'e' to the solution 'x' and perform post-smoothing iterations.
+    pressureData(vLevel) += smoothedPres(vLevel);
+
+    // Once the error/residual has been added to the solution at finest level, the Dirichlet BC to be applied is again non-zero
     zeroBC = false;
 
     // POST-SMOOTHING

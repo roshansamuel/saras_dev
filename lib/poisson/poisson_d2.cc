@@ -83,16 +83,24 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
 
 
 void multigrid_d2::computeResidual() {
+    tmpDataArray(vLevel) = 0.0;
+
     // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
     // This residual is temporarily stored into tmpDataArray, from which it will be coarsened into residualData array.
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
-    for (int i = 0; i <= xEnd(vLevel); i += 1) {
-        for (int k = 0; k <= zEnd(vLevel); k += 1) {
-            tmpDataArray(vLevel)(i, 0, k) =  residualData(vLevel)(i, 0, k) -
-                         (xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i - 1, 0, k))/(hx(vLevel)*hx(vLevel)) +
-                          xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))/(2.0*hx(vLevel)) +
-                          ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i, 0, k - 1))/(hz(vLevel)*hz(vLevel)) +
-                          ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))/(2.0*hz(vLevel)));
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        for (int k = 0; k <= zEnd(vLevel); ++k) {
+            // Non-uniform grid stencil
+            //tmpDataArray(vLevel)(i, 0, k) =  residualData(vLevel)(i, 0, k) -
+            //             (xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i - 1, 0, k))/(hx(vLevel)*hx(vLevel)) +
+            //              xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))/(2.0*hx(vLevel)) +
+            //              ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i, 0, k - 1))/(hz(vLevel)*hz(vLevel)) +
+            //              ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))/(2.0*hz(vLevel)));
+
+            // Uniform grid stencil
+            tmpDataArray(vLevel)(i, 0, k) = residualData(vLevel)(i, 0, k) -
+                                          ((pressureData(vLevel)(i + 1, 0, k) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i - 1, 0, k))/(hx2(vLevel)) +
+                                           (pressureData(vLevel)(i, 0, k + 1) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i, 0, k - 1))/(hz2(vLevel)));
         }
     }
 }
@@ -107,27 +115,32 @@ void multigrid_d2::smooth(const int smoothCount) {
 
         if (inputParams.gsSmooth) {
             // GAUSS-SEIDEL ITERATIVE SMOOTHING
-            for (int i = 0; i <= xEnd(vLevel); i += 1) {
-                for (int k = 0; k <= zEnd(vLevel); k += 1) {
-                    pressureData(vLevel)(i, 0, k) = (hz2(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k))*2.0 +
-                                                     hz2(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))*hx(vLevel) +
-                                                     hx2(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1))*2.0 +
-                                                     hx2(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))*hz(vLevel) -
-                                               2.0 * hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
-                                             (4.0 * (hz2(vLevel) * xix2(vLevel)(i) + hx2(vLevel)*ztz2(vLevel)(k)));
+            for (int i = 0; i <= xEnd(vLevel); ++i) {
+                for (int k = 0; k <= zEnd(vLevel); ++k) {
+                    // Non-uniform grid stencil
+                    //pressureData(vLevel)(i, 0, k) = (hz2(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k))*2.0 +
+                    //                                 hz2(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))*hx(vLevel) +
+                    //                                 hx2(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1))*2.0 +
+                    //                                 hx2(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))*hz(vLevel) -
+                    //                           2.0 * hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
+                    //                         (4.0 * (hz2(vLevel) * xix2(vLevel)(i) + hx2(vLevel)*ztz2(vLevel)(k)));
+
+                    // Uniform grid stencil
+                    pressureData(vLevel)(i, 0, k) = (hz2(vLevel) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k)) +
+                                                     hx2(vLevel) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1)) -
+                                                    hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
+                                             (2.0 * (hz2(vLevel) + hx2(vLevel)));
                 }
             }
         } else {
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
             // JACOBI ITERATIVE SMOOTHING
-            for (int i = 0; i <= xEnd(vLevel); i += 1) {
-                for (int k = 0; k <= zEnd(vLevel); k += 1) {
-                    tmpDataArray(vLevel)(i, 0, k) = (hz2(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k))*2.0 +
-                                                     hz2(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))*hx(vLevel) +
-                                                     hx2(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1))*2.0 +
-                                                     hx2(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))*hz(vLevel) -
-                                               2.0 * hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
-                                             (4.0 * (hz2(vLevel) * xix2(vLevel)(i) + hx2(vLevel)*ztz2(vLevel)(k)));
+            for (int i = 0; i <= xEnd(vLevel); ++i) {
+                for (int k = 0; k <= zEnd(vLevel); ++k) {
+                    tmpDataArray(vLevel)(i, 0, k) = (hz2(vLevel) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k)) +
+                                                     hx2(vLevel) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1)) -
+                                                    hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
+                                             (2.0 * (hz2(vLevel) + hx2(vLevel)));
                 }
             }
 
@@ -148,12 +161,22 @@ void multigrid_d2::coarsen() {
     pLevel = vLevel;
     vLevel += 1;
 
+    residualData(vLevel) = 0.0;
+
     // Full weighted restriction operation
     // The residual computed at previous vLevel is stored in tmpDataArray.
     // This data is read for coarsening and written into residualData array.
-    for (int i = 0; i <= xEnd(vLevel); i++) {
+
+    /*
+     * According to An Introduction to Multigrid Methods by P. Wesseling, Page 64 (Sec 5.2),
+     * Restriction can be performed at the edges and corners using the same stencil as in the bulk,
+     * But by assuming that values of the field outside the domain are all 0.
+     * Hence no special treatments at the corners and edges are needed.
+     */
+
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i*2;
-        for (int k = 0; k <= zEnd(vLevel); k++) {
+        for (int k = 0; k <= zEnd(vLevel); ++k) {
             k2 = k*2;
             facePoints = (tmpDataArray(pLevel)(i2 + 1, 0, k2) + tmpDataArray(pLevel)(i2 - 1, 0, k2) +
                           tmpDataArray(pLevel)(i2, 0, k2 + 1) + tmpDataArray(pLevel)(i2, 0, k2 - 1))*0.125;
@@ -174,6 +197,8 @@ void multigrid_d2::prolong() {
 
     pLevel = vLevel;
     vLevel -= 1;
+
+    pressureData(vLevel) = 0.0;
 
     for (int i = 0; i <= xEnd(vLevel); i++) {
         i2 = i/2;
@@ -220,10 +245,16 @@ real multigrid_d2::computeError(const int normOrder) {
     // In this case, abs has to be replaced with fabs.
     for (int i = 0; i <= xEnd(0); i += 1) {
         for (int k = 0; k <= zEnd(0); k += 1) {
-            tempValue = fabs((xix2(0)(i) * (pressureData(0)(i + 1, 0, k) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i - 1, 0, k))/(hx(0)*hx(0)) +
-                              xixx(0)(i) * (pressureData(0)(i + 1, 0, k) - pressureData(0)(i - 1, 0, k))/(2.0*hx(0)) +
-                              ztz2(0)(k) * (pressureData(0)(i, 0, k + 1) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i, 0, k - 1))/(hz(0)*hz(0)) +
-                              ztzz(0)(k) * (pressureData(0)(i, 0, k + 1) - pressureData(0)(i, 0, k - 1))/(2.0*hz(0))) - residualData(0)(i, 0, k));
+            // Non-uniform grid stencil
+            //tempValue = fabs((xix2(0)(i) * (pressureData(0)(i + 1, 0, k) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i - 1, 0, k))/hx2(0) +
+            //                  xixx(0)(i) * (pressureData(0)(i + 1, 0, k) - pressureData(0)(i - 1, 0, k))/(2.0*hx(0)) +
+            //                  ztz2(0)(k) * (pressureData(0)(i, 0, k + 1) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i, 0, k - 1))/hz2(0) +
+            //                  ztzz(0)(k) * (pressureData(0)(i, 0, k + 1) - pressureData(0)(i, 0, k - 1))/(2.0*hz(0))) - residualData(0)(i, 0, k));
+
+            // Uniform grid stencil
+            tempValue = fabs(((pressureData(0)(i + 1, 0, k) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i - 1, 0, k))/hx2(0) +
+                              (pressureData(0)(i, 0, k + 1) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i, 0, k - 1))/hz2(0)) -
+                               residualData(0)(i, 0, k));
 
             if (normOrder == 0) {
                 if (tempValue > numValLoc) numValLoc = tempValue;
@@ -289,31 +320,34 @@ void multigrid_d2::imposeBC() {
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
+        // DIRICHLET BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = -pressureData(vLevel)(1, 0, all);
+                pressureData(vLevel)(-1, 0, all) = 0.0;
+                //pressureData(vLevel)(-1, 0, all) = -pressureData(vLevel)(1, 0, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 0.0;
+                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
+                pressureData(vLevel)(-1, 0, all) = 1.0;
+                //pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 0.0;
+                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
             }
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
+        // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
             pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
             pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
         }
@@ -321,31 +355,33 @@ void multigrid_d2::imposeBC() {
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (inputParams.zPer) {
-        // PERIODIC BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
+        // PERIODIC BOUNDARY CONDITION AT BOTTOM WALL
         pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
 
-        // PERIODIC BOUNDARY CONDITION ON PRESSURE AT TOP WALL
+        // PERIODIC BOUNDARY CONDITION AT TOP WALL
         pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, 1);
 
     } else {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM AND TOP WALLS
+        // DIRICHLET BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
         if (zeroBC) {
-            pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            pressureData(vLevel)(all, 0, -1) = 0.0;
+            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
 
-            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 0.0;
+            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            //pressureData(vLevel)(all, 0, -1) = zWall(all);
-            pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            pressureData(vLevel)(all, 0, -1) = 0.0;
+            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
 
-            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
-            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 0.0;
+            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
+        // NEUMANN BOUNDARY CONDITION AT BOTTOM WALL
         pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
+        // NEUMANN BOUNDARY CONDITION AT TOP WALL
         pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
 #endif
     }
