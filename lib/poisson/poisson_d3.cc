@@ -77,9 +77,6 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     // RESIZE AND INITIALIZE NECESSARY DATA-STRUCTURES
     initializeArrays();
 
-    // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
-    createMGSubArrays();
-
     // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
 #ifdef TEST_POISSON
     initDirichlet();
@@ -367,90 +364,6 @@ real multigrid_d3::computeError(const int normOrder) {
 }
 
 
-void multigrid_d3::createMGSubArrays() {
-    int ptsCount;
-    int numPoints;
-    int areaVal, lengthVal;
-
-    blitz::Array<int, 1> blockIndx, blockSize;
-
-    recvStatus.resize(4);
-    recvRequest.resize(4);
-
-    xMGArray.resize(inputParams.vcDepth + 1);
-    yMGArray.resize(inputParams.vcDepth + 1);
-
-    mgSendLft.resize(inputParams.vcDepth + 1);        mgSendRgt.resize(inputParams.vcDepth + 1);
-    mgRecvLft.resize(inputParams.vcDepth + 1);        mgRecvRgt.resize(inputParams.vcDepth + 1);
-    mgSendFrn.resize(inputParams.vcDepth + 1);        mgSendBak.resize(inputParams.vcDepth + 1);
-    mgRecvFrn.resize(inputParams.vcDepth + 1);        mgRecvBak.resize(inputParams.vcDepth + 1);
-
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        /**
-         * For transfer of non-contiguous, yet uniformly spaced blocks of data, the MPI_Type_indexed datatype is being used here.
-         * The number of such data blocks is represented by numPoints.
-         * Since single points are being transferred rather than small blocks, the blockSize array, which holds the block length
-         * of each block of data to be sent, is set to 1.
-         * The blockIndx variable holds the starting index of each block (here, each single data point) within the full global
-         * array of data.
-         */
-
-        /***************************************************************************************************
-         * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
-         * This condition remained as a hidden bug in the code for the long time
-         * Because for periodic cases, it was implicitly assumed that periodic data transfer will serve
-         * But for a sequential case with npX = 1 and npY = 1, this transfer will not happen
-         * Now xMGArray and yMGArray are defined irrespective of npX and npY
-        \**************************************************************************************************/
-        // CREATE X_MG_ARRAY DATATYPE
-        numPoints = mgSizeArray(localSizeIndex(1) - i)*mgSizeArray(localSizeIndex(2) - i);
-        blockIndx.resize(numPoints);
-        blockSize.resize(numPoints);
-
-        blockSize = 1;
-        ptsCount = 0;
-
-        lengthVal = (stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        for (int j = 0; j < mgSizeArray(localSizeIndex(1) - i); j++) {
-            for (int k = 0; k < mgSizeArray(localSizeIndex(2) - i); k++) {
-                blockIndx(ptsCount) = j*lengthVal*strideValues(i) + k*strideValues(i);
-                ptsCount += 1;
-            }
-        }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &xMGArray(i));
-        MPI_Type_commit(&xMGArray(i));
-
-        // CREATE Y_MG_ARRAY DATATYPE
-        numPoints = mgSizeArray(localSizeIndex(2) - i)*mgSizeArray(localSizeIndex(0) - i);
-        blockIndx.resize(numPoints);
-        blockSize.resize(numPoints);
-
-        blockSize = 1;
-        ptsCount = 0;
-
-        areaVal = (stagFull.ubound(1) - stagFull.lbound(1) + 1)*(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        for (int j = 0; j < mgSizeArray(localSizeIndex(0) - i); j++) {
-            for (int k = 0; k < mgSizeArray(localSizeIndex(2) - i); k++) {
-                blockIndx(ptsCount) = j*strideValues(i)*areaVal + k*strideValues(i);
-                ptsCount += 1;
-            }
-        }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &yMGArray(i));
-        MPI_Type_commit(&yMGArray(i));
-
-        mgSendLft(i) =  strideValues(i), 0, 0;
-        mgRecvLft(i) = -strideValues(i), 0, 0;
-        mgSendRgt(i) = stagCore.ubound(0) - strideValues(i), 0, 0;
-        mgRecvRgt(i) = stagCore.ubound(0) + strideValues(i), 0, 0;
-
-        mgSendFrn(i) = 0,  strideValues(i), 0;
-        mgRecvFrn(i) = 0, -strideValues(i), 0;
-        mgSendBak(i) = 0, stagCore.ubound(1) - strideValues(i), 0;
-        mgRecvBak(i) = 0, stagCore.ubound(1) + strideValues(i), 0;
-    }
-}
-
-
 void multigrid_d3::initDirichlet() {
     real xDist, yDist, zDist;
 
@@ -468,7 +381,7 @@ void multigrid_d3::initDirichlet() {
     zWall = 0.0;
 
     // Compute values at the walls at all V-Cycle depths, using the (r^2)/6 formula
-    for (int i=0; i<=inputParams.vcDepth; i++) {
+    for (int n=0; n<=inputParams.vcDepth; ++n) {
         // Along X-direction - Left and Right Walls
         xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
         for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
@@ -506,8 +419,6 @@ void multigrid_d3::initDirichlet() {
 
 
 void multigrid_d3::imposeBC() {
-    //updatePads();
-
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
         // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
@@ -602,195 +513,3 @@ void multigrid_d3::imposeBC() {
 #endif
     }
 }
-
-
-/*
-void multigrid_d3::updatePads() {
-    recvRequest = MPI_REQUEST_NULL;
-
-    // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
-    MPI_Irecv(&pressureData(mgRecvLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&pressureData(mgRecvRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    MPI_Irecv(&pressureData(mgRecvFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-    MPI_Irecv(&pressureData(mgRecvBak(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
-
-    MPI_Send(&pressureData(mgSendLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendBak(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
-
-    MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
-}
-
-
-real multigrid_d3::testProlong() {
-    vLevel = 0;
-
-    // Fill the residualData array with correct values expected after prolongation
-    residualData = 0.0;
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                residualData(iX, iY, iZ) = (mesh.rankData.rank + 1)*1000 + iX*100 + iY*10 + iZ;
-            }
-        }
-    }
-
-    // After going one level down the V-Cycle, populate the pressureData array with values at the corresponding stride
-    vLevel += 1;
-    pressureData = 0.0;
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                pressureData(iX, iY, iZ) = (mesh.rankData.rank + 1)*1000 + iX*100 + iY*10 + iZ;
-            }
-        }
-    }
-
-    // Perform prolongation
-    prolong();
-
-    pressureData -= residualData;
-
-    return blitz::max(fabs(pressureData));
-}
-
-
-real multigrid_d3::testTransfer() {
-    real maxVal = 0.0;
-
-    vLevel = 0;
-
-    pressureData = 0.0;
-    residualData = 0.0;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += 1) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += 1) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += 1) {
-                pressureData(iX, iY, iZ) = (mesh.rankData.rank + 1)*1000 + iX*100 + iY*10 + iZ;
-                residualData(iX, iY, iZ) = pressureData(iX, iY, iZ);
-            }
-        }
-    }
-
-    // EXPECTED VALUES IN THE PAD REGIONS IF DATA TRANSFER HAPPENS WITH NO HITCH
-    for (int iX = 0; iX <= inputParams.vcDepth; iX++) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(iX)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iX)) {
-                residualData(-strideValues(iX), iY, iZ) = (mesh.rankData.nearRanks(0) + 1)*1000 + (stagCore.ubound(0) - strideValues(iX))*100 + iY*10 + iZ;
-                residualData(stagCore.ubound(0) + strideValues(iX), iY, iZ) = (mesh.rankData.nearRanks(1) + 1)*1000 + strideValues(iX)*100 + iY*10 + iZ;
-            }
-        }
-    }
-
-    for (int iY = 0; iY <= inputParams.vcDepth; iY++) {
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(iY)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iY)) {
-                residualData(iX, -strideValues(iY), iZ) = (mesh.rankData.nearRanks(2) + 1)*1000 + iX*100 + (stagCore.ubound(1) - strideValues(iY))*10 + iZ;
-                residualData(iX, stagCore.ubound(1) + strideValues(iY), iZ) = (mesh.rankData.nearRanks(3) + 1)*1000 + iX*100 + strideValues(iY)*10 + iZ;
-            }
-        }
-    }
-
-    for (int i=0; i<=inputParams.vcDepth; i++) {
-        updatePads();
-        vLevel += 1;
-    }
-
-    pressureData -= residualData;
-
-    for (int iX = pressureData.lbound(0); iX <= pressureData.ubound(0); iX += 1) {
-        for (int iY = pressureData.lbound(1); iY <= pressureData.ubound(1); iY += 1) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += 1) {
-                if (abs(pressureData(iX, iY, iZ)) > maxVal) {
-                    maxVal = abs(pressureData(iX, iY, iZ));
-                }
-            }
-        }
-    }
-
-    return maxVal;
-}
-
-
-real multigrid_d3::testPeriodic() {
-    real xCoord = 0.0;
-    real yCoord = 0.0;
-    real zCoord = 0.0;
-
-    vLevel = 0;
-
-    pressureData = 0.0;
-    residualData = 0.0;
-
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                pressureData(iX, iY, iZ) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                           cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                           cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-                residualData(iX, iY, iZ) = pressureData(iX, iY, iZ);
-            }
-        }
-    }
-
-    // EXPECTED VALUES IN THE PAD REGIONS IF DATA TRANSFER HAPPENS WITH NO HITCH
-    for (int iX = 0; iX <= inputParams.vcDepth; iX++) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(iX)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iX)) {
-                xCoord = mesh.xStaggr(stagCore.lbound(0)) - (mesh.xStaggr(stagCore.lbound(0) + strideValues(iX)) - mesh.xStaggr(stagCore.lbound(0)));
-                residualData(stagCore.lbound(0) - strideValues(iX), iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-
-                xCoord = mesh.xStaggr(stagCore.ubound(0)) + (mesh.xStaggr(stagCore.ubound(0)) - mesh.xStaggr(stagCore.ubound(0) - strideValues(iX)));
-                residualData(stagCore.ubound(0) + strideValues(iX), iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-            }
-        }
-    }
-
-    for (int iY = 0; iY <= inputParams.vcDepth; iY++) {
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(iY)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iY)) {
-                yCoord = mesh.yStaggr(stagCore.lbound(1)) - (mesh.yStaggr(stagCore.lbound(1) + strideValues(iY)) - mesh.yStaggr(stagCore.lbound(1)));
-                residualData(iX, stagCore.lbound(1) - strideValues(iY), iZ) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-
-                yCoord = mesh.yStaggr(stagCore.ubound(1)) + (mesh.yStaggr(stagCore.ubound(1)) - mesh.yStaggr(stagCore.ubound(1) - strideValues(iY)));
-                residualData(iX, stagCore.ubound(1) + strideValues(iY), iZ) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-            }
-        }
-    }
-
-    for (int iZ = 0; iZ <= inputParams.vcDepth; iZ++) {
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(iZ)) {
-            for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(iZ)) {
-                zCoord = mesh.zStaggr(stagCore.lbound(2)) - (mesh.zStaggr(stagCore.lbound(2) + strideValues(iZ)) - mesh.zStaggr(stagCore.lbound(2)));
-                residualData(iX, iY, stagCore.lbound(2) - strideValues(iZ)) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*zCoord/mesh.zLen);
-
-                zCoord = mesh.zStaggr(stagCore.ubound(2)) + (mesh.zStaggr(stagCore.ubound(2)) - mesh.zStaggr(stagCore.ubound(2) - strideValues(iZ)));
-                residualData(iX, iY, stagCore.ubound(2) + strideValues(iZ)) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*zCoord/mesh.zLen);
-            }
-        }
-    }
-
-    for (int i=0; i<=inputParams.vcDepth; i++) {
-        imposeBC();
-        vLevel += 1;
-    }
-
-    pressureData -= residualData;
-
-    return blitz::max(fabs(pressureData));
-}
-*/

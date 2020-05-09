@@ -100,7 +100,6 @@ class parser {
         real betaX, betaY, betaZ;
         real courantNumber;
 
-        std::vector<int> restrictSmooth, prolongSmooth;
         std::vector<blitz::TinyVector<int, 3> > probesList;
 
         parser();

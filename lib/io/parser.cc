@@ -151,8 +151,6 @@ void parser::parseYAML() {
 
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
     yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
-    yamlNode["Multigrid"]["Restrict-Smoothing Count"] >> restrictSmooth;
-    yamlNode["Multigrid"]["Prolong-Smoothing Count"] >> prolongSmooth;
 
     yamlNode["Multigrid"]["Print Error"] >> mgError;
 
@@ -225,55 +223,37 @@ void parser::checkData() {
         exit(0);
     }
 
-    // CHECK IF THE LENGTH OF ARRAY restrictSmooth IS LESS THAN vcDepth
-    // THE SIZE OF restrictSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
-    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
-    if (int(restrictSmooth.size()) < vcDepth) {
-        std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
-
-    // CHECK IF THE LENGTH OF ARRAY prolongSmooth IS LESS THAN vcDepth
-    // THE SIZE OF prolongSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
-    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
-    if (int(prolongSmooth.size()) < vcDepth) {
-        std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
-
     // CHECK IF GRID SIZE SPECIFIED ALONG EACH DIRECTION IS SUFFICIENT ALONG WITH THE DOMAIN DIVIIONS TO REACH THE LOWEST LEVEL OF V-CYCLE DEPTH SPECIFIED
     // ALONG X-DIRECTION
-    gridSize = int(pow(2, xInd));
-    localSize = gridSize/npX;
-    coarsestSize = int(pow(2, vcDepth+1));
-    if (localSize < coarsestSize) {
-        std::cout << "ERROR: The grid size and domain decomposition along X-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
+    //gridSize = int(pow(2, xInd));
+    //localSize = gridSize/npX;
+    //coarsestSize = int(pow(2, vcDepth+1));
+    //if (localSize < coarsestSize) {
+    //    std::cout << "ERROR: The grid size and domain decomposition along X-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 
     // ALONG Y-DIRECTION
 #ifndef PLANAR
-    gridSize = int(pow(2, yInd));
-    localSize = gridSize/npY;
-    coarsestSize = int(pow(2, vcDepth+1));
-    if (yInd > 0 and localSize < coarsestSize) {
-        std::cout << "ERROR: The grid size and domain decomposition along Y-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
+    //gridSize = int(pow(2, yInd));
+    //localSize = gridSize/npY;
+    //coarsestSize = int(pow(2, vcDepth+1));
+    //if (yInd > 0 and localSize < coarsestSize) {
+    //    std::cout << "ERROR: The grid size and domain decomposition along Y-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 #endif
 
     // ALONG Z-DIRECTION
-    gridSize = int(pow(2, zInd));
-    coarsestSize = int(pow(2, vcDepth+1));
-    if (gridSize < coarsestSize) {
-        std::cout << "ERROR: The grid size along Z-direction is too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
+    //gridSize = int(pow(2, zInd));
+    //coarsestSize = int(pow(2, vcDepth+1));
+    //if (gridSize < coarsestSize) {
+    //    std::cout << "ERROR: The grid size along Z-direction is too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 
 #ifdef REAL_SINGLE
     if (tolerance < 5.0e-6) {
