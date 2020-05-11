@@ -92,6 +92,15 @@ class poisson {
         blitz::Array<blitz::Array<real, 1>, 1> etyy, ety2;
         blitz::Array<blitz::Array<real, 1>, 1> ztzz, ztz2;
 
+        blitz::Array<MPI_Datatype, 1> xMGArray;
+        blitz::Array<MPI_Datatype, 1> yMGArray;
+
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendLft, mgSendRgt;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvLft, mgRecvRgt;
+
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
+
         static inline bool isOdd(int x) { return x % 2; };
 
         void setLocalSizeIndex();
@@ -108,6 +117,8 @@ class poisson {
 
         virtual void solve() {};
         virtual void imposeBC();
+        virtual void updatePads();
+        virtual void createMGSubArrays();
 
         void vCycle();
 
@@ -115,6 +126,10 @@ class poisson {
         poisson(const grid &mesh, const parser &solParam);
 
         void mgSolve(plainsf &inFn, const plainsf &rhs);
+
+        virtual real testTransfer();
+        virtual real testProlong();
+        virtual real testPeriodic();
 
         virtual ~poisson();
 };
@@ -124,6 +139,17 @@ class poisson {
  *  \class poisson poisson.h "lib/poisson.h"
  *  \brief The base class poisson and its derived classes multigrid_d2 and multigrid_d3
  *
+ *  The class implements the geometric multi-grid method for solving the Poisson equation on a non-uniform grid across MPI decomposed
+ *  domains for parallel computations.
+ *  The data structure used by the class for computing multi-grid V-cycles across sub-domains is a blitz array with very wide overlap.
+ *  When calculating the finite differences at the sub-domain boundaries, at the coarsest level of the V-cycle, data points from very
+ *  deep within the neighbouring sub-domains are necessary.
+ *  This is the reason for using a wide pad, that spans up to the nearest node of the adjacent sub-domain at the coarsest mesh.
+ *  This increases the memory footprint, but doesn't increase the computational time as only a single finite-difference calculation
+ *  is being done using the pads at all levels of the V-cycle.
+ *
+ *  All the necessary functions to perform the V-cycle - prolongation, solving at coarsest mesh, smoothening, etc. are implemented
+ *  within the \ref poisson class.
  ********************************************************************************************************************************************
  */
 
@@ -140,10 +166,17 @@ class multigrid_d2: public poisson {
         void imposeBC();
         void initDirichlet();
 
+        //void updatePads();
+        //void createMGSubArrays();
+
         blitz::Array<real, 1> xWall, zWall;
 
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
+
+        //real testTransfer();
+        //real testProlong();
+        //real testPeriodic();
 
         ~multigrid_d2() {};
 };
@@ -153,6 +186,7 @@ class multigrid_d2: public poisson {
  *  \class multigrid_d2 poisson.h "lib/poisson.h"
  *  \brief The derived class from poisson to perform multi-grid operations on a 2D grid
  *
+ *  The 2D implementation ignores the y-direction component of the computational domain.
  ********************************************************************************************************************************************
  */
 
@@ -166,12 +200,18 @@ class multigrid_d3: public poisson {
 
         void solve() {};
         void imposeBC();
+        //void updatePads();
         void initDirichlet();
+        void createMGSubArrays();
 
         blitz::Array<real, 2> xWall, yWall, zWall;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
+
+        //real testTransfer();
+        //real testProlong();
+        //real testPeriodic();
 
         ~multigrid_d3() {};
 };

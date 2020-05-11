@@ -46,6 +46,17 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the base poisson class
  *
+ *          The short base constructor of the poisson class merely assigns the const references to the grid and parser
+ *          class instances being used in the solver.
+ *          Moreover, it resizes and populates a local array of multi-grid sizes as used in the grid class.
+ *          An array of strides to be used at different V-cycle levels is also generated and stored.
+ *          Finally, the maximum allowable number of iterations for the Jacobi iterative solver being used at the
+ *          coarsest mesh is set as \f$ N_{max} = N_x \times N_y \times N_z \f$, where \f$N_x\f$, \f$N_y\f$ and \f$N_z\f$
+ *          are the number of grid points in the collocated grid at the local sub-domains along x, y and z directions
+ *          respectively.
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class
+ * \param   solParam is a const reference to the user-set parameters contained in the parser class
  ********************************************************************************************************************************************
  */
 poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputParams(solParam) {
@@ -65,6 +76,11 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
 
     vLevel = 0;
     maxCount = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+
+#ifdef TIME_RUN
+    smothTimeComp = 0.0;
+    smothTimeTran = 0.0;
+#endif
 }
 
 
@@ -72,6 +88,14 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  * \brief   The core, publicly accessible function of poisson to compute the solution for the Poisson equation
  *
+ *          The function calls the V-cycle as many times as set by the user.
+ *          Before doing so, the input data is transferred into the data-structures used by the poisson class to
+ *          perform restrictions and prolongations without copying.
+ *          Finally, the computed solution is transferred back from the internal data-structures back into the
+ *          scalar field supplied by the calling function.
+ *
+ * \param   inFn is a pointer to the plain scalar field (cell-centered) into which the computed soltuion must be transferred
+ * \param   rhs is a const reference to the plain scalar field (cell-centered) which contains the RHS for the Poisson equation to solve
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
@@ -86,6 +110,17 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
     residualData(0)(stagCore(0)) = rhs.F(stagCore(0));
     pressureData(0)(stagCore(0)) = inFn.F(stagCore(0));
+
+#ifndef TEST_POISSON
+    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
+    real localMean = blitz::mean(residualData(0));
+    real globalAvg = 0.0;
+
+    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    globalAvg /= mesh.rankData.nProc;
+
+    residualData(0) -= globalAvg;
+#endif
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
@@ -139,34 +174,71 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
  ********************************************************************************************************************************************
  * \brief   Function to perform one loop of V-cycle
  *
+ *          The V-cycle of restrictions, prolongations and smoothings are performed within this function.
+ *          First the input data contained in \ref pressureData is smoothed, after which the residual is computed and stored
+ *          in the \ref residualData array.
+ *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
  ********************************************************************************************************************************************
  */
 void poisson::vCycle() {
+    /*
+     * OUTLINE OF THE MULTI-GRID V-CYCLE
+     * 1)  Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
+     * 2)  Compute the residual r=b-Ax and restrict it to a coarser level,
+     * 3)  Perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
+     * 4)  Repeat steps 2-3 until you reach the coarsest grid level,
+     * 5)  Perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
+     * 6)  Prolong the error 'e' to the next finer level.
+     * 7)  Perform N=2 post-smoothing iterations, 
+     * 8)  Repeat steps 6-7 until the finest grid is reached,
+     * 9)  Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
+     * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
+     */
+
     vLevel = 0;
+
+    // When using Dirichlet BC, the residue, r, has homogeneous BC (r=0 at boundary) and only the full pressure, x has non-homogeneous BC.
+    // Since pre-smoothing is performed on x, the Dirichlet BC imposed is not zero
     zeroBC = false;
 
+    // Step 1) Pre-smoothing iterations of Ax = b
     smooth(inputParams.preSmooth);
 
+    // At this point smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e. From now on homogeneous Dirichlet BCs are used
     zeroBC = true;
 
+    // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
+        // Step 2) Compute the residual r = b - Ax
         computeResidual();
+
+        // Copy pressureData into smoothedPres
         smoothedPres(vLevel) = pressureData(vLevel);
 
+        // Restrict the residual to a coarser level
         coarsen();
         pressureData(vLevel) = 0.0;
 
+        // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
         (vLevel == inputParams.vcDepth)? solve(): smooth(inputParams.preSmooth);
     }
+    // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
 
+    // PROLONGATION OPERATIONS UP TO FINEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
+        // Step 6) Prolong the error 'e' to the next finer level.
         prolong();
 
+        // Step 9) Add error 'e' to the solution 'x' and perform post-smoothing iterations.
         pressureData(vLevel) += smoothedPres(vLevel);
 
+        // Once the error/residual has been added to the solution at finest level, the Dirichlet BC to be applied is again non-zero
         (vLevel == 0)? zeroBC = false: zeroBC = true;
+
+        // Step 7) Perform post-smoothing iterations
         smooth(inputParams.postSmooth);
     }
+    // Step 8) Repeat steps 6-7 until you reach the finest grid level,
 };
 
 
@@ -174,6 +246,9 @@ void poisson::vCycle() {
  ********************************************************************************************************************************************
  * \brief   Function to initialize the arrays used in multi-grid
  *
+ *          The memory required for various arrays in multi-grid solver are pre-allocated through this function.
+ *          The function is called from within the constructor to perform this allocation once and for all.
+ *          The arrays are initialized to 0.
  ********************************************************************************************************************************************
  */
 void poisson::initializeArrays() {
@@ -206,6 +281,7 @@ void poisson::initializeArrays() {
  ********************************************************************************************************************************************
  * \brief   Function to set the RectDomain variables for all future references throughout the poisson solver
  *
+ *          The function sets the core and full domain staggered grid sizes for all the sub-domains.
  ********************************************************************************************************************************************
  */
 void poisson::setStagBounds() {
@@ -249,6 +325,11 @@ void poisson::setStagBounds() {
  ********************************************************************************************************************************************
  * \brief   Function to calculate the local size indices of sub-domains after MPI domain decomposition
  *
+ *          For the multi-grid solver, the number of grid nodes must be \f$ 2^N + 1 \f$ to perform V-Cycles
+ *          The domain decomposition is also done in such a way that each sub-domain will also have \f$ 2^M + 1 \f$ points.
+ *          As a result, the number of processors in each direction must be a power of 2.
+ *          In this case, the the value \f$ M \f$ of \f$ 2^M + 1 \f$ can be computed as \f$ M = N - log_2(np) \f$
+ *          where \f$ np \f$ is the number of processors along the direction under consideration.
  ********************************************************************************************************************************************
  */
 void poisson::setLocalSizeIndex() {
@@ -268,6 +349,8 @@ void poisson::setLocalSizeIndex() {
  ********************************************************************************************************************************************
  * \brief   Function to set the coefficients used for calculating laplacian and in smoothing
  *
+ *          The function assigns values to the variables \ref hx, \ref hy etc.
+ *          These coefficients are repeatedly used at many places in the Poisson solver.
  ********************************************************************************************************************************************
  */
 void poisson::setCoefficients() {
@@ -317,6 +400,11 @@ void poisson::setCoefficients() {
  ********************************************************************************************************************************************
  * \brief   Function to copy the staggered grid derivatives from the grid class to local arrays
  *
+ *          Though the grid derivatives in the grid class can be read and accessed, they cannot be used directly
+ *          along with the arrays defined in the poisson class as the local arrays have wide pads on both sides.
+ *          Therefore, correspondingly wide arrays for grid derivatives are used, into which the staggered grid
+ *          derivatives from the grid class are written and stored.
+ *          This function serves this purpose of copying the grid derivatives.
  ********************************************************************************************************************************************
  */
 void poisson::copyStaggrDerivs() {
@@ -366,23 +454,143 @@ void poisson::copyStaggrDerivs() {
 };
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to coarsen the grid down the levels of the V-Cycle
+ *
+ *          Coarsening reduces the number of points in the grid by averaging values at two adjacent nodes onto an intermediate point between them
+ *          As a result, the number of points in the domain decreases from \f$ 2^{N+1} + 1 \f$ at the input level to \f$ 2^N + 1 \f$.
+ *          The vLevel variable is accordingly incremented by 1 to reflect this descent by one step down the V-Cycle.
+ ********************************************************************************************************************************************
+ */
 void poisson::coarsen() { };
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to perform prolongation on the array being solved
+ *
+ *          Prolongation makes the grid finer by averaging values at two adjacent nodes onto an intermediate point between them
+ *          As a result, the number of points in the domain increases from \f$ 2^N + 1 \f$ at the input level to \f$ 2^{N+1} + 1 \f$.
+ *          The vLevel variable is accordingly reduced by 1 to reflect this ascent by one step up the V-Cycle.
+ ********************************************************************************************************************************************
+ */
 void poisson::prolong() { };
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to compute the residual at the start of each V-Cycle
+ *
+ *          The Poisson solver solves for the residual r = b - Ax
+ *          This function computes this residual by calculating the Laplacian of the pressure field and
+ *          subtracting it from the RHS of Poisson equation.
+ *
+ ********************************************************************************************************************************************
+ */
 void poisson::computeResidual() { };
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to perform smoothing operation on the input array
+ *
+ *          The smoothing operation is always performed on the data contained in the array \ref pressureData.
+ *          The array \ref tmpDataArray is used to store the temporary data and it is continuously swapped with the
+ *          \ref pressureData array at every iteration.
+ *          This operation can be performed at any level of the V-cycle.
+ *
+ * \param   smoothCount is the integer value of the number of smoothing iterations to be performed
+ ********************************************************************************************************************************************
+ */
 void poisson::smooth(const int smoothCount) { };
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to compute the error at the end of each V-Cycle
+ *
+ *          To check for convergence, the residual must be computed throughout the domain.
+ *          This function offers multiple ways to compute the residual (global maximum, rms, mean, etc.)
+ *
+ * \param   normOrder is the integer value of the order of norm used to calculate the residual.
+ ********************************************************************************************************************************************
+ */
 real poisson::computeError(const int normOrder) {  return 0.0; };
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions of Poisson solver at different levels of the V-cycle
+ *
+ *          This function is called mainly during smoothing operations to impose the boundary conditions for the
+ *          Poisson equation.
+ *          The sub-domains close to the wall will have the Neumann boundary condition on pressure imposeed at the walls.
+ *          Meanwhile at the interior boundaries at the inter-processor sub-domains, data is transferred from the neighbouring cells
+ *          by calling the \ref updatePads function.
+ ********************************************************************************************************************************************
+ */
 void poisson::imposeBC() { };
 
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to update the pad points of the local sub-domains at different levels of the V-cycle
+ *
+ *          This function is called mainly during smoothing operations by the \ref imposeBC function.
+ *          At the interior boundaries at the inter-processor sub-domains, data is transferred from the neighbouring cells
+ *          using a combination of MPI_Irecv and MPI_Send functions.
+ ********************************************************************************************************************************************
+ */
+void poisson::updatePads() { };
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to create the MPI sub-array data types necessary to transfer data across sub-domains
+ *
+ *          The inter-domain boundaries of all the sub-domains at different V-cycle levels need data to be transfered at
+ *          with different mesh strides.
+ *          The number of sub-arrays along each edge/face of the sub-domains are equal to the number of V-cycle levels.
+ *          Since this data transfer has to take place at all the mesh levels including the finest mesh, there will be
+ *          vcDepth + 1 elements.
+ ********************************************************************************************************************************************
+ */
+void poisson::createMGSubArrays() { };
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to test whether strided data transfer is performing as expected
+ *
+ *          The function populates the arrays with predetermined values at all locations.
+ *          It then calls updatePads at different vLevels and checks is the data is being transferred along x and y directions
+ *          This done by printing the contents of the arrays for visual inspection for now.
+ ********************************************************************************************************************************************
+ */
+real poisson::testTransfer() { return 0; };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to test whether prolongation operations are interpolating correctly
+ *
+ *          The function populates the arrays with predetermined values at all locations.
+ *          It then calls prolong function at a lower vLevel and checks if the data is being interpolated correctly at higher vLevel
+ *          This done by returning the average deviation from correct values as a real value
+ ********************************************************************************************************************************************
+ */
+real poisson::testProlong() { return 0; };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to test whether periodic BC is being implemented properly
+ *
+ *          The function populates the arrays with predetermined values at all locations.
+ *          It then calls imposeBC function at different vLevels and checks if the correct values of the functions are imposed at boundaries
+ *          This done by printing the contents of the arrays for visual inspection for now.
+ ********************************************************************************************************************************************
+ */
+real poisson::testPeriodic() { return 0; };
 
 poisson::~poisson() {
 #ifdef TIME_RUN
