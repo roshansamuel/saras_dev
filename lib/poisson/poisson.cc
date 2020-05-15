@@ -124,7 +124,9 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
-        vCycle();
+        //std::cout << i << "\t" << inputParams.vcCount << std::endl;
+        vCycle(i);
+        //if (i == inputParams.vcCount - 1) std::cout << residualData(vLevel)(5, blitz::Range(2, 5), blitz::Range(2, 5)) << std::endl;
 
         if (inputParams.mgError) {
             real mgResidual = computeError(inputParams.mgError);
@@ -135,9 +137,10 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     // RETURN CALCULATED PRESSURE DATA
     inFn.F = pressureData(0)(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 
+    //MPI_Finalize();
+    //exit(0);
 #ifdef TEST_POISSON
     if (mesh.rankData.rank == 0) {
-        real xDist, zDist;
         blitz::Array<real, 3> pAnalytic, tempArray;
 
         pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound(0) - stagCore(0).lbound(0) + 1,
@@ -148,6 +151,8 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
                                                         stagCore(0).lbound(2)));
         pAnalytic = 0.0;
 
+#ifdef PLANAR
+        real xDist, zDist;
         for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
             xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
             for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
@@ -156,6 +161,20 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
                 pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
             }
         }
+#else
+        real xDist, yDist, zDist;
+        for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
+            xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
+            for (int j=stagCore(0).lbound(1); j<=stagCore(0).ubound(1); j++) {
+                yDist = hy(0)*(j - stagCore(0).ubound(1)/2);
+                for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
+                    zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
+                    pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                }
+            }
+        }
+#endif
 
         tempArray.resize(pAnalytic.shape());
         tempArray.reindexSelf(pAnalytic.lbound());
@@ -180,7 +199,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
  *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
  ********************************************************************************************************************************************
  */
-void poisson::vCycle() {
+void poisson::vCycle(int n) {
     /*
      * OUTLINE OF THE MULTI-GRID V-CYCLE
      * 1)  Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
@@ -209,6 +228,9 @@ void poisson::vCycle() {
 
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
+        // DEBUG CODE
+        //if (i == inputParams.vcDepth-1) std::cout << pressureData(vLevel)(all, 0, all) << std::endl;
+
         // Step 2) Compute the residual r = b - Ax
         computeResidual();
 

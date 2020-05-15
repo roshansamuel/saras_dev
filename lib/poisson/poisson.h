@@ -120,7 +120,7 @@ class poisson {
         virtual void updatePads();
         virtual void createMGSubArrays();
 
-        void vCycle();
+        void vCycle(int n);
 
     public:
         poisson(const grid &mesh, const parser &solParam);
@@ -166,8 +166,8 @@ class multigrid_d2: public poisson {
         void imposeBC();
         void initDirichlet();
 
-        //void updatePads();
-        //void createMGSubArrays();
+        void updatePads();
+        void createMGSubArrays();
 
         blitz::Array<real, 1> xWall, zWall;
 
@@ -198,9 +198,9 @@ class multigrid_d3: public poisson {
         void smooth(const int smoothCount);
         real computeError(const int normOrder);
 
-        void solve() {};
+        void solve();
         void imposeBC();
-        //void updatePads();
+        void updatePads();
         void initDirichlet();
         void createMGSubArrays();
 

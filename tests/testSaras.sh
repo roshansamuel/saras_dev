@@ -43,7 +43,10 @@
  ##
 
 # Test for 2D LDC and comparison with Ghia et al's (1982, J. Comput. Phys., 48, 387 - 411) result
-PROC=4
+PROC=1
+
+# REMOVE PRE-EXISTING EXECUTATBLES
+rm -f mgTest/saras
 
 # If build directory doesn't exist, create it
 if [ ! -d build ]; then
@@ -69,4 +72,4 @@ cd ../../tests/ldcTest/
 mpirun -np $PROC ./saras
 
 # Run the python script to read the output file and compare with Ghia results
-python validate_ldc.py
+#python validate_ldc.py

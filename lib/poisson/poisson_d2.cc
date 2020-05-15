@@ -80,7 +80,10 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
     //createMGSubArrays();
 
+    // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
+#ifdef TEST_POISSON
     initDirichlet();
+#endif
 }
 
 
@@ -116,13 +119,13 @@ void multigrid_d2::smooth(const int smoothCount) {
                                                      hz2(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))*hx(vLevel) +
                                                      hx2(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1))*2.0 +
                                                      hx2(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))*hz(vLevel) -
-                                               2.0 * hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
+                                              2.0 * hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
                                              (4.0 * (hz2(vLevel) * xix2(vLevel)(i) + hx2(vLevel)*ztz2(vLevel)(k)));
                 }
             }
         } else {
+            // JACOBI ITERATIVE SMOOTHING - WARNING: UNIFORM GRID STENCIL USED BELOW
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
-            // JACOBI ITERATIVE SMOOTHING
             for (int i = 0; i <= xEnd(vLevel); ++i) {
                 for (int k = 0; k <= zEnd(vLevel); ++k) {
                     tmpDataArray(vLevel)(i, 0, k) = (hz2(vLevel) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k)) +
@@ -143,8 +146,10 @@ void multigrid_d2::smooth(const int smoothCount) {
 void multigrid_d2::solve() {
     int iterCount = 0;
 
+    //std::cout << residualData(vLevel)(all, 0, all) << std::endl;
     while (true) {
         imposeBC();
+        //std::cout << pressureData(vLevel)(all, 0, all) << std::endl;
 
         // GAUSS-SEIDEL ITERATIVE SOLVER
         for (int i = 0; i <= xEnd(vLevel); ++i) {
@@ -174,13 +179,15 @@ void multigrid_d2::solve() {
             }
         }
 
+        //std::cout << vLevel << "\t" << iterCount << "\t" << globalMax << std::endl;
         if (globalMax < 1.0e-6) {
             break;
         }
 
         iterCount += 1;
-        if (iterCount > maxCount) {
-            std::cout << "ERROR: Jacobi iterations for solution at coarsest level not converging. Aborting" << std::endl;
+        // DEBUG CODE
+        if (iterCount > 33) {
+            std::cout << "ERROR: Iterations for solution at coarsest level not converging. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
         }
@@ -238,10 +245,10 @@ void multigrid_d2::prolong() {
 
     pressureData(vLevel) = 0.0;
 
-    for (int i = 0; i <= xEnd(vLevel); i++) {
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i/2;
         if (isOdd(i)) {
-            for (int k = 0; k <= zEnd(vLevel); k++) {
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
                 k2 = k/2;
                 if (isOdd(k)) { // Both i and k are odd
                     pressureData(vLevel)(i, 0, k) = (pressureData(pLevel)(i2, 0, k2)     + pressureData(pLevel)(i2, 0, k2 + 1) +
@@ -251,7 +258,7 @@ void multigrid_d2::prolong() {
                 }
             }
         } else {
-            for (int k = 0; k <= zEnd(vLevel); k++) {
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
                 k2 = k/2;
                 if (isOdd(k)) { // Here i is even, but k is odd
                     pressureData(vLevel)(i, 0, k) = (pressureData(pLevel)(i2, 0, k2) + pressureData(pLevel)(i2, 0, k2 + 1))/2.0;
@@ -319,7 +326,6 @@ real multigrid_d2::computeError(const int normOrder) {
 }
 
 
-/*
 void multigrid_d2::createMGSubArrays() {
     int count, length, stride;
 
@@ -346,7 +352,6 @@ void multigrid_d2::createMGSubArrays() {
 
     }
 }
-*/
 
 
 void multigrid_d2::initDirichlet() {
@@ -361,13 +366,13 @@ void multigrid_d2::initDirichlet() {
     zWall = 0.0;
 
     // Compute values at the walls using the (r^2)/4 formula
-    xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2));
+    xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
     for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
         zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
         xWall(k) = (xDist*xDist + zDist*zDist)/4.0;
     }
 
-    zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2));
+    zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
     for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
         xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
         zWall(i) = (xDist*xDist + zDist*zDist)/4.0;
@@ -403,11 +408,13 @@ void multigrid_d2::imposeBC() {
 #else
         // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
-            pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
+            //pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
+            pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(0, 0, all);
         }
 
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+            //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0), 0, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
@@ -435,16 +442,17 @@ void multigrid_d2::imposeBC() {
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM WALL
-        pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
+        //pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
+        pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 0);
 
         // NEUMANN BOUNDARY CONDITION AT TOP WALL
-        pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+        //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+        pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2));
 #endif
     }
 }
 
 
-/*
 void multigrid_d2::updatePads() {
     recvRequest = MPI_REQUEST_NULL;
 
@@ -459,6 +467,7 @@ void multigrid_d2::updatePads() {
 }
 
 
+/*
 real multigrid_d2::testProlong() {
     int iY = 0;
     vLevel = 0;

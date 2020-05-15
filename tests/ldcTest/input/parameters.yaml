@@ -88,7 +88,7 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 1
-    "X Number of Procs": 4
+    "X Number of Procs": 1
     "Y Number of Procs": 1
 
 
@@ -148,9 +148,9 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 3
+    "V-Cycle Depth": 6
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 9
+    "V-Cycle Count": 15
 
     # Iterative method to be used for smoothing
     # 0 = Jacobi iteration
@@ -158,17 +158,13 @@
     "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed before V-Cycle
-    "Pre-Smoothing Count": 5
+    "Pre-Smoothing Count": 3
     # Number of smoothing iterations to be performed after V-Cycle
-    "Post-Smoothing Count": 5
-    # Array of numbers of smoothing iterations to be performed in between restriction operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Restrict-Smoothing Count": [5, 5, 5, 5]
-    # Array of numbers of smoothing iterations to be performed in between prolongation operations of V-Cycle at different levels *from coarsest mesh to finest mesh*
-    "Prolong-Smoothing Count": [5, 5, 5, 5]
+    "Post-Smoothing Count": 3
 
     # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
     # This value can be set as below:
     # 0 = Do not evaluate error
     # 1 = Compute and print Mean Absolute Error (MAE)
     # 2 = Compute and print Root Mean Square Error (RMSE)
-    "Print Error": 0
+    "Print Error": 1
