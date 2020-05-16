@@ -74,9 +74,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
         strideValues(i) = int(pow(2, i));
     }
 
-    vLevel = 0;
-    maxCount = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
-
 #ifdef TIME_RUN
     smothTimeComp = 0.0;
     smothTimeTran = 0.0;
@@ -124,9 +121,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
-        //std::cout << i << "\t" << inputParams.vcCount << std::endl;
-        vCycle(i);
-        //if (i == inputParams.vcCount - 1) std::cout << residualData(vLevel)(5, blitz::Range(2, 5), blitz::Range(2, 5)) << std::endl;
+        vCycle();
 
         if (inputParams.mgError) {
             real mgResidual = computeError(inputParams.mgError);
@@ -137,8 +132,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     // RETURN CALCULATED PRESSURE DATA
     inFn.F = pressureData(0)(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 
-    //MPI_Finalize();
-    //exit(0);
 #ifdef TEST_POISSON
     if (mesh.rankData.rank == 0) {
         blitz::Array<real, 3> pAnalytic, tempArray;
@@ -199,7 +192,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
  *          The restrictions, smoothing, and prolongations are performed on these two arrays subsequently.
  ********************************************************************************************************************************************
  */
-void poisson::vCycle(int n) {
+void poisson::vCycle() {
     /*
      * OUTLINE OF THE MULTI-GRID V-CYCLE
      * 1)  Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
@@ -216,21 +209,18 @@ void poisson::vCycle(int n) {
 
     vLevel = 0;
 
-    // When using Dirichlet BC, the residue, r, has homogeneous BC (r=0 at boundary) and only the full pressure, x has non-homogeneous BC.
-    // Since pre-smoothing is performed on x, the Dirichlet BC imposed is not zero
+    // When using Dirichlet BC, the residue, r, has homogeneous BC (r=0 at boundary) and only the original solution, x, has non-homogeneous BC.
+    // Since pre-smoothing is performed on x, non-homogeneous (non-zero) Dirichlet BC is imposed
     zeroBC = false;
 
     // Step 1) Pre-smoothing iterations of Ax = b
     smooth(inputParams.preSmooth);
 
-    // At this point smoothedPres contains smoothed x, residualData holds r, and pressureData is ready to hold e. From now on homogeneous Dirichlet BCs are used
+    // From now on, homogeneous Dirichlet BCs are used till end of V-Cycle
     zeroBC = true;
 
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
-        // DEBUG CODE
-        //if (i == inputParams.vcDepth-1) std::cout << pressureData(vLevel)(all, 0, all) << std::endl;
-
         // Step 2) Compute the residual r = b - Ax
         computeResidual();
 
@@ -239,6 +229,7 @@ void poisson::vCycle(int n) {
 
         // Restrict the residual to a coarser level
         coarsen();
+
         pressureData(vLevel) = 0.0;
 
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
@@ -340,6 +331,10 @@ void poisson::setStagBounds() {
 #endif
         zEnd(i) = stagCore(i).ubound(2);
     }
+
+    // SET MAXIMUM NUMBER OF ITERATIONS FOR THE GAUSS-SEIDEL SOLVER AT COARSEST LEVEL OF MULTIGRID SOLVER
+    blitz::TinyVector<int, 3> cgSize = stagFull(inputParams.vcDepth).ubound() - stagFull(inputParams.vcDepth).lbound();
+    maxCount = 2*cgSize(0)*cgSize(1)*cgSize(2);
 };
 
 

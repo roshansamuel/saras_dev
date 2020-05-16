@@ -119,7 +119,7 @@
     "Final Time": 100.0
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 10
+    "I/O Count": 1
 
     # Select the format in which the output file must be written
     # 1 = AETHER Format
@@ -150,16 +150,16 @@
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 6
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 15
+    "V-Cycle Count": 7
 
     # Iterative method to be used for smoothing
     # 0 = Jacobi iteration
     # 1 = Gauss-Seidel iteration
     "Smoothing Method": 1
 
-    # Number of smoothing iterations to be performed before V-Cycle
+    # Number of smoothing iterations to be performed after restriction operations
     "Pre-Smoothing Count": 3
-    # Number of smoothing iterations to be performed after V-Cycle
+    # Number of smoothing iterations to be performed after prolongation operations
     "Post-Smoothing Count": 3
 
     # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
@@ -167,4 +167,4 @@
     # 0 = Do not evaluate error
     # 1 = Compute and print Mean Absolute Error (MAE)
     # 2 = Compute and print Root Mean Square Error (RMSE)
-    "Print Error": 1
+    "Print Error": 0

@@ -116,7 +116,7 @@ void multigrid_d3::smooth(const int smoothCount) {
 #endif
     tmpDataArray(vLevel) = 0.0;
 
-    for(int n=0; n<smoothCount; n++) {
+    for(int n=0; n<smoothCount; ++n) {
 #ifdef TIME_RUN
         gettimeofday(&begin, NULL);
 #endif
@@ -234,7 +234,7 @@ void multigrid_d3::solve() {
 
         iterCount += 1;
         if (iterCount > maxCount) {
-            std::cout << "ERROR: Jacobi iterations for solution at coarsest level not converging. Aborting" << std::endl;
+            std::cout << "ERROR: Iterations for solution at coarsest level not converging. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
         }
@@ -254,6 +254,16 @@ void multigrid_d3::coarsen() {
     vLevel += 1;
 
     // Full weighted restriction operation
+    // The residual computed at previous vLevel is stored in tmpDataArray.
+    // This data is read for coarsening and written into residualData array.
+
+    /*
+     * According to An Introduction to Multigrid Methods by P. Wesseling, Page 64 (Sec 5.2),
+     * Restriction can be performed at the edges and corners using the same stencil as in the bulk,
+     * But by assuming that values of the field outside the domain are all 0.
+     * Hence no special treatments at the corners and edges are needed.
+     */
+
     for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i*2;
         for (int j = 0; j <= yEnd(vLevel); ++j) {
@@ -294,13 +304,13 @@ void multigrid_d3::prolong() {
 
     pressureData(vLevel) = 0.0;
 
-    for (int i = 0; i <= xEnd(vLevel); i++) {
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i/2;
         if (isOdd(i)) {
-            for (int j = 0; j <= yEnd(vLevel); j++) {
+            for (int j = 0; j <= yEnd(vLevel); ++j) {
                 j2 = j/2;
                 if (isOdd(j)) {
-                    for (int k = 0; k <= zEnd(vLevel); k++) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
                         k2 = k/2;
                         if (isOdd(k)) {     // i j and k are odd
                             pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) +
@@ -313,7 +323,7 @@ void multigrid_d3::prolong() {
                         }
                     }
                 } else {
-                    for (int k = 0; k <= zEnd(vLevel); k++) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
                         k2 = k/2;
                         if (isOdd(k)) {     // i and k are odd, but j is even
                             pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
@@ -328,7 +338,7 @@ void multigrid_d3::prolong() {
             for (int j = 0; j <= yEnd(vLevel); j++) {
                 j2 = j/2;
                 if (isOdd(j)) {
-                    for (int k = 0; k <= zEnd(vLevel); k++) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
                         k2 = k/2;
                         if (isOdd(k)) {     // i is even, but j and k are odd
                             pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
@@ -338,7 +348,7 @@ void multigrid_d3::prolong() {
                         }
                     }
                 } else {
-                    for (int k = 0; k <= zEnd(vLevel); k++) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
                         k2 = k/2;
                         if (isOdd(k)) {     // i and j are even, but k is odd
                             pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1))/2.0;
@@ -352,79 +362,25 @@ void multigrid_d3::prolong() {
     }
 
     /*
-    // Integer values of starting indices, ending indices, and index increments along each direction
-    int xSt, xEn, xIn;
-    int ySt, yEn, yIn;
-    int zSt, zEn, zIn;
-
+    // Old method of prolongation by 3 sweeps of interpolation
     // NOTE: Currently interpolating along X first, then Y and finally Z.
     // Test and see if this order is better or the other order, with Z first, then Y and X is better
     // Depending on the order of variables in memory, one of these may give better performance
 
-    // Maybe the below values can be stored in some array instead of recomputing in each prolongation step
+    // Transfer data at all even grid points
+    pressureData(vLevel)(blitz::Range(0, xEnd(vLevel), 2), blitz::Range(0, yEnd(vLevel), 2), blitz::Range(0, zEnd(vLevel), 2)) = pressureData(pLevel)(stagCore(pLevel));
 
-    // INTERPOLATE VARIABLE DATA ALONG X-DIRECTION
-    xSt = stagCore.lbound(0) + strideValues(vLevel);
-    xEn = stagCore.ubound(0) - strideValues(vLevel);
-    xIn = strideValues(vLevel+1);
+    // Interoplate data along X-axis
+    pressureData(vLevel)(blitz::Range(1, xEnd(vLevel), 2), all, all) = (pressureData(vLevel)(blitz::Range(0, xEnd(vLevel) - 2, 2), all, all) +
+                                                                        pressureData(vLevel)(blitz::Range(2, xEnd(vLevel), 2), all, all))/2.0;
 
-    ySt = stagCore.lbound(1);
-    yEn = stagCore.ubound(1);
-    yIn = strideValues(vLevel+1);
+    // Interoplate data along Y-axis
+    pressureData(vLevel)(all, blitz::Range(1, yEnd(vLevel), 2), all) = (pressureData(vLevel)(all, blitz::Range(0, yEnd(vLevel) - 2, 2), all) +
+                                                                        pressureData(vLevel)(all, blitz::Range(2, yEnd(vLevel), 2), all))/2.0;
 
-    zSt = stagCore.lbound(2);
-    zEn = stagCore.ubound(2);
-    zIn = strideValues(vLevel+1);
-
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                pressureData(iX, iY, iZ) = (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/2.0;
-            }
-        }
-    }
-
-    // INTERPOLATE VARIABLE DATA ALONG Y-DIRECTION
-    xSt = stagCore.lbound(0);
-    xEn = stagCore.ubound(0);
-    xIn = strideValues(vLevel);
-
-    ySt = stagCore.lbound(1) + strideValues(vLevel);
-    yEn = stagCore.ubound(1) - strideValues(vLevel);
-    yIn = strideValues(vLevel+1);
-
-    zSt = stagCore.lbound(2);
-    zEn = stagCore.ubound(2);
-    zIn = strideValues(vLevel+1);
-
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                pressureData(iX, iY, iZ) = (pressureData(iX, iY + strideValues(vLevel), iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/2.0;
-            }
-        }
-    }
-
-    // INTERPOLATE VARIABLE DATA ALONG Z-DIRECTION
-    xSt = stagCore.lbound(0);
-    xEn = stagCore.ubound(0);
-    xIn = strideValues(vLevel);
-
-    ySt = stagCore.lbound(1);
-    yEn = stagCore.ubound(1);
-    yIn = strideValues(vLevel);
-
-    zSt = stagCore.lbound(2) + strideValues(vLevel);
-    zEn = stagCore.ubound(2) - strideValues(vLevel);
-    zIn = strideValues(vLevel+1);
-
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                pressureData(iX, iY, iZ) = (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))/2.0;
-            }
-        }
-    }
+    // Interoplate data along Z-axis
+    pressureData(vLevel)(all, all, blitz::Range(1, zEnd(vLevel), 2)) = (pressureData(vLevel)(all, all, blitz::Range(0, zEnd(vLevel) - 2, 2)) +
+                                                                        pressureData(vLevel)(all, all, blitz::Range(2, zEnd(vLevel), 2)))/2.0;
     */
 }
 
@@ -446,9 +402,9 @@ real multigrid_d3::computeError(const int normOrder) {
     // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
     // abs in the STL which **rounds off** the number.
     // In this case, abs has to be replaced with fabs.
-    for (int i = 0; i <= xEnd(0); i += 1) {
-        for (int j = 0; j <= yEnd(0); j += 1) {
-            for (int k = 0; k <= zEnd(0); k += 1) {
+    for (int i = 0; i <= xEnd(0); ++i) {
+        for (int j = 0; j <= yEnd(0); ++j) {
+            for (int k = 0; k <= zEnd(0); ++k) {
                 tempValue = fabs((xix2(0)(i) * (pressureData(0)(i + 1, j, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
                                   xixx(0)(i) * (pressureData(0)(i + 1, j, k) - pressureData(0)(i - 1, j, k))/(2.0*hx(vLevel)) +
                                   ety2(0)(j) * (pressureData(0)(i, j + 1, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
@@ -478,15 +434,21 @@ real multigrid_d3::computeError(const int normOrder) {
             denValLoc = blitz::max(fabs(residualData(0)));
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-            //residualVal = numValGlo/denValGlo;
-            residualVal = numValGlo;
+            if (denValGlo) {
+                residualVal = numValGlo/denValGlo;
+            } else {
+                residualVal = numValGlo;
+            }
             break;
         case 2:
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            //residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
-            residualVal = sqrt(numValGlo/valCountGlo);
+            if (denValGlo) {
+                residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            } else {
+                residualVal = sqrt(numValGlo/valCountGlo);
+            }
             break;
     }
 
@@ -635,7 +597,7 @@ void multigrid_d3::imposeBC() {
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
+        // DIRICHLET BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
                 pressureData(vLevel)(-1, all, all) = -pressureData(vLevel)(1, all, all);
@@ -654,21 +616,20 @@ void multigrid_d3::imposeBC() {
             }
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
+        // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
-            pressureData(vLevel)(-1, all, all) = pressureData(vLevel)(1, all, all);
+            pressureData(vLevel)(-1, all, all) = pressureData(vLevel)(0, all, all);
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, all, all);
+            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0), all, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (not inputParams.yPer) {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT FRONT AND BACK WALLS
+        // DIRICHLET BOUNDARY CONDITION AT FRONT AND BACK WALLS
         if (zeroBC) {
             if (mesh.rankData.yRank == 0) {
                 pressureData(vLevel)(all, -1, all) = -pressureData(vLevel)(all, 1, all);
@@ -687,28 +648,27 @@ void multigrid_d3::imposeBC() {
             }
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
+        // NEUMANN BOUNDARY CONDITION AT FRONT AND BACK WALLS
         if (mesh.rankData.yRank == 0) {
-            pressureData(vLevel)(all, -1, all) = pressureData(vLevel)(all, 1, all);
+            pressureData(vLevel)(all, -1, all) = pressureData(vLevel)(all, 0, all);
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BACK WALL
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = pressureData(vLevel)(all, stagCore(vLevel).ubound(1) - 1, all);
+            pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = pressureData(vLevel)(all, stagCore(vLevel).ubound(1), all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (inputParams.zPer) {
-        // PERIODIC BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
+        // PERIODIC BOUNDARY CONDITION AT BOTTOM WALL
         pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
 
-        // PERIODIC BOUNDARY CONDITION ON PRESSURE AT TOP WALL
+        // PERIODIC BOUNDARY CONDITION AT TOP WALL
         pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, 1);
 
     } else {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM AND TOP WALLS
+        // DIRICHLET BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
         if (zeroBC) {
             pressureData(vLevel)(all, all, -1) = -pressureData(vLevel)(all, all, 1);
 
@@ -719,11 +679,10 @@ void multigrid_d3::imposeBC() {
             pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = zWall(all, all);
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, 1);
+        // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
+        pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, 0);
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
+        pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2));
 #endif
     }
 }

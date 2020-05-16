@@ -120,7 +120,7 @@ class poisson {
         virtual void updatePads();
         virtual void createMGSubArrays();
 
-        void vCycle(int n);
+        void vCycle();
 
     public:
         poisson(const grid &mesh, const parser &solParam);

@@ -46,7 +46,7 @@
 PROC=1
 
 # REMOVE PRE-EXISTING EXECUTATBLES
-rm -f mgTest/saras
+rm -f ldcTest/saras
 
 # If build directory doesn't exist, create it
 if [ ! -d build ]; then

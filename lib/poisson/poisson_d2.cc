@@ -108,7 +108,7 @@ void multigrid_d2::computeResidual() {
 void multigrid_d2::smooth(const int smoothCount) {
     tmpDataArray(vLevel) = 0.0;
 
-    for(int n=0; n<smoothCount; n++) {
+    for(int n=0; n<smoothCount; ++n) {
         imposeBC();
 
         if (inputParams.gsSmooth) {
@@ -124,14 +124,16 @@ void multigrid_d2::smooth(const int smoothCount) {
                 }
             }
         } else {
-            // JACOBI ITERATIVE SMOOTHING - WARNING: UNIFORM GRID STENCIL USED BELOW
+            // JACOBI ITERATIVE SMOOTHING
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
             for (int i = 0; i <= xEnd(vLevel); ++i) {
                 for (int k = 0; k <= zEnd(vLevel); ++k) {
-                    tmpDataArray(vLevel)(i, 0, k) = (hz2(vLevel) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k)) +
-                                                     hx2(vLevel) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1)) -
-                                                    hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
-                                             (2.0 * (hz2(vLevel) + hx2(vLevel)));
+                    tmpDataArray(vLevel)(i, 0, k) = (hz2(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) + pressureData(vLevel)(i - 1, 0, k))*2.0 +
+                                                     hz2(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, 0, k) - pressureData(vLevel)(i - 1, 0, k))*hx(vLevel) +
+                                                     hx2(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) + pressureData(vLevel)(i, 0, k - 1))*2.0 +
+                                                     hx2(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))*hz(vLevel) -
+                                              2.0 * hzhx(vLevel) * residualData(vLevel)(i, 0, k))/
+                                             (4.0 * (hz2(vLevel) * xix2(vLevel)(i) + hx2(vLevel)*ztz2(vLevel)(k)));
                 }
             }
 
@@ -146,10 +148,8 @@ void multigrid_d2::smooth(const int smoothCount) {
 void multigrid_d2::solve() {
     int iterCount = 0;
 
-    //std::cout << residualData(vLevel)(all, 0, all) << std::endl;
     while (true) {
         imposeBC();
-        //std::cout << pressureData(vLevel)(all, 0, all) << std::endl;
 
         // GAUSS-SEIDEL ITERATIVE SOLVER
         for (int i = 0; i <= xEnd(vLevel); ++i) {
@@ -179,14 +179,12 @@ void multigrid_d2::solve() {
             }
         }
 
-        //std::cout << vLevel << "\t" << iterCount << "\t" << globalMax << std::endl;
         if (globalMax < 1.0e-6) {
             break;
         }
 
         iterCount += 1;
-        // DEBUG CODE
-        if (iterCount > 33) {
+        if (iterCount > maxCount) {
             std::cout << "ERROR: Iterations for solution at coarsest level not converging. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
@@ -205,8 +203,6 @@ void multigrid_d2::coarsen() {
 
     pLevel = vLevel;
     vLevel += 1;
-
-    residualData(vLevel) = 0.0;
 
     // Full weighted restriction operation
     // The residual computed at previous vLevel is stored in tmpDataArray.
@@ -295,12 +291,15 @@ real multigrid_d2::computeError(const int normOrder) {
                               ztz2(0)(k) * (pressureData(0)(i, 0, k + 1) - 2.0*pressureData(0)(i, 0, k) + pressureData(0)(i, 0, k - 1))/hz2(0) +
                               ztzz(0)(k) * (pressureData(0)(i, 0, k + 1) - pressureData(0)(i, 0, k - 1))/(2.0*hz(0))) - residualData(0)(i, 0, k));
 
-            if (normOrder == 0) {
-                if (tempValue > numValLoc) numValLoc = tempValue;
-            } else {
-                numValLoc += tempValue*tempValue;
-                denValLoc += residualData(0)(i, 0, k)*residualData(0)(i, 0, k);
-                valCountLoc += 1;
+            switch (normOrder) {
+                case 1:
+                    if (tempValue > numValLoc) numValLoc = tempValue;
+                    break;
+                case 2:
+                    numValLoc += tempValue*tempValue;
+                    denValLoc += residualData(0)(i, 0, k)*residualData(0)(i, 0, k);
+                    valCountLoc += 1;
+                    break;
             }
         }
     }
@@ -308,18 +307,27 @@ real multigrid_d2::computeError(const int normOrder) {
     real numValGlo = 0.0;
     real denValGlo = 0.0;
     int valCountGlo = 0;
-    if (normOrder == 0) {
-        denValLoc = blitz::max(fabs(residualData(0)));
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-        residualVal = numValGlo/denValGlo;
-        //residualVal = numValLoc;
-    } else {
-        MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-        residualVal = sqrt(numValLoc/valCountLoc)/sqrt(denValLoc/valCountLoc);
-        //residualVal = sqrt(numValLoc/valCountLoc);
+    switch (normOrder) {
+        case 1:
+            denValLoc = blitz::max(fabs(residualData(0)));
+            MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+            MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+            if (denValGlo) {
+                residualVal = numValGlo/denValGlo;
+            } else {
+                residualVal = numValGlo;
+            }
+            break;
+        case 2:
+            MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+            if (denValGlo) {
+                residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            } else {
+                residualVal = sqrt(numValGlo/valCountGlo);
+            }
+            break;
     }
 
     return residualVal;
@@ -357,6 +365,7 @@ void multigrid_d2::createMGSubArrays() {
 void multigrid_d2::initDirichlet() {
     real xDist, zDist;
 
+    // Generate the walls as 1D Blitz arrays
     xWall.resize(stagFull(0).ubound(2) - stagFull(0).lbound(2) + 1);
     xWall.reindexSelf(stagFull(0).lbound(2));
     xWall = 0.0;
@@ -366,12 +375,14 @@ void multigrid_d2::initDirichlet() {
     zWall = 0.0;
 
     // Compute values at the walls using the (r^2)/4 formula
+    // Along X-direction - Left and Right Walls
     xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
     for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
         zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
         xWall(k) = (xDist*xDist + zDist*zDist)/4.0;
     }
 
+    // Along Z-direction - Top and Bottom Walls
     zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
     for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
         xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
@@ -408,12 +419,10 @@ void multigrid_d2::imposeBC() {
 #else
         // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
-            //pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
             pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(0, 0, all);
         }
 
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
             pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0), 0, all);
         }
 #endif
@@ -441,12 +450,9 @@ void multigrid_d2::imposeBC() {
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
         }
 #else
-        // NEUMANN BOUNDARY CONDITION AT BOTTOM WALL
-        //pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
+        // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
         pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 0);
 
-        // NEUMANN BOUNDARY CONDITION AT TOP WALL
-        //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2));
 #endif
     }
