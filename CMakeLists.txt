@@ -133,3 +133,6 @@ unset (REAL_DOUBLE CACHE)
 
 # Remove the REAL_SINGLE variable from cache to force user to manually set the precision each time the solver is compiled
 unset (REAL_SINGLE CACHE)
+
+# Remove the TEST_POISSON variable from cache to force user to manually set the flag for testing Poisson solver
+unset (TEST_POISSON CACHE)
