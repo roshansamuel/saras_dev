@@ -62,6 +62,8 @@
 poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputParams(solParam) {
     int maxIndex = 15;
 
+    all = blitz::Range::all();
+
     mgSizeArray.resize(maxIndex);
     for (int i=0; i < maxIndex; i++) {
         mgSizeArray(i) = int(pow(2, i)) + 1;
@@ -125,7 +127,11 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         if (inputParams.mgError) {
             real mgResidual = computeError(inputParams.mgError);
+#ifdef TEST_POISSON
+            if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << std::setprecision(16) << mgResidual << std::endl;
+#else
             if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << mgResidual << std::endl;
+#endif
         }
     }
 

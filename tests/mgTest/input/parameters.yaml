@@ -150,7 +150,7 @@
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 6
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 15
+    "V-Cycle Count": 25
 
     # Iterative method to be used for smoothing
     # 0 = Jacobi iteration
@@ -158,9 +158,9 @@
     "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed after restriction operations
-    "Pre-Smoothing Count": 3
+    "Pre-Smoothing Count": 2
     # Number of smoothing iterations to be performed after prolongation operations
-    "Post-Smoothing Count": 3
+    "Post-Smoothing Count": 2
 
     # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
     # This value can be set as below:
