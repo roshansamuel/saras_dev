@@ -166,7 +166,7 @@ class multigrid_d2: public poisson {
         void imposeBC();
         void initDirichlet();
 
-        void updatePads();
+        void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
         void createMGSubArrays();
 
         blitz::Array<real, 1> xWall, zWall;

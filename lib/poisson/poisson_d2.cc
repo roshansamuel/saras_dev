@@ -78,7 +78,7 @@ multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(me
     initializeArrays();
 
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
-    //createMGSubArrays();
+    createMGSubArrays();
 
     // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
 #ifdef TEST_POISSON
@@ -102,6 +102,8 @@ void multigrid_d2::computeResidual() {
                           ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))/(2.0*hz(vLevel)));
         }
     }
+
+    updatePads(tmpDataArray);
 }
 
 
@@ -147,6 +149,7 @@ void multigrid_d2::smooth(const int smoothCount) {
 
 void multigrid_d2::solve() {
     int iterCount = 0;
+    real tempValue, localMax, globalMax;
 
     while (true) {
         imposeBC();
@@ -163,8 +166,8 @@ void multigrid_d2::solve() {
             }
         }
 
-        real tempValue = 0.0;
-        real globalMax = -1.0e-10;
+        tempValue = 0.0;
+        localMax = -1.0e-10;
         for (int i = 0; i <= xEnd(vLevel); ++i) {
             for (int k = 0; k <= zEnd(vLevel); ++k) {
                 tempValue =  fabs(residualData(vLevel)(i, 0, k) -
@@ -173,11 +176,13 @@ void multigrid_d2::solve() {
                              ztz2(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - 2.0*pressureData(vLevel)(i, 0, k) + pressureData(vLevel)(i, 0, k - 1))/(hz(vLevel)*hz(vLevel)) +
                              ztzz(vLevel)(k) * (pressureData(vLevel)(i, 0, k + 1) - pressureData(vLevel)(i, 0, k - 1))/(2.0*hz(vLevel))));
 
-                if (tempValue > globalMax) {
-                    globalMax = tempValue;
+                if (tempValue > localMax) {
+                    localMax = tempValue;
                 }
             }
         }
+
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
         if (globalMax < 1.0e-6) {
             break;
@@ -335,7 +340,7 @@ real multigrid_d2::computeError(const int normOrder) {
 
 
 void multigrid_d2::createMGSubArrays() {
-    int count, length, stride;
+    int count;
 
     recvStatus.resize(2);
     recvRequest.resize(2);
@@ -344,20 +349,18 @@ void multigrid_d2::createMGSubArrays() {
     mgSendLft.resize(inputParams.vcDepth + 1);        mgSendRgt.resize(inputParams.vcDepth + 1);
     mgRecvLft.resize(inputParams.vcDepth + 1);        mgRecvRgt.resize(inputParams.vcDepth + 1);
 
-    for(int i=0; i<=inputParams.vcDepth; i++) {
+    for(int n=0; n<=inputParams.vcDepth; ++n) {
         // CREATE X_MG_ARRAY DATATYPE
-        count = (stagCore.ubound(2) - stagCore.lbound(2))/strideValues(i) + 1;
-        length = 1;
-        stride = strideValues(i);
+        count = stagFull(n).ubound(2) + 2;
 
-        MPI_Type_vector(count, length, stride, MPI_FP_REAL, &xMGArray(i));
-        MPI_Type_commit(&xMGArray(i));
+        MPI_Type_contiguous(count, MPI_FP_REAL, &xMGArray(n));
+        MPI_Type_commit(&xMGArray(n));
 
-        mgSendLft(i) =  strideValues(i), 0, 0;
-        mgRecvLft(i) = -strideValues(i), 0, 0;
-        mgSendRgt(i) = stagCore.ubound(0) - strideValues(i), 0, 0;
-        mgRecvRgt(i) = stagCore.ubound(0) + strideValues(i), 0, 0;
-
+        // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
+        mgSendLft(n) =  1, 0, -1;
+        mgRecvLft(n) = -1, 0, -1;
+        mgSendRgt(n) = stagCore(n).ubound(0) - 1, 0, -1;
+        mgRecvRgt(n) = stagCore(n).ubound(0) + 1, 0, -1;
     }
 }
 
@@ -392,7 +395,7 @@ void multigrid_d2::initDirichlet() {
 
 
 void multigrid_d2::imposeBC() {
-    //updatePads();
+    updatePads(pressureData);
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
@@ -407,13 +410,13 @@ void multigrid_d2::imposeBC() {
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                //pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
-                pressureData(vLevel)(-1, 0, all) = xWall(all);
+                pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
+                //pressureData(vLevel)(-1, 0, all) = xWall(all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = xWall(all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = xWall(all);
             }
         }
 #else
@@ -443,11 +446,11 @@ void multigrid_d2::imposeBC() {
 
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
-            pressureData(vLevel)(all, 0, -1) = zWall(all);
+            pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            //pressureData(vLevel)(all, 0, -1) = zWall(all);
 
-            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
-            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
+            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
@@ -459,17 +462,42 @@ void multigrid_d2::imposeBC() {
 }
 
 
-void multigrid_d2::updatePads() {
+void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
-    // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
-    MPI_Irecv(&pressureData(mgRecvLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&pressureData(mgRecvRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (vLevel == 4) {
+    //    if (mesh.rankData.rank == 0) std::cout << "Before" << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 0) for (int i=-1; i<=5; ++i) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, 0, k) = 100*(mesh.rankData.rank+1) + 10*i + k;
+    //    if (mesh.rankData.rank == 1) for (int i=-1; i<=5; ++i) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, 0, k) = 100*(mesh.rankData.rank+1) + 10*i + k;
 
-    MPI_Send(&pressureData(mgSendLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 0) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 1) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //}
+
+    // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
+    MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+
+    MPI_Send(&(data(vLevel)(mgSendLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
 
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
+
+    //if (vLevel == 4) {
+    //    if (mesh.rankData.rank == 0) std::cout << "After" << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 0) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 1) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
+
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 }
 
 

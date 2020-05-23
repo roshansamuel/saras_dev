@@ -88,7 +88,7 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 1
-    "X Number of Procs": 1
+    "X Number of Procs": 2
     "Y Number of Procs": 1
 
 
@@ -148,7 +148,7 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 6
+    "V-Cycle Depth": 5
     # Number of V-Cycles to be performed
     "V-Cycle Count": 25
 
