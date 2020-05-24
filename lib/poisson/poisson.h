@@ -117,7 +117,7 @@ class poisson {
 
         virtual void solve() {};
         virtual void imposeBC();
-        virtual void updatePads();
+        virtual void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
         virtual void createMGSubArrays();
 
         void vCycle();

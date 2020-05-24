@@ -98,6 +98,8 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+    vLevel = 0;
+
     for (int i=0; i <= inputParams.vcDepth; i++) {
         pressureData(i) = 0.0;
         residualData(i) = 0.0;
@@ -109,6 +111,9 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     // TRANSFER DATA FROM THE INPUT SCALAR FIELDS INTO THE DATA-STRUCTURES USED BY poisson
     residualData(0)(stagCore(0)) = rhs.F(stagCore(0));
     pressureData(0)(stagCore(0)) = inFn.F(stagCore(0));
+
+    updatePads(residualData);
+    updatePads(pressureData);
 
 #ifndef TEST_POISSON
     // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
@@ -139,49 +144,54 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     inFn.F = pressureData(0)(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
 
 #ifdef TEST_POISSON
-    if (mesh.rankData.rank == 0) {
-        blitz::Array<real, 3> pAnalytic, tempArray;
+    blitz::Array<real, 3> pAnalytic, tempArray;
 
-        pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound(0) - stagCore(0).lbound(0) + 1,
-                                                   stagCore(0).ubound(1) - stagCore(0).lbound(1) + 1,
-                                                   stagCore(0).ubound(2) - stagCore(0).lbound(2) + 1));
-        pAnalytic.reindexSelf(blitz::TinyVector<int, 3>(stagCore(0).lbound(0),
-                                                        stagCore(0).lbound(1),
-                                                        stagCore(0).lbound(2)));
-        pAnalytic = 0.0;
+    pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound() + 1));
+    pAnalytic = 0.0;
 
 #ifdef PLANAR
-        real xDist, zDist;
-        for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
-            xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
-            for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
+    real xDist, zDist;
+
+    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+        for (int k=0; k<=stagCore(0).ubound(2); ++k) {
+            zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
+            pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
+        }
+    }
+#else
+    real xDist, yDist, zDist;
+
+    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+    int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+        for (int j=0; j<=stagCore(0).ubound(1); ++j) {
+            yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
+
+            for (int k=0; k<=stagCore(0).ubound(2); ++k) {
                 zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
 
-                pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
+                pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
             }
         }
-#else
-        real xDist, yDist, zDist;
-        for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
-            xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
-            for (int j=stagCore(0).lbound(1); j<=stagCore(0).ubound(1); j++) {
-                yDist = hy(0)*(j - stagCore(0).ubound(1)/2);
-                for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
-                    zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
-
-                    pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-                }
-            }
-        }
+    }
 #endif
 
-        tempArray.resize(pAnalytic.shape());
-        tempArray.reindexSelf(pAnalytic.lbound());
+    tempArray.resize(pAnalytic.shape());
+    tempArray = pAnalytic - pressureData(0)(stagCore(0));
 
-        tempArray = pAnalytic - pressureData(0)(stagCore(0));
+    real gloMax = 0.0;
+    real locMax = blitz::max(fabs(tempArray));
+    MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
+    if (mesh.rankData.rank == 0) {
         std::cout << std::endl;
-        std::cout << "Maximum absolute deviation from analytic solution is: " << blitz::max(fabs(tempArray)) << std::endl;
+        std::cout << "Maximum absolute deviation from analytic solution is: " << gloMax << std::endl;
         std::cout << std::endl;
     }
 #endif
@@ -225,8 +235,15 @@ void poisson::vCycle() {
     // From now on, homogeneous Dirichlet BCs are used till end of V-Cycle
     zeroBC = true;
 
+    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(blitz::Range(-1, 65), 0, blitz::Range(-1, 1)) << std::endl;
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
+        //if (i==0) {
+        //    if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel).shape() << std::endl;
+        //    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(blitz::Range(-1, 33), 0, blitz::Range(-1, 5)) << std::endl;
+        //    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(all, 0, blitz::Range(-1, 5)) << std::endl;
+        //}
+
         // Step 2) Compute the residual r = b - Ax
         computeResidual();
 
@@ -237,11 +254,14 @@ void poisson::vCycle() {
         coarsen();
 
         pressureData(vLevel) = 0.0;
+    //if (mesh.rankData.rank == 0) std::cout << i << "\t" << vLevel << std::endl;
 
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
         (vLevel == inputParams.vcDepth)? solve(): smooth(inputParams.preSmooth);
     }
     // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
+    //MPI_Finalize();
+    //exit(0);
 
     // PROLONGATION OPERATIONS UP TO FINEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
@@ -565,7 +585,7 @@ void poisson::imposeBC() { };
  *          using a combination of MPI_Irecv and MPI_Send functions.
  ********************************************************************************************************************************************
  */
-void poisson::updatePads() { };
+void poisson::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) { };
 
 
 /**

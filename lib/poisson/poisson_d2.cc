@@ -113,6 +113,8 @@ void multigrid_d2::smooth(const int smoothCount) {
     for(int n=0; n<smoothCount; ++n) {
         imposeBC();
 
+        // WARNING: When using the gauss-seidel smoothing as written below, the edges of interior sub-domains after MPI decomposition will not have the updated values
+        // As a result, the serial and parallel results will not match when using gauss-seidel smoothing
         if (inputParams.gsSmooth) {
             // GAUSS-SEIDEL ITERATIVE SMOOTHING
             for (int i = 0; i <= xEnd(vLevel); ++i) {
@@ -144,6 +146,10 @@ void multigrid_d2::smooth(const int smoothCount) {
     }
 
     imposeBC();
+    //if (mesh.rankData.rank == 0) std::cout << "Smooth" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
+    //if (mesh.rankData.rank == 1) std::cout << "Smooth" << pressureData(vLevel)(blitz::Range(-1, 4), 0, blitz::Range(-1, 1)) << std::endl;
+    //MPI_Finalize();
+    //exit(0);
 }
 
 
@@ -379,16 +385,23 @@ void multigrid_d2::initDirichlet() {
 
     // Compute values at the walls using the (r^2)/4 formula
     // Along X-direction - Left and Right Walls
-    xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
-    for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
+    xDist = hx(0) + mesh.inputParams.Lx/2.0;
+
+    for (int k=0; k<=stagCore(0).ubound(2); ++k) {
         zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
         xWall(k) = (xDist*xDist + zDist*zDist)/4.0;
     }
 
     // Along Z-direction - Top and Bottom Walls
-    zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
-    for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
-        xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
+    zDist = hz(0) + mesh.inputParams.Lz/2.0;
+
+    // In parallel runs, the domain is divided into slabs along X-axis
+    // Hence some adjustments have to be made to get the right extents
+    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
         zWall(i) = (xDist*xDist + zDist*zDist)/4.0;
     }
 }
@@ -410,13 +423,13 @@ void multigrid_d2::imposeBC() {
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
-                //pressureData(vLevel)(-1, 0, all) = xWall(all);
+                //pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
+                pressureData(vLevel)(-1, 0, all) = xWall(all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
-                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = xWall(all);
+                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = xWall(all);
             }
         }
 #else
@@ -446,11 +459,11 @@ void multigrid_d2::imposeBC() {
 
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
-            //pressureData(vLevel)(all, 0, -1) = zWall(all);
+            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            pressureData(vLevel)(all, 0, -1) = zWall(all);
 
-            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
-            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
+            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
@@ -465,19 +478,12 @@ void multigrid_d2::imposeBC() {
 void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
+    //if (mesh.rankData.rank == 0) std::cout << "Before" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
     //MPI_Barrier(MPI_COMM_WORLD);
-    //if (vLevel == 4) {
-    //    if (mesh.rankData.rank == 0) std::cout << "Before" << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 0) for (int i=-1; i<=5; ++i) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, 0, k) = 100*(mesh.rankData.rank+1) + 10*i + k;
-    //    if (mesh.rankData.rank == 1) for (int i=-1; i<=5; ++i) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, 0, k) = 100*(mesh.rankData.rank+1) + 10*i + k;
+    //if (mesh.rankData.rank == 1) std::cout << "Before" << pressureData(vLevel)(blitz::Range(-1, 4), 0, blitz::Range(-1, 1)) << std::endl;
 
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 0) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 1) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //}
+    //if (mesh.rankData.rank == 0) std::cout << "Before" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
+    //if (mesh.rankData.rank == 0) std::cout << "Before" << pressureData(vLevel)(blitz::Range(63, 68), 0, blitz::Range(-1, 1)) << std::endl;
 
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
     MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
@@ -488,16 +494,12 @@ void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
 
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
 
-    //if (vLevel == 4) {
-    //    if (mesh.rankData.rank == 0) std::cout << "After" << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 0) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 1) std::cout << std::setprecision(3) << pressureData(vLevel)(all, 0, all) << std::endl;
+    //if (mesh.rankData.rank == 0) std::cout << "After" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (mesh.rankData.rank == 1) std::cout << "After" << pressureData(vLevel)(blitz::Range(-1, 4), 0, blitz::Range(-1, 1)) << std::endl;
 
-    //    MPI_Finalize();
-    //    exit(0);
-    //}
+    //if (mesh.rankData.rank == 0) std::cout << "After" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
+    //if (mesh.rankData.rank == 0) std::cout << "After" << pressureData(vLevel)(blitz::Range(63, 68), 0, blitz::Range(-1, 1)) << std::endl;
 }
 
 
