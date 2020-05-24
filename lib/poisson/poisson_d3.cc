@@ -78,7 +78,7 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     initializeArrays();
 
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
-    //createMGSubArrays();
+    createMGSubArrays();
 
     // INITIALIZE DIRICHLET BCs WHEN TESTING THE POISSON SOLVER
 #ifdef TEST_POISSON
@@ -107,6 +107,8 @@ void multigrid_d3::computeResidual() {
             }
         }
     }
+
+    updatePads(tmpDataArray);
 }
 
 
@@ -120,7 +122,6 @@ void multigrid_d3::smooth(const int smoothCount) {
 #ifdef TIME_RUN
         gettimeofday(&begin, NULL);
 #endif
-        // IMPOSE BOUNDARY CONDITION
         imposeBC();
 
 #ifdef TIME_RUN
@@ -130,6 +131,8 @@ void multigrid_d3::smooth(const int smoothCount) {
         gettimeofday(&begin, NULL);
 #endif
 
+        // WARNING: When using the gauss-seidel smoothing as written below, the edges of interior sub-domains after MPI decomposition will not have the updated values
+        // As a result, the serial and parallel results will not match when using gauss-seidel smoothing
         if (inputParams.gsSmooth) {
             // GAUSS-SEIDEL ITERATIVE SMOOTHING
             for (int i = 0; i <= xEnd(vLevel); ++i) {
@@ -188,6 +191,7 @@ void multigrid_d3::smooth(const int smoothCount) {
 
 void multigrid_d3::solve() {
     int iterCount = 0;
+    real tempValue, localMax, globalMax;
 
     while (true) {
         imposeBC();
@@ -208,8 +212,8 @@ void multigrid_d3::solve() {
             }
         }
 
-        real tempValue = 0.0;
-        real globalMax = -1.0e-10;
+        tempValue = 0.0;
+        localMax = -1.0e-10;
         for (int i = 0; i <= xEnd(vLevel); ++i) {
             for (int j = 0; j <= yEnd(vLevel); ++j) {
                 for (int k = 0; k <= zEnd(vLevel); ++k) {
@@ -221,12 +225,14 @@ void multigrid_d3::solve() {
                                 ztz2(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
                                 ztzz(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - pressureData(vLevel)(i, j, k - 1))/(2.0*hz(vLevel))));
 
-                    if (tempValue > globalMax) {
-                        globalMax = tempValue;
+                    if (tempValue > localMax) {
+                        localMax = tempValue;
                     }
                 }
             }
         }
+
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
         if (globalMax < 1.0e-6) {
             break;
@@ -457,11 +463,7 @@ real multigrid_d3::computeError(const int normOrder) {
 
 
 void multigrid_d3::createMGSubArrays() {
-    int ptsCount;
-    int numPoints;
-    int areaVal, lengthVal;
-
-    blitz::Array<int, 1> blockIndx, blockSize;
+    int count, length, stride;
 
     recvStatus.resize(4);
     recvRequest.resize(4);
@@ -474,68 +476,39 @@ void multigrid_d3::createMGSubArrays() {
     mgSendFrn.resize(inputParams.vcDepth + 1);        mgSendBak.resize(inputParams.vcDepth + 1);
     mgRecvFrn.resize(inputParams.vcDepth + 1);        mgRecvBak.resize(inputParams.vcDepth + 1);
 
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        /**
-         * For transfer of non-contiguous, yet uniformly spaced blocks of data, the MPI_Type_indexed datatype is being used here.
-         * The number of such data blocks is represented by numPoints.
-         * Since single points are being transferred rather than small blocks, the blockSize array, which holds the block length
-         * of each block of data to be sent, is set to 1.
-         * The blockIndx variable holds the starting index of each block (here, each single data point) within the full global
-         * array of data.
-         */
+    /***************************************************************************************************
+    * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
+    * This condition remained as a hidden bug in the code for the long time
+    * Because for periodic cases, it was implicitly assumed that periodic data transfer will serve
+    * But for a sequential case with npX = 1 and npY = 1, this transfer will not happen
+    * Now xMGArray and yMGArray are defined irrespective of npX and npY
+    \**************************************************************************************************/
 
-        /***************************************************************************************************
-         * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
-         * This condition remained as a hidden bug in the code for the long time
-         * Because for periodic cases, it was implicitly assumed that periodic data transfer will serve
-         * But for a sequential case with npX = 1 and npY = 1, this transfer will not happen
-         * Now xMGArray and yMGArray are defined irrespective of npX and npY
-        \**************************************************************************************************/
+    for(int n=0; n<=inputParams.vcDepth; n++) {
         // CREATE X_MG_ARRAY DATATYPE
-        numPoints = mgSizeArray(localSizeIndex(1) - i)*mgSizeArray(localSizeIndex(2) - i);
-        blockIndx.resize(numPoints);
-        blockSize.resize(numPoints);
+        count = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2);
 
-        blockSize = 1;
-        ptsCount = 0;
-
-        lengthVal = (stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        for (int j = 0; j < mgSizeArray(localSizeIndex(1) - i); j++) {
-            for (int k = 0; k < mgSizeArray(localSizeIndex(2) - i); k++) {
-                blockIndx(ptsCount) = j*lengthVal*strideValues(i) + k*strideValues(i);
-                ptsCount += 1;
-            }
-        }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &xMGArray(i));
-        MPI_Type_commit(&xMGArray(i));
+        MPI_Type_contiguous(count, MPI_FP_REAL, &xMGArray(n));
+        MPI_Type_commit(&xMGArray(n));
 
         // CREATE Y_MG_ARRAY DATATYPE
-        numPoints = mgSizeArray(localSizeIndex(2) - i)*mgSizeArray(localSizeIndex(0) - i);
-        blockIndx.resize(numPoints);
-        blockSize.resize(numPoints);
+        count = stagFull(n).ubound(0) + 2;
+        length = stagFull(n).ubound(2) + 2;
+        stride = length*(stagFull(n).ubound(1) + 2);
 
-        blockSize = 1;
-        ptsCount = 0;
+        MPI_Type_vector(count, length, stride, MPI_FP_REAL, &yMGArray(n));
+        MPI_Type_commit(&yMGArray(n));
 
-        areaVal = (stagFull.ubound(1) - stagFull.lbound(1) + 1)*(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        for (int j = 0; j < mgSizeArray(localSizeIndex(0) - i); j++) {
-            for (int k = 0; k < mgSizeArray(localSizeIndex(2) - i); k++) {
-                blockIndx(ptsCount) = j*strideValues(i)*areaVal + k*strideValues(i);
-                ptsCount += 1;
-            }
-        }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &yMGArray(i));
-        MPI_Type_commit(&yMGArray(i));
+        // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
+        mgSendLft(n) =  1, -1, -1;
+        mgRecvLft(n) = -1, -1, -1;
+        mgSendRgt(n) = stagCore(n).ubound(0) - 1, -1, -1;
+        mgRecvRgt(n) = stagCore(n).ubound(0) + 1, -1, -1;
 
-        mgSendLft(i) =  strideValues(i), 0, 0;
-        mgRecvLft(i) = -strideValues(i), 0, 0;
-        mgSendRgt(i) = stagCore.ubound(0) - strideValues(i), 0, 0;
-        mgRecvRgt(i) = stagCore.ubound(0) + strideValues(i), 0, 0;
-
-        mgSendFrn(i) = 0,  strideValues(i), 0;
-        mgRecvFrn(i) = 0, -strideValues(i), 0;
-        mgSendBak(i) = 0, stagCore.ubound(1) - strideValues(i), 0;
-        mgRecvBak(i) = 0, stagCore.ubound(1) + strideValues(i), 0;
+        mgSendFrn(n) = -1,  1, -1;
+        mgRecvFrn(n) = -1, -1, -1;
+        mgSendBak(n) = -1, stagCore(n).ubound(1) - 1, -1;
+        mgRecvBak(n) = -1, stagCore(n).ubound(1) + 1, -1;
     }
 }
 
@@ -557,11 +530,17 @@ void multigrid_d3::initDirichlet() {
     zWall = 0.0;
 
     // Compute values at the walls using the (r^2)/6 formula
+    // First get the indices of the global mid-point of the domain
+    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+    int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
+
     // Along X-direction - Left and Right Walls
-    xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
-    for (int j=stagCore(0).lbound(1); j<=stagCore(0).ubound(1); j++) {
-        yDist = hy(0)*(j - stagCore(0).ubound(1)/2);
-        for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
+    xDist = hx(0) + mesh.inputParams.Lx/2.0;
+
+    for (int j=0; j<=stagCore(0).ubound(1); ++j) {
+        yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
+
+        for (int k=0; k<=stagCore(0).ubound(2); ++k) {
             zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
 
             xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
@@ -569,10 +548,12 @@ void multigrid_d3::initDirichlet() {
     }
 
     // Along Y-direction - Front and Rear Walls
-    yDist = hy(0)*(int(mgSizeArray(localSizeIndex(1))/2) + 1);
-    for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
-        xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
-        for (int k=stagCore(0).lbound(2); k<=stagCore(0).ubound(2); k++) {
+    yDist = hy(0) + mesh.inputParams.Ly/2.0;
+
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+        for (int k=0; k<=stagCore(0).ubound(2); ++k) {
             zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
 
             yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
@@ -580,11 +561,13 @@ void multigrid_d3::initDirichlet() {
     }
 
     // Along Z-direction - Top and Bottom Walls
-    zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
-    for (int i=stagCore(0).lbound(0); i<=stagCore(0).ubound(0); i++) {
-        xDist = hx(0)*(i - stagCore(0).ubound(0)/2);
-        for (int j=stagCore(0).lbound(1); j<=stagCore(0).ubound(1); j++) {
-            yDist = hy(0)*(j - stagCore(0).ubound(1)/2);
+    zDist = hz(0) + mesh.inputParams.Lz/2.0;
+
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+        for (int j=0; j<=stagCore(0).ubound(1); ++j) {
+            yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
 
             zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
@@ -593,7 +576,7 @@ void multigrid_d3::initDirichlet() {
 
 
 void multigrid_d3::imposeBC() {
-    //updatePads();
+    updatePads(pressureData);
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
@@ -688,21 +671,66 @@ void multigrid_d3::imposeBC() {
 }
 
 
-void multigrid_d3::updatePads() {
+void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
-    // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
-    MPI_Irecv(&pressureData(mgRecvLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&pressureData(mgRecvRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    MPI_Irecv(&pressureData(mgRecvFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-    MPI_Irecv(&pressureData(mgRecvBak(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (vLevel == 4) {
+    //    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel).ubound() << std::endl;
+    //    //MPI_Barrier(MPI_COMM_WORLD);
+    //    //if (mesh.rankData.rank == 1) std::cout << pressureData(vLevel).ubound() << std::endl;
+    //    //MPI_Barrier(MPI_COMM_WORLD);
+    //    //if (mesh.rankData.rank == 2) std::cout << pressureData(vLevel).ubound() << std::endl;
+    //    //MPI_Barrier(MPI_COMM_WORLD);
+    //    //if (mesh.rankData.rank == 3) std::cout << pressureData(vLevel).ubound() << std::endl;
+    //    //MPI_Finalize();
+    //    //exit(0);
 
-    MPI_Send(&pressureData(mgSendLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendBak(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
+    //    for (int i=-1; i<=5; ++i) for (int j=-1; j<=5; ++j) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, j, k) = 1000*(mesh.rankData.rank+1) + 100*i + 10*j + k;
+    //    for (int i=-1; i<=5; ++i) for (int j=-1; j<=5; ++j) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, j, k) = 1000*(mesh.rankData.rank+1) + 100*i + 10*j + k;
+    //    for (int i=-1; i<=5; ++i) for (int j=-1; j<=5; ++j) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, j, k) = 1000*(mesh.rankData.rank+1) + 100*i + 10*j + k;
+    //    for (int i=-1; i<=5; ++i) for (int j=-1; j<=5; ++j) for (int k=-1; k<=9; ++k) pressureData(vLevel)(i, j, k) = 1000*(mesh.rankData.rank+1) + 100*i + 10*j + k;
+
+    //    if (mesh.rankData.rank == 0) std::cout << "Before" << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 0) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 1) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 2) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 3) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //}
+
+    // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
+    MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(&(data(vLevel)(mgRecvFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(&(data(vLevel)(mgRecvBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+
+    MPI_Send(&(data(vLevel)(mgSendLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
+
+    //if (vLevel == 4) {
+    //    if (mesh.rankData.rank == 0) std::cout << "After" << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 0) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 1) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 2) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 3) std::cout << std::setprecision(3) << pressureData(vLevel)(all, all, 1) << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 }
 
 

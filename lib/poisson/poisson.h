@@ -166,16 +166,16 @@ class multigrid_d2: public poisson {
         void imposeBC();
         void initDirichlet();
 
-        void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
         void createMGSubArrays();
+        void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
 
         blitz::Array<real, 1> xWall, zWall;
 
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
 
+        real testProlong();
         //real testTransfer();
-        //real testProlong();
         //real testPeriodic();
 
         ~multigrid_d2() {};
@@ -199,10 +199,12 @@ class multigrid_d3: public poisson {
         real computeError(const int normOrder);
 
         void solve();
+
         void imposeBC();
-        void updatePads();
         void initDirichlet();
+
         void createMGSubArrays();
+        void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
 
         blitz::Array<real, 2> xWall, yWall, zWall;
 

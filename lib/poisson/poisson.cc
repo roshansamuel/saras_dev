@@ -235,15 +235,8 @@ void poisson::vCycle() {
     // From now on, homogeneous Dirichlet BCs are used till end of V-Cycle
     zeroBC = true;
 
-    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(blitz::Range(-1, 65), 0, blitz::Range(-1, 1)) << std::endl;
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
-        //if (i==0) {
-        //    if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel).shape() << std::endl;
-        //    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(blitz::Range(-1, 33), 0, blitz::Range(-1, 5)) << std::endl;
-        //    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(all, 0, blitz::Range(-1, 5)) << std::endl;
-        //}
-
         // Step 2) Compute the residual r = b - Ax
         computeResidual();
 
@@ -253,15 +246,13 @@ void poisson::vCycle() {
         // Restrict the residual to a coarser level
         coarsen();
 
+        // Initialize pressureData to 0, or the convergence will be drastically slow
         pressureData(vLevel) = 0.0;
-    //if (mesh.rankData.rank == 0) std::cout << i << "\t" << vLevel << std::endl;
 
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
         (vLevel == inputParams.vcDepth)? solve(): smooth(inputParams.preSmooth);
     }
     // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
-    //MPI_Finalize();
-    //exit(0);
 
     // PROLONGATION OPERATIONS UP TO FINEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {

@@ -146,10 +146,6 @@ void multigrid_d2::smooth(const int smoothCount) {
     }
 
     imposeBC();
-    //if (mesh.rankData.rank == 0) std::cout << "Smooth" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
-    //if (mesh.rankData.rank == 1) std::cout << "Smooth" << pressureData(vLevel)(blitz::Range(-1, 4), 0, blitz::Range(-1, 1)) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
 }
 
 
@@ -244,8 +240,8 @@ void multigrid_d2::coarsen() {
 
 
 void multigrid_d2::prolong() {
-    int i2, k2;
     int pLevel;
+    int i2, k2;
 
     pLevel = vLevel;
     vLevel -= 1;
@@ -478,13 +474,6 @@ void multigrid_d2::imposeBC() {
 void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
-    //if (mesh.rankData.rank == 0) std::cout << "Before" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 1) std::cout << "Before" << pressureData(vLevel)(blitz::Range(-1, 4), 0, blitz::Range(-1, 1)) << std::endl;
-
-    //if (mesh.rankData.rank == 0) std::cout << "Before" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << "Before" << pressureData(vLevel)(blitz::Range(63, 68), 0, blitz::Range(-1, 1)) << std::endl;
-
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
     MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
@@ -493,47 +482,39 @@ void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     MPI_Send(&(data(vLevel)(mgSendRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
 
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
-
-    //if (mesh.rankData.rank == 0) std::cout << "After" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 1) std::cout << "After" << pressureData(vLevel)(blitz::Range(-1, 4), 0, blitz::Range(-1, 1)) << std::endl;
-
-    //if (mesh.rankData.rank == 0) std::cout << "After" << pressureData(vLevel)(blitz::Range(60, 65), 0, blitz::Range(-1, 1)) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << "After" << pressureData(vLevel)(blitz::Range(63, 68), 0, blitz::Range(-1, 1)) << std::endl;
 }
 
 
-/*
 real multigrid_d2::testProlong() {
-    int iY = 0;
     vLevel = 0;
 
     // Fill the residualData array with correct values expected after prolongation
-    residualData = 0.0;
-    for (int iX = stagCore(vLevel).lbound(0); iX <= stagCore(vLevel).ubound(0); iX += strideValues(vLevel)) {
-        for (int iZ = stagCore(vLevel).lbound(2); iZ <= stagCore(vLevel).ubound(2); iZ += strideValues(vLevel)) {
-            residualData(iX, iY, iZ) = (mesh.rankData.rank + 1)*100 + iX*10 + iZ;
+    residualData(vLevel) = 0.0;
+    for (int i = stagCore(vLevel).lbound(0); i <= stagCore(vLevel).ubound(0); ++i) {
+        for (int k = stagCore(vLevel).lbound(2); k <= stagCore(vLevel).ubound(2); ++k) {
+            residualData(vLevel)(i, 0, k) = (mesh.rankData.rank + 1)*100 + i*10 + k;
         }
     }
 
     // After going one level down the V-Cycle, populate the pressureData array with values at the corresponding stride
     vLevel += 1;
-    pressureData = 0.0;
-    for (int iX = stagCore(vLevel).lbound(0); iX <= stagCore(vLevel).ubound(0); iX += strideValues(vLevel)) {
-        for (int iZ = stagCore(vLevel).lbound(2); iZ <= stagCore(vLevel).ubound(2); iZ += strideValues(vLevel)) {
-            pressureData(iX, iY, iZ) = (mesh.rankData.rank + 1)*100 + iX*10 + iZ;
+    pressureData(vLevel) = 0.0;
+    for (int i = stagCore(vLevel).lbound(0); i <= stagCore(vLevel).ubound(0); ++i) {
+        for (int k = stagCore(vLevel).lbound(2); k <= stagCore(vLevel).ubound(2); ++k) {
+            pressureData(vLevel)(i, 0, k) = (mesh.rankData.rank + 1)*100 + i*10 + k;
         }
     }
 
     // Perform prolongation
     prolong();
 
-    pressureData -= residualData;
+    pressureData(vLevel) -= residualData(vLevel - 1);
 
-    return blitz::max(fabs(pressureData));
+    return blitz::max(fabs(pressureData(vLevel)));
 }
 
 
+/*
 real multigrid_d2::testTransfer() {
     real maxVal = 0.0;
 
