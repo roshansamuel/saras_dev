@@ -127,8 +127,8 @@ class poisson {
 
         void mgSolve(plainsf &inFn, const plainsf &rhs);
 
-        virtual real testTransfer();
         virtual real testProlong();
+        virtual real testTransfer();
         virtual real testPeriodic();
 
         virtual ~poisson();
@@ -175,8 +175,8 @@ class multigrid_d2: public poisson {
         multigrid_d2(const grid &mesh, const parser &solParam);
 
         real testProlong();
-        //real testTransfer();
-        //real testPeriodic();
+        real testTransfer();
+        real testPeriodic();
 
         ~multigrid_d2() {};
 };
@@ -211,9 +211,9 @@ class multigrid_d3: public poisson {
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
 
-        //real testTransfer();
-        //real testProlong();
-        //real testPeriodic();
+        real testProlong();
+        real testTransfer();
+        real testPeriodic();
 
         ~multigrid_d3() {};
 };

@@ -103,8 +103,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     for (int i=0; i <= inputParams.vcDepth; i++) {
         pressureData(i) = 0.0;
         residualData(i) = 0.0;
-
-        // This was originally inside the V-Cycle loop. Check if this line being here is okay.
         smoothedPres(i) = 0.0;
     }
 
@@ -211,16 +209,16 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 void poisson::vCycle() {
     /*
      * OUTLINE OF THE MULTI-GRID V-CYCLE
-     * 1)  Start at finest grid, perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the solution Ax=b,
-     * 2)  Compute the residual r=b-Ax and restrict it to a coarser level,
-     * 3)  Perform N=2 Gauss-Siedel pre-smoothing iterations to solve for the error: Ae=r
-     * 4)  Repeat steps 2-3 until you reach the coarsest grid level,
-     * 5)  Perform N=2+2 (pre+post) Gauss-Siedel smoothing iterations to solve for the error 'e',
+     * 1)  Starting at finest grid, perform N Gauss-Siedel pre-smoothing iterations to solve for the solution, Ax=b.
+     * 2)  Compute the residual r=b-Ax, and restrict it to a coarser level.
+     * 3)  Perform N Gauss-Siedel pre-smoothing iterations to solve for the error, Ae=r.
+     * 4)  Repeat steps 2-3 until you reach the coarsest grid level.
+     * 5)  Perform 2N (pre + post) Gauss-Siedel smoothing iterations to solve for the error 'e'.
      * 6)  Prolong the error 'e' to the next finer level.
-     * 7)  Perform N=2 post-smoothing iterations, 
-     * 8)  Repeat steps 6-7 until the finest grid is reached,
-     * 9)  Add error 'e' to the solution 'x' and perform N=2 post-smoothing iterations.
-     * 10) End of one V-cycle, and check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
+     * 7)  Perform N post-smoothing iterations.
+     * 8)  Repeat steps 6-7 until the finest grid is reached.
+     * 9)  Add error 'e' to the solution 'x' and perform N post-smoothing iterations.
+     * 10) End of one V-cycle - check for convergence by computing the normalized residual: r_normalized = ||b-Ax||/||b||. 
      */
 
     vLevel = 0;
@@ -340,8 +338,6 @@ void poisson::setStagBounds() {
         stagFull(i) = blitz::RectDomain<3>(loBound, upBound);
 
         // SET THE LIMTS FOR ARRAY LOOPS IN smooth FUNCTION, AND A FEW OTHER PLACES
-        // WARNING: THESE VARIABLES HAVE SO FAR BEEN IMPLEMENTED ONLY IN smooth AND vCycle.
-        // THE TEST FUNCTIONS HAVE NOT YET BEEN UPDATED WITH THESE
         xEnd(i) = stagCore(i).ubound(0);
 #ifndef PLANAR
         yEnd(i) = stagCore(i).ubound(1);
@@ -451,39 +447,38 @@ void poisson::copyStaggrDerivs() {
     ztzz.resize(inputParams.vcDepth + 1);
     ztz2.resize(inputParams.vcDepth + 1);
 
-    // WARNING:: BELOW METHOD IS WRONG! CORRECT THE STRIDES FOR EACH RANGE
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        xixx(i).resize(stagFull(i).ubound(0) - stagFull(i).lbound(0) + 1);
-        xixx(i).reindexSelf(stagFull(i).lbound(0));
-        xixx(i) = 0.0;
-        xixx(i)(blitz::Range(0, stagCore(i).ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore(i).ubound(0), 1));
+    for(int n=0; n<=inputParams.vcDepth; ++n) {
+        xixx(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
+        xixx(n).reindexSelf(stagFull(n).lbound(0));
+        xixx(n) = 0.0;
+        xixx(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
 
-        xix2(i).resize(stagFull(i).ubound(0) - stagFull(i).lbound(0) + 1);
-        xix2(i).reindexSelf(stagFull(i).lbound(0));
-        xix2(i) = 0.0;
-        xix2(i)(blitz::Range(0, stagCore(i).ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore(i).ubound(0), 1));
+        xix2(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
+        xix2(n).reindexSelf(stagFull(n).lbound(0));
+        xix2(n) = 0.0;
+        xix2(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
 
 #ifndef PLANAR
-        etyy(i).resize(stagFull(i).ubound(1) - stagFull(i).lbound(1) + 1);
-        etyy(i).reindexSelf(stagFull(i).lbound(1));
-        etyy(i) = 0.0;
-        etyy(i)(blitz::Range(0, stagCore(i).ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore(i).ubound(1), 1));
+        etyy(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
+        etyy(n).reindexSelf(stagFull(n).lbound(1));
+        etyy(n) = 0.0;
+        etyy(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
 
-        ety2(i).resize(stagFull(i).ubound(1) - stagFull(i).lbound(1) + 1);
-        ety2(i).reindexSelf(stagFull(i).lbound(1));
-        ety2(i) = 0.0;
-        ety2(i)(blitz::Range(0, stagCore(i).ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore(i).ubound(1), 1));
+        ety2(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
+        ety2(n).reindexSelf(stagFull(n).lbound(1));
+        ety2(n) = 0.0;
+        ety2(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
 #endif
 
-        ztzz(i).resize(stagFull(i).ubound(2) - stagFull(i).lbound(2) + 1);
-        ztzz(i).reindexSelf(stagFull(i).lbound(2));
-        ztzz(i) = 0.0;
-        ztzz(i)(blitz::Range(0, stagCore(i).ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore(i).ubound(2), 1));
+        ztzz(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
+        ztzz(n).reindexSelf(stagFull(n).lbound(2));
+        ztzz(n) = 0.0;
+        ztzz(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
 
-        ztz2(i).resize(stagFull(i).ubound(2) - stagFull(i).lbound(2) + 1);
-        ztz2(i).reindexSelf(stagFull(i).lbound(2));
-        ztz2(i) = 0.0;
-        ztz2(i)(blitz::Range(0, stagCore(i).ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore(i).ubound(2), 1));
+        ztz2(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
+        ztz2(n).reindexSelf(stagFull(n).lbound(2));
+        ztz2(n) = 0.0;
+        ztz2(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
     }
 };
 
