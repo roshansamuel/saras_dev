@@ -234,7 +234,7 @@ void multigrid_d3::solve() {
 
         MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
-        if (globalMax < 1.0e-6) {
+        if (globalMax < inputParams.mgTolerance) {
             break;
         }
 

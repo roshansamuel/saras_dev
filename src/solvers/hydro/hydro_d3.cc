@@ -408,7 +408,7 @@ void hydro_d3::solveVx() {
 
         maxError = velocityLaplacian.vxMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 
@@ -465,7 +465,7 @@ void hydro_d3::solveVy() {
 
         maxError = velocityLaplacian.vyMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 
@@ -522,7 +522,7 @@ void hydro_d3::solveVz() {
 
         maxError = velocityLaplacian.vzMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 

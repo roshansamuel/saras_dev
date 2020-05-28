@@ -93,12 +93,12 @@ class parser {
         real fwInt;
         real rsInt;
         real prInt;
-        real tolerance;
         real Lx, Ly, Lz;
         real tStp, tMax;
         real patchRadius;
-        real betaX, betaY, betaZ;
         real courantNumber;
+        real betaX, betaY, betaZ;
+        real cnTolerance, mgTolerance;
 
         std::vector<blitz::TinyVector<int, 3> > probesList;
 

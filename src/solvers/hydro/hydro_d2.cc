@@ -319,7 +319,7 @@ void hydro_d2::solveVx() {
 
         maxError = velocityLaplacian.vxMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 
@@ -370,7 +370,7 @@ void hydro_d2::solveVz() {
 
         maxError = velocityLaplacian.vzMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 

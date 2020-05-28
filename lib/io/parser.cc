@@ -124,7 +124,7 @@ void parser::parseYAML() {
 
     yamlNode["Solver"]["Differentiation Scheme"] >> dScheme;
     yamlNode["Solver"]["Integration Scheme"] >> iScheme;
-    yamlNode["Solver"]["Jacobi Tolerance"] >> tolerance;
+    yamlNode["Solver"]["Solve Tolerance"] >> cnTolerance;
 
     yamlNode["Solver"]["Restart Run"] >> restartFlag;
 
@@ -147,8 +147,9 @@ void parser::parseYAML() {
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
 
-    yamlNode["Multigrid"]["Smoothing Method"] >> gsSmooth;
+    yamlNode["Multigrid"]["Solve Tolerance"] >> mgTolerance;
 
+    yamlNode["Multigrid"]["Smoothing Method"] >> gsSmooth;
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
     yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
 
@@ -256,8 +257,8 @@ void parser::checkData() {
     }
 
 #ifdef REAL_SINGLE
-    if (tolerance < 5.0e-6) {
-        std::cout << "ERROR: The specified tolerance for Jacobi iterations is too small for single precision calculations. Aborting" << std::endl;
+    if ((cnTolerance < 5.0e-6) or (mgTolerance < 5.0e-6)) {
+        std::cout << "ERROR: The specified tolerance for iterative solvers is too small for single precision calculations. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);
     }

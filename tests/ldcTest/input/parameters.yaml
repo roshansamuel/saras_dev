@@ -104,8 +104,8 @@
     # 2 = Euler Method (To Be Implemented)
     "Integration Scheme": 1
 
-    # Tolerance used in Jacobi iterations (if Implicit Crank-Nicholson scheme is chosen above)
-    "Jacobi Tolerance": 1.0e-6
+    # Tolerance used in iterative method (if Implicit Crank-Nicholson scheme is chosen above)
+    "Solve Tolerance": 1.0e-6
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
@@ -152,6 +152,9 @@
     # Number of V-Cycles to be performed
     "V-Cycle Count": 7
 
+    # Tolerance used in iterative method when solving at coarsest level
+    "Solve Tolerance": 1.0e-6
+
     # Iterative method to be used for smoothing
     # 0 = Jacobi iteration
     # 1 = Gauss-Seidel iteration
@@ -167,4 +170,4 @@
     # 0 = Do not evaluate error
     # 1 = Compute and print Mean Absolute Error (MAE)
     # 2 = Compute and print Root Mean Square Error (RMSE)
-    "Print Error": 0
+    "Print Error": 1
