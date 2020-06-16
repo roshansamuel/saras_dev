@@ -192,9 +192,8 @@ void multigrid_d2::solve() {
 
         iterCount += 1;
         if (iterCount > maxCount) {
-            std::cout << "ERROR: Iterations for solution at coarsest level not converging. Aborting" << std::endl;
-            MPI_Finalize();
-            exit(0);
+            if (inputParams.printResidual) if (mesh.rankData.rank == 0) std::cout << "WARNING: Iterations for solution at coarsest level not converging." << std::endl;
+            break;
         }
     }
 
@@ -419,23 +418,21 @@ void multigrid_d2::imposeBC() {
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                //pressureData(vLevel)(-1, 0, all) = 2.0 - pressureData(vLevel)(1, 0, all);
                 pressureData(vLevel)(-1, 0, all) = xWall(all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
                 pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = xWall(all);
             }
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
-            pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(0, 0, all);
+            pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
         }
 
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0), 0, all);
+            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
@@ -455,17 +452,15 @@ void multigrid_d2::imposeBC() {
 
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
             pressureData(vLevel)(all, 0, -1) = zWall(all);
 
-            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
-        pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 0);
+        pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
 
-        pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2));
+        pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
 #endif
     }
 }

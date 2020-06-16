@@ -153,7 +153,8 @@ void parser::parseYAML() {
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
     yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
 
-    yamlNode["Multigrid"]["Print Error"] >> mgError;
+    yamlNode["Multigrid"]["Residual Type"] >> resType;
+    yamlNode["Multigrid"]["Print Residual"] >> printResidual;
 
     inFile.close();
 }
@@ -264,7 +265,7 @@ void parser::checkData() {
     }
 #endif
 
-    if (mgError > 2) {
+    if (resType > 2) {
         std::cout << "ERROR: The specified value for printing error at end of V-Cycles is not defined. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);

@@ -165,9 +165,12 @@
     # Number of smoothing iterations to be performed after prolongation operations
     "Post-Smoothing Count": 3
 
-    # Parameter to enable printing of error at end of each V-Cycle of the multigrid method
+    # Type of residual to be computed at end of each V-Cycle of the multigrid method
     # This value can be set as below:
     # 0 = Do not evaluate error
     # 1 = Compute and print Mean Absolute Error (MAE)
     # 2 = Compute and print Root Mean Square Error (RMSE)
-    "Print Error": 0
+    "Residual Type": 1
+
+    # Flag to enable printing of the residual computed using above method (used mainly to test multigrid solver)
+    "Print Residual": false

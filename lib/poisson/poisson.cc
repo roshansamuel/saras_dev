@@ -98,6 +98,8 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+    real prevResidual = 0.0;
+
     vLevel = 0;
 
     for (int i=0; i <= inputParams.vcDepth; i++) {
@@ -128,14 +130,16 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     for (int i=0; i<inputParams.vcCount; i++) {
         vCycle();
 
-        if (inputParams.mgError) {
-            real mgResidual = computeError(inputParams.mgError);
+        real mgResidual = computeError(inputParams.resType);
+        if (inputParams.printResidual) {
 #ifdef TEST_POISSON
             if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << std::setprecision(16) << mgResidual << std::endl;
 #else
             if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << mgResidual << std::endl;
 #endif
         }
+        if (fabs(prevResidual - mgResidual) < inputParams.mgTolerance) break;
+        prevResidual = mgResidual;
     }
 
     // RETURN CALCULATED PRESSURE DATA
@@ -347,7 +351,7 @@ void poisson::setStagBounds() {
 
     // SET MAXIMUM NUMBER OF ITERATIONS FOR THE GAUSS-SEIDEL SOLVER AT COARSEST LEVEL OF MULTIGRID SOLVER
     blitz::TinyVector<int, 3> cgSize = stagFull(inputParams.vcDepth).ubound() - stagFull(inputParams.vcDepth).lbound();
-    maxCount = 2*cgSize(0)*cgSize(1)*cgSize(2);
+    maxCount = cgSize(0)*cgSize(1)*cgSize(2);
 };
 
 

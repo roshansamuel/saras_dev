@@ -43,7 +43,7 @@
  ##
 
 # Test for 2D LDC and comparison with Ghia et al's (1982, J. Comput. Phys., 48, 387 - 411) result
-PROC=1
+PROC=4
 
 # REMOVE PRE-EXISTING EXECUTATBLES
 rm -f ldcTest/saras

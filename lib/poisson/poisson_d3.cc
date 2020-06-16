@@ -240,9 +240,8 @@ void multigrid_d3::solve() {
 
         iterCount += 1;
         if (iterCount > maxCount) {
-            std::cout << "ERROR: Iterations for solution at coarsest level not converging. Aborting" << std::endl;
-            MPI_Finalize();
-            exit(0);
+            if (inputParams.printResidual) if (mesh.rankData.rank == 0) std::cout << "WARNING: Iterations for solution at coarsest level not converging." << std::endl;
+            break;
         }
     }
 
@@ -601,11 +600,11 @@ void multigrid_d3::imposeBC() {
 #else
         // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
-            pressureData(vLevel)(-1, all, all) = pressureData(vLevel)(0, all, all);
+            pressureData(vLevel)(-1, all, all) = pressureData(vLevel)(1, all, all);
         }
 
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0), all, all);
+            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, all, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
@@ -633,11 +632,11 @@ void multigrid_d3::imposeBC() {
 #else
         // NEUMANN BOUNDARY CONDITION AT FRONT AND BACK WALLS
         if (mesh.rankData.yRank == 0) {
-            pressureData(vLevel)(all, -1, all) = pressureData(vLevel)(all, 0, all);
+            pressureData(vLevel)(all, -1, all) = pressureData(vLevel)(all, 1, all);
         }
 
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = pressureData(vLevel)(all, stagCore(vLevel).ubound(1), all);
+            pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = pressureData(vLevel)(all, stagCore(vLevel).ubound(1) - 1, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
@@ -663,9 +662,9 @@ void multigrid_d3::imposeBC() {
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
-        pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, 0);
+        pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, 1);
 
-        pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2));
+        pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
 #endif
     }
 }

@@ -69,7 +69,7 @@ class parser {
         int forceType;
         int solnFormat;
         int xInd, yInd, zInd;
-        int mgError, vcDepth, vcCount;
+        int resType, vcDepth, vcCount;
         int gsSmooth, preSmooth, postSmooth;
 
         int icType;
@@ -82,6 +82,7 @@ class parser {
         bool nonHgBC;
         bool readProbes;
         bool restartFlag;
+        bool printResidual;
         bool xPer, yPer, zPer;
 
         real Re;
