@@ -98,7 +98,9 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
  ********************************************************************************************************************************************
  */
 void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
+#ifndef TEST_POISSON
     real prevResidual = 0.0;
+#endif
 
     vLevel = 0;
 
@@ -138,8 +140,11 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
             if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << mgResidual << std::endl;
 #endif
         }
+
+#ifndef TEST_POISSON
         if (fabs(prevResidual - mgResidual) < inputParams.mgTolerance) break;
         prevResidual = mgResidual;
+#endif
     }
 
     // RETURN CALCULATED PRESSURE DATA
