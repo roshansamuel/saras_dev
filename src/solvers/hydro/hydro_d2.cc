@@ -255,7 +255,7 @@ void hydro_d2::timeAdvance() {
     // IF THE POISSON SOLVER IS BEING TESTED, THE RHS IS SET TO ONE.
     // THIS IS FOR TESTING ONLY AND A SINGLE TIME ADVANCE IS PERFORMED IN THIS TEST
 #ifdef TEST_POISSON
-    mgRHS.F = 0.0;
+    mgRHS.F = 1.0;
 #endif
 
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
@@ -319,7 +319,7 @@ void hydro_d2::solveVx() {
 
         maxError = velocityLaplacian.vxMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 
@@ -370,7 +370,7 @@ void hydro_d2::solveVz() {
 
         maxError = velocityLaplacian.vzMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 

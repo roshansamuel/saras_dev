@@ -124,7 +124,7 @@ void parser::parseYAML() {
 
     yamlNode["Solver"]["Differentiation Scheme"] >> dScheme;
     yamlNode["Solver"]["Integration Scheme"] >> iScheme;
-    yamlNode["Solver"]["Jacobi Tolerance"] >> tolerance;
+    yamlNode["Solver"]["Solve Tolerance"] >> cnTolerance;
 
     yamlNode["Solver"]["Restart Run"] >> restartFlag;
 
@@ -147,14 +147,14 @@ void parser::parseYAML() {
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
 
-    yamlNode["Multigrid"]["Smoothing Method"] >> gsSmooth;
+    yamlNode["Multigrid"]["Solve Tolerance"] >> mgTolerance;
 
+    yamlNode["Multigrid"]["Smoothing Method"] >> gsSmooth;
     yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
     yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
-    yamlNode["Multigrid"]["Restrict-Smoothing Count"] >> restrictSmooth;
-    yamlNode["Multigrid"]["Prolong-Smoothing Count"] >> prolongSmooth;
 
-    yamlNode["Multigrid"]["Print Error"] >> mgError;
+    yamlNode["Multigrid"]["Residual Type"] >> resType;
+    yamlNode["Multigrid"]["Print Residual"] >> printResidual;
 
     inFile.close();
 }
@@ -225,24 +225,6 @@ void parser::checkData() {
         exit(0);
     }
 
-    // CHECK IF THE LENGTH OF ARRAY restrictSmooth IS LESS THAN vcDepth
-    // THE SIZE OF restrictSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
-    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
-    if (int(restrictSmooth.size()) < vcDepth) {
-        std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
-
-    // CHECK IF THE LENGTH OF ARRAY prolongSmooth IS LESS THAN vcDepth
-    // THE SIZE OF prolongSmooth IS CONVERTED TO int TO AVOID -Wsign-compare WARNING
-    // SIZE OF THIS ARRAY CAN NEVER BE TOO LARGE FOR THIS CONVERSION TO CAUSE ANY PROBLEMS ANYWAY
-    if (int(prolongSmooth.size()) < vcDepth) {
-        std::cout << "ERROR: The length of array of inter-smoothing counts is less than V-Cycle depths. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
-    }
-
     // CHECK IF GRID SIZE SPECIFIED ALONG EACH DIRECTION IS SUFFICIENT ALONG WITH THE DOMAIN DIVIIONS TO REACH THE LOWEST LEVEL OF V-CYCLE DEPTH SPECIFIED
     // ALONG X-DIRECTION
     gridSize = int(pow(2, xInd));
@@ -276,14 +258,14 @@ void parser::checkData() {
     }
 
 #ifdef REAL_SINGLE
-    if (tolerance < 5.0e-6) {
-        std::cout << "ERROR: The specified tolerance for Jacobi iterations is too small for single precision calculations. Aborting" << std::endl;
+    if ((cnTolerance < 5.0e-6) or (mgTolerance < 5.0e-6)) {
+        std::cout << "ERROR: The specified tolerance for iterative solvers is too small for single precision calculations. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);
     }
 #endif
 
-    if (mgError > 2) {
+    if (resType > 2) {
         std::cout << "ERROR: The specified value for printing error at end of V-Cycles is not defined. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);

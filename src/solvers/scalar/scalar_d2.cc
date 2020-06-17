@@ -351,7 +351,7 @@ void scalar_d2::solveVx() {
 
         maxError = velocityLaplacian.vxMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 
@@ -403,7 +403,7 @@ void scalar_d2::solveVz() {
 
         maxError = velocityLaplacian.vzMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 
@@ -454,7 +454,7 @@ void scalar_d2::solveT() {
 
         maxError = scalarLaplacian.fxMax();
 
-        if (maxError < inputParams.tolerance) {
+        if (maxError < inputParams.cnTolerance) {
             break;
         }
 

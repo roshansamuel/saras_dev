@@ -69,7 +69,7 @@ class parser {
         int forceType;
         int solnFormat;
         int xInd, yInd, zInd;
-        int mgError, vcDepth, vcCount;
+        int resType, vcDepth, vcCount;
         int gsSmooth, preSmooth, postSmooth;
 
         int icType;
@@ -82,6 +82,7 @@ class parser {
         bool nonHgBC;
         bool readProbes;
         bool restartFlag;
+        bool printResidual;
         bool xPer, yPer, zPer;
 
         real Re;
@@ -93,14 +94,13 @@ class parser {
         real fwInt;
         real rsInt;
         real prInt;
-        real tolerance;
         real Lx, Ly, Lz;
         real tStp, tMax;
         real patchRadius;
-        real betaX, betaY, betaZ;
         real courantNumber;
+        real betaX, betaY, betaZ;
+        real cnTolerance, mgTolerance;
 
-        std::vector<int> restrictSmooth, prolongSmooth;
         std::vector<blitz::TinyVector<int, 3> > probesList;
 
         parser();

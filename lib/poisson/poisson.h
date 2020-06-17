@@ -54,8 +54,6 @@
 class poisson {
     protected:
         int vLevel, maxCount;
-        int xStr, yStr, zStr;
-        int xEnd, yEnd, zEnd;
 
         bool zeroBC;
 
@@ -67,15 +65,16 @@ class poisson {
         const grid &mesh;
         const parser &inputParams;
 
-        blitz::Array<real, 3> residualData;
-        blitz::Array<real, 3> iteratorTemp;
-        blitz::Array<real, 3> smoothedPres;
+        blitz::Range all;
 
-        blitz::Array<real, 3> pressureData;
-        blitz::Array<real, 3> inputRHSData;
+        blitz::Array<blitz::Array<real, 3>, 1> pressureData;
+        blitz::Array<blitz::Array<real, 3>, 1> residualData;
+        blitz::Array<blitz::Array<real, 3>, 1> tmpDataArray;
+        blitz::Array<blitz::Array<real, 3>, 1> smoothedPres;
 
-        blitz::RectDomain<3> stagFull;
-        blitz::RectDomain<3> stagCore;
+        blitz::Array<blitz::RectDomain<3>, 1> stagFull;
+        blitz::Array<blitz::RectDomain<3>, 1> stagCore;
+        blitz::Array<int, 1> xEnd, yEnd, zEnd;
 
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;
@@ -89,11 +88,9 @@ class poisson {
         blitz::Array<real, 1> hx2, hz2, hzhx;
         blitz::Array<real, 1> hxhy, hyhz, hxhyhz;
 
-        blitz::Array<real, 1> xixx, xix2;
-        blitz::Array<real, 1> etyy, ety2;
-        blitz::Array<real, 1> ztzz, ztz2;
-
-        blitz::Array<blitz::Range, 1> xMeshRange, yMeshRange, zMeshRange;
+        blitz::Array<blitz::Array<real, 1>, 1> xixx, xix2;
+        blitz::Array<blitz::Array<real, 1>, 1> etyy, ety2;
+        blitz::Array<blitz::Array<real, 1>, 1> ztzz, ztz2;
 
         blitz::Array<MPI_Datatype, 1> xMGArray;
         blitz::Array<MPI_Datatype, 1> yMGArray;
@@ -104,33 +101,34 @@ class poisson {
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
 
+        static inline bool isOdd(int x) { return x % 2; };
+
+        void setLocalSizeIndex();
+        void initializeArrays();
+        void copyStaggrDerivs();
+        void setCoefficients();
+        void setStagBounds();
+
         virtual void coarsen();
         virtual void prolong();
         virtual void computeResidual();
         virtual void smooth(const int smoothCount);
         virtual real computeError(const int normOrder);
 
+        virtual void solve() {};
         virtual void imposeBC();
-        virtual void updatePads();
-        virtual void initDirichlet();
         virtual void createMGSubArrays();
+        virtual void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
 
         void vCycle();
-
-        void setLocalSizeIndex();
-        void initializeArrays();
-        void copyStaggrDerivs();
-        void setCoefficients();
-        void initMeshRanges();
-        void setStagBounds();
 
     public:
         poisson(const grid &mesh, const parser &solParam);
 
         void mgSolve(plainsf &inFn, const plainsf &rhs);
 
-        virtual real testTransfer();
         virtual real testProlong();
+        virtual real testTransfer();
         virtual real testPeriodic();
 
         virtual ~poisson();
@@ -163,18 +161,21 @@ class multigrid_d2: public poisson {
         void smooth(const int smoothCount);
         real computeError(const int normOrder);
 
+        void solve();
+
         void imposeBC();
-        void updatePads();
         void initDirichlet();
+
         void createMGSubArrays();
+        void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
 
         blitz::Array<real, 1> xWall, zWall;
 
     public:
         multigrid_d2(const grid &mesh, const parser &solParam);
 
-        real testTransfer();
         real testProlong();
+        real testTransfer();
         real testPeriodic();
 
         ~multigrid_d2() {};
@@ -197,18 +198,21 @@ class multigrid_d3: public poisson {
         void smooth(const int smoothCount);
         real computeError(const int normOrder);
 
+        void solve();
+
         void imposeBC();
-        void updatePads();
         void initDirichlet();
+
         void createMGSubArrays();
+        void updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data);
 
         blitz::Array<real, 2> xWall, yWall, zWall;
 
     public:
         multigrid_d3(const grid &mesh, const parser &solParam);
 
-        real testTransfer();
         real testProlong();
+        real testTransfer();
         real testPeriodic();
 
         ~multigrid_d3() {};

@@ -68,9 +68,6 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
     // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIABLE SET ABOVE
     setStagBounds();
 
-    // USING THE FULL AND CORE LIMTS SET ABOVE, CREATE ALL Range OBJECTS
-    initMeshRanges();
-
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
 
@@ -91,22 +88,27 @@ multigrid_d3::multigrid_d3(const grid &mesh, const parser &solParam): poisson(me
 
 
 void multigrid_d3::computeResidual() {
-    // Calculate Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
+    tmpDataArray(vLevel) = 0.0;
+
+    // Compute Laplacian of the pressure field and subtract it from the RHS of Poisson equation to obtain the residual
+    // This residual is temporarily stored into tmpDataArray, from which it will be coarsened into residualData array.
     // Needed update: Substitute the below OpenMP parallel loop with vectorized Blitz operation and check for speed increase.
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
-    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-        for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
-            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                residualData(iX, iY, iZ) =  inputRHSData(iX, iY, iZ) -
-                               (xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
-                                etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
-                                ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel)));
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        for (int j = 0; j <= yEnd(vLevel); ++j) {
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
+                tmpDataArray(vLevel)(i, j, k) =  residualData(vLevel)(i, j, k) -
+                             (xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
+                              xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - pressureData(vLevel)(i - 1, j, k))/(2.0*hx(vLevel)) +
+                              ety2(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
+                              etyy(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - pressureData(vLevel)(i, j - 1, k))/(2.0*hy(vLevel)) +
+                              ztz2(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
+                              ztzz(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - pressureData(vLevel)(i, j, k - 1))/(2.0*hz(vLevel)));
             }
         }
     }
+
+    updatePads(tmpDataArray);
 }
 
 
@@ -114,13 +116,12 @@ void multigrid_d3::smooth(const int smoothCount) {
 #ifdef TIME_RUN
     struct timeval begin, end;
 #endif
-    iteratorTemp = 0.0;
+    tmpDataArray(vLevel) = 0.0;
 
-    for(int n=0; n<smoothCount; n++) {
+    for(int n=0; n<smoothCount; ++n) {
 #ifdef TIME_RUN
         gettimeofday(&begin, NULL);
 #endif
-        // IMPOSE BOUNDARY CONDITION
         imposeBC();
 
 #ifdef TIME_RUN
@@ -130,42 +131,44 @@ void multigrid_d3::smooth(const int smoothCount) {
         gettimeofday(&begin, NULL);
 #endif
 
+        // WARNING: When using the gauss-seidel smoothing as written below, the edges of interior sub-domains after MPI decomposition will not have the updated values
+        // As a result, the serial and parallel results will not match when using gauss-seidel smoothing
         if (inputParams.gsSmooth) {
             // GAUSS-SEIDEL ITERATIVE SMOOTHING
-            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-                for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
-                    for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                        iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + iteratorTemp(iX - strideValues(vLevel), iY, iZ))*2.0 +
-                                                    hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - iteratorTemp(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
-                                                    hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + iteratorTemp(iX, iY - strideValues(vLevel), iZ))*2.0 +
-                                                    hzhx(vLevel) * etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - iteratorTemp(iX, iY - strideValues(vLevel), iZ))*hy(vLevel) +
-                                                    hxhy(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*2.0 +
-                                                    hxhy(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - iteratorTemp(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
-                                            2.0 * hxhyhz(vLevel) * residualData(iX, iY, iZ))/
-                                        (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+            for (int i = 0; i <= xEnd(vLevel); ++i) {
+                for (int j = 0; j <= yEnd(vLevel); ++j) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        pressureData(vLevel)(i, j, k) = (hyhz(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) + pressureData(vLevel)(i - 1, j, k))*2.0 +
+                                                         hyhz(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - pressureData(vLevel)(i - 1, j, k))*hx(vLevel) +
+                                                         hzhx(vLevel) * ety2(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) + pressureData(vLevel)(i, j - 1, k))*2.0 +
+                                                         hzhx(vLevel) * etyy(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - pressureData(vLevel)(i, j - 1, k))*hy(vLevel) +
+                                                         hxhy(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) + pressureData(vLevel)(i, j, k - 1))*2.0 +
+                                                         hxhy(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - pressureData(vLevel)(i, j, k - 1))*hz(vLevel) -
+                                                 2.0 * hxhyhz(vLevel) * residualData(vLevel)(i, j, k))/
+                                                (4.0 * (hyhz(vLevel)*xix2(vLevel)(i) + hzhx(vLevel)*ety2(vLevel)(j) + hxhy(vLevel)*ztz2(vLevel)(k)));
                     }
                 }
             }
         } else {
             // JACOBI ITERATIVE SMOOTHING
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
-            for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-                for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
-                    for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                        iteratorTemp(iX, iY, iZ) = (hyhz(vLevel) * xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))*2.0 +
-                                                    hyhz(vLevel) * xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))*hx(vLevel) +
-                                                    hzhx(vLevel) * ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))*2.0 +
-                                                    hzhx(vLevel) * etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))*hy(vLevel) +
-                                                    hxhy(vLevel) * ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))*2.0 +
-                                                    hxhy(vLevel) * ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))*hz(vLevel) -
-                                            2.0 * hxhyhz(vLevel) * residualData(iX, iY, iZ))/
-                                        (4.0 * (hyhz(vLevel)*xix2(iX) + hzhx(vLevel)*ety2(iY) + hxhy(vLevel)*ztz2(iZ)));
+            for (int i = 0; i <= xEnd(vLevel); ++i) {
+                for (int j = 0; j <= yEnd(vLevel); ++j) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        tmpDataArray(vLevel)(i, j, k) = (hyhz(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) + pressureData(vLevel)(i - 1, j, k))*2.0 +
+                                                         hyhz(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - pressureData(vLevel)(i - 1, j, k))*hx(vLevel) +
+                                                         hzhx(vLevel) * ety2(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) + pressureData(vLevel)(i, j - 1, k))*2.0 +
+                                                         hzhx(vLevel) * etyy(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - pressureData(vLevel)(i, j - 1, k))*hy(vLevel) +
+                                                         hxhy(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) + pressureData(vLevel)(i, j, k - 1))*2.0 +
+                                                         hxhy(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - pressureData(vLevel)(i, j, k - 1))*hz(vLevel) -
+                                                 2.0 * hxhyhz(vLevel) * residualData(vLevel)(i, j, k))/
+                                                (4.0 * (hyhz(vLevel)*xix2(vLevel)(i) + hzhx(vLevel)*ety2(vLevel)(j) + hxhy(vLevel)*ztz2(vLevel)(k)));
                     }
                 }
             }
-        }
 
-        swap(iteratorTemp, pressureData);
+            swap(tmpDataArray, pressureData);
+        }
 
 #ifdef TIME_RUN
         gettimeofday(&end, NULL);
@@ -186,53 +189,111 @@ void multigrid_d3::smooth(const int smoothCount) {
 }
 
 
+void multigrid_d3::solve() {
+    int iterCount = 0;
+    real tempValue, localMax, globalMax;
+
+    while (true) {
+        imposeBC();
+
+        // GAUSS-SEIDEL ITERATIVE SOLVER
+        for (int i = 0; i <= xEnd(vLevel); ++i) {
+            for (int j = 0; j <= yEnd(vLevel); ++j) {
+                for (int k = 0; k <= zEnd(vLevel); ++k) {
+                    pressureData(vLevel)(i, j, k) = (hyhz(vLevel) * xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) + pressureData(vLevel)(i - 1, j, k))*2.0 +
+                                                     hyhz(vLevel) * xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - pressureData(vLevel)(i - 1, j, k))*hx(vLevel) +
+                                                     hzhx(vLevel) * ety2(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) + pressureData(vLevel)(i, j - 1, k))*2.0 +
+                                                     hzhx(vLevel) * etyy(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - pressureData(vLevel)(i, j - 1, k))*hy(vLevel) +
+                                                     hxhy(vLevel) * ztz2(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) + pressureData(vLevel)(i, j, k - 1))*2.0 +
+                                                     hxhy(vLevel) * ztzz(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - pressureData(vLevel)(i, j, k - 1))*hz(vLevel) -
+                                             2.0 * hxhyhz(vLevel) * residualData(vLevel)(i, j, k))/
+                                             (4.0 * (hyhz(vLevel) * xix2(vLevel)(i) + hzhx(vLevel) * ety2(vLevel)(j) + hxhy(vLevel) * ztz2(vLevel)(k)));
+                }
+            }
+        }
+
+        tempValue = 0.0;
+        localMax = -1.0e-10;
+        for (int i = 0; i <= xEnd(vLevel); ++i) {
+            for (int j = 0; j <= yEnd(vLevel); ++j) {
+                for (int k = 0; k <= zEnd(vLevel); ++k) {
+                    tempValue = fabs(residualData(vLevel)(i, j, k) -
+                               (xix2(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
+                                xixx(vLevel)(i) * (pressureData(vLevel)(i + 1, j, k) - pressureData(vLevel)(i - 1, j, k))/(2.0*hx(vLevel)) +
+                                ety2(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
+                                etyy(vLevel)(j) * (pressureData(vLevel)(i, j + 1, k) - pressureData(vLevel)(i, j - 1, k))/(2.0*hy(vLevel)) +
+                                ztz2(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - 2.0*pressureData(vLevel)(i, j, k) + pressureData(vLevel)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
+                                ztzz(vLevel)(k) * (pressureData(vLevel)(i, j, k + 1) - pressureData(vLevel)(i, j, k - 1))/(2.0*hz(vLevel))));
+
+                    if (tempValue > localMax) {
+                        localMax = tempValue;
+                    }
+                }
+            }
+        }
+
+        MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+
+        if (globalMax < inputParams.mgTolerance) {
+            break;
+        }
+
+        iterCount += 1;
+        if (iterCount > maxCount) {
+            if (inputParams.printResidual) if (mesh.rankData.rank == 0) std::cout << "WARNING: Iterations for solution at coarsest level not converging." << std::endl;
+            break;
+        }
+    }
+
+    imposeBC();
+}
+
+
 void multigrid_d3::coarsen() {
     real facePoints, edgePoints, vertPoints;
-    // Integer values of starting indices, ending indices, and index increments along each direction
-    int xSt, xEn, xIn;
-    int ySt, yEn, yIn;
-    int zSt, zEn, zIn;
-    int shiftInc;
 
+    int i2, j2, k2;
+    int pLevel;
+
+    pLevel = vLevel;
     vLevel += 1;
 
-    xSt = stagCore.lbound(0);
-    xEn = stagCore.ubound(0);
-    xIn = strideValues(vLevel);
-
-    ySt = stagCore.lbound(1);
-    yEn = stagCore.ubound(1);
-    yIn = strideValues(vLevel);
-
-    zSt = stagCore.lbound(2);
-    zEn = stagCore.ubound(2);
-    zIn = strideValues(vLevel);
-
-    shiftInc = strideValues(vLevel - 1);
-
     // Full weighted restriction operation
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                facePoints = (residualData(iX + shiftInc, iY, iZ) + residualData(iX - shiftInc, iY, iZ) +
-                              residualData(iX, iY + shiftInc, iZ) + residualData(iX, iY - shiftInc, iZ) +
-                              residualData(iX, iY, iZ + shiftInc) + residualData(iX, iY, iZ - shiftInc))*0.0625;
-                edgePoints = (residualData(iX + shiftInc, iY + shiftInc, iZ) + residualData(iX + shiftInc, iY - shiftInc, iZ) +
-                              residualData(iX - shiftInc, iY - shiftInc, iZ) + residualData(iX - shiftInc, iY + shiftInc, iZ) +
-                              residualData(iX, iY + shiftInc, iZ + shiftInc) + residualData(iX, iY - shiftInc, iZ + shiftInc) +
-                              residualData(iX, iY - shiftInc, iZ - shiftInc) + residualData(iX, iY + shiftInc, iZ - shiftInc) +
-                              residualData(iX + shiftInc, iY, iZ + shiftInc) + residualData(iX + shiftInc, iY, iZ - shiftInc) +
-                              residualData(iX - shiftInc, iY, iZ - shiftInc) + residualData(iX - shiftInc, iY, iZ + shiftInc))*0.03125;
-                vertPoints = (residualData(iX + shiftInc, iY + shiftInc, iZ + shiftInc) +
-                              residualData(iX + shiftInc, iY + shiftInc, iZ - shiftInc) +
-                              residualData(iX + shiftInc, iY - shiftInc, iZ + shiftInc) +
-                              residualData(iX - shiftInc, iY + shiftInc, iZ + shiftInc) +
-                              residualData(iX + shiftInc, iY - shiftInc, iZ - shiftInc) +
-                              residualData(iX - shiftInc, iY + shiftInc, iZ - shiftInc) +
-                              residualData(iX - shiftInc, iY - shiftInc, iZ + shiftInc) +
-                              residualData(iX - shiftInc, iY - shiftInc, iZ - shiftInc))*0.015625;
+    // The residual computed at previous vLevel is stored in tmpDataArray.
+    // This data is read for coarsening and written into residualData array.
 
-                residualData(iX, iY, iZ) = facePoints + edgePoints + vertPoints + residualData(iX, iY, iZ)*0.125;
+    /*
+     * According to An Introduction to Multigrid Methods by P. Wesseling, Page 64 (Sec 5.2),
+     * Restriction can be performed at the edges and corners using the same stencil as in the bulk,
+     * But by assuming that values of the field outside the domain are all 0.
+     * Hence no special treatments at the corners and edges are needed.
+     */
+
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        i2 = i*2;
+        for (int j = 0; j <= yEnd(vLevel); ++j) {
+            j2 = j*2;
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
+                k2 = k*2;
+                facePoints = (tmpDataArray(pLevel)(i2 + 1, j2, k2) + tmpDataArray(pLevel)(i2 - 1, j2, k2) +
+                              tmpDataArray(pLevel)(i2, j2 + 1, k2) + tmpDataArray(pLevel)(i2, j2 - 1, k2) +
+                              tmpDataArray(pLevel)(i2, j2, k2 + 1) + tmpDataArray(pLevel)(i2, j2, k2 - 1))*0.0625;
+                edgePoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2) + tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2) + tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2) +
+                              tmpDataArray(pLevel)(i2, j2 + 1, k2 + 1) + tmpDataArray(pLevel)(i2, j2 - 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2, j2 - 1, k2 - 1) + tmpDataArray(pLevel)(i2, j2 + 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2, k2 + 1) + tmpDataArray(pLevel)(i2 + 1, j2, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2, k2 - 1) + tmpDataArray(pLevel)(i2 - 1, j2, k2 + 1))*0.03125;
+                vertPoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 - 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 + 1) +
+                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 - 1))*0.015625;
+
+                residualData(vLevel)(i, j, k) = facePoints + edgePoints + vertPoints + tmpDataArray(pLevel)(i2, j2, k2)*0.125;
             }
         }
     }
@@ -240,81 +301,92 @@ void multigrid_d3::coarsen() {
 
 
 void multigrid_d3::prolong() {
-    // Integer values of starting indices, ending indices, and index increments along each direction
-    int xSt, xEn, xIn;
-    int ySt, yEn, yIn;
-    int zSt, zEn, zIn;
+    int pLevel;
+    int i2, j2, k2;
 
+    pLevel = vLevel;
     vLevel -= 1;
 
+    pressureData(vLevel) = 0.0;
+
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        i2 = i/2;
+        if (isOdd(i)) {
+            for (int j = 0; j <= yEnd(vLevel); ++j) {
+                j2 = j/2;
+                if (isOdd(j)) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i j and k are odd
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) +
+                                                             pressureData(pLevel)(i2 + 1, j2, k2) + pressureData(pLevel)(i2, j2 + 1, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
+                                                             pressureData(pLevel)(i2 + 1, j2 + 1, k2) + pressureData(pLevel)(i2 + 1, j2, k2 + 1) + pressureData(pLevel)(i2, j2 + 1, k2 + 1) +
+                                                             pressureData(pLevel)(i2 + 1, j2 + 1, k2 + 1))/8.0;
+                        } else {            // i and j are odd, but k is even
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2 + 1, k2) +
+                                                             pressureData(pLevel)(i2 + 1, j2, k2) + pressureData(pLevel)(i2 + 1, j2 + 1, k2))/4.0;
+                        }
+                    }
+                } else {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i and k are odd, but j is even
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
+                                                             pressureData(pLevel)(i2 + 1, j2, k2) + pressureData(pLevel)(i2 + 1, j2, k2 + 1))/4.0;
+                        } else {            // i is odd, but j and k are even
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2 + 1, j2, k2))/2.0;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (int j = 0; j <= yEnd(vLevel); j++) {
+                j2 = j/2;
+                if (isOdd(j)) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i is even, but j and k are odd
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
+                                                             pressureData(pLevel)(i2, j2 + 1, k2) + pressureData(pLevel)(i2, j2 + 1, k2 + 1))/4.0;
+                        } else {            // i and k are even, but j is odd
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2 + 1, k2))/2.0;
+                        }
+                    }
+                } else {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i and j are even, but k is odd
+                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1))/2.0;
+                        } else {            // i j and k are even
+                            pressureData(vLevel)(i, j, k) = pressureData(pLevel)(i2, j2, k2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+    // Old method of prolongation by 3 sweeps of interpolation
     // NOTE: Currently interpolating along X first, then Y and finally Z.
     // Test and see if this order is better or the other order, with Z first, then Y and X is better
     // Depending on the order of variables in memory, one of these may give better performance
 
-    // Maybe the below values can be stored in some array instead of recomputing in each prolongation step
+    // Transfer data at all even grid points
+    pressureData(vLevel)(blitz::Range(0, xEnd(vLevel), 2), blitz::Range(0, yEnd(vLevel), 2), blitz::Range(0, zEnd(vLevel), 2)) = pressureData(pLevel)(stagCore(pLevel));
 
-    // INTERPOLATE VARIABLE DATA ALONG X-DIRECTION
-    xSt = stagCore.lbound(0) + strideValues(vLevel);
-    xEn = stagCore.ubound(0) - strideValues(vLevel);
-    xIn = strideValues(vLevel+1);
+    // Interoplate data along X-axis
+    pressureData(vLevel)(blitz::Range(1, xEnd(vLevel), 2), all, all) = (pressureData(vLevel)(blitz::Range(0, xEnd(vLevel) - 2, 2), all, all) +
+                                                                        pressureData(vLevel)(blitz::Range(2, xEnd(vLevel), 2), all, all))/2.0;
 
-    ySt = stagCore.lbound(1);
-    yEn = stagCore.ubound(1);
-    yIn = strideValues(vLevel+1);
+    // Interoplate data along Y-axis
+    pressureData(vLevel)(all, blitz::Range(1, yEnd(vLevel), 2), all) = (pressureData(vLevel)(all, blitz::Range(0, yEnd(vLevel) - 2, 2), all) +
+                                                                        pressureData(vLevel)(all, blitz::Range(2, yEnd(vLevel), 2), all))/2.0;
 
-    zSt = stagCore.lbound(2);
-    zEn = stagCore.ubound(2);
-    zIn = strideValues(vLevel+1);
-
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                pressureData(iX, iY, iZ) = (pressureData(iX + strideValues(vLevel), iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/2.0;
-            }
-        }
-    }
-
-    // INTERPOLATE VARIABLE DATA ALONG Y-DIRECTION
-    xSt = stagCore.lbound(0);
-    xEn = stagCore.ubound(0);
-    xIn = strideValues(vLevel);
-
-    ySt = stagCore.lbound(1) + strideValues(vLevel);
-    yEn = stagCore.ubound(1) - strideValues(vLevel);
-    yIn = strideValues(vLevel+1);
-
-    zSt = stagCore.lbound(2);
-    zEn = stagCore.ubound(2);
-    zIn = strideValues(vLevel+1);
-
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                pressureData(iX, iY, iZ) = (pressureData(iX, iY + strideValues(vLevel), iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/2.0;
-            }
-        }
-    }
-
-    // INTERPOLATE VARIABLE DATA ALONG Z-DIRECTION
-    xSt = stagCore.lbound(0);
-    xEn = stagCore.ubound(0);
-    xIn = strideValues(vLevel);
-
-    ySt = stagCore.lbound(1);
-    yEn = stagCore.ubound(1);
-    yIn = strideValues(vLevel);
-
-    zSt = stagCore.lbound(2) + strideValues(vLevel);
-    zEn = stagCore.ubound(2) - strideValues(vLevel);
-    zIn = strideValues(vLevel+1);
-
-    for (int iX = xSt; iX <= xEn; iX += xIn) {
-        for (int iY = ySt; iY <= yEn; iY += yIn) {
-            for (int iZ = zSt; iZ <= zEn; iZ += zIn) {
-                pressureData(iX, iY, iZ) = (pressureData(iX, iY, iZ + strideValues(vLevel)) + pressureData(iX, iY, iZ - strideValues(vLevel)))/2.0;
-            }
-        }
-    }
+    // Interoplate data along Z-axis
+    pressureData(vLevel)(all, all, blitz::Range(1, zEnd(vLevel), 2)) = (pressureData(vLevel)(all, all, blitz::Range(0, zEnd(vLevel) - 2, 2)) +
+                                                                        pressureData(vLevel)(all, all, blitz::Range(2, zEnd(vLevel), 2)))/2.0;
+    */
 }
 
 
@@ -326,20 +398,24 @@ real multigrid_d3::computeError(const int normOrder) {
     real denValLoc = 0.0;
     int valCountLoc = 0;
 
+    // This function is called at the finest grid level only.
+    // Moreover it called only under the TEST_POISSON flag
+    // Hence it is not written to be very fast
+
     // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
     // the absolute of the float values without hitch.
     // When replacing with computing absolute of individual array elements in a loop, ADL chooses a version of
     // abs in the STL which **rounds off** the number.
     // In this case, abs has to be replaced with fabs.
-    for (int iX = xStr; iX <= xEnd; iX += strideValues(vLevel)) {
-        for (int iY = yStr; iY <= yEnd; iY += strideValues(vLevel)) {
-            for (int iZ = zStr; iZ <= zEnd; iZ += strideValues(vLevel)) {
-                tempValue = fabs((xix2(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX - strideValues(vLevel), iY, iZ))/(hx(vLevel)*hx(vLevel)) +
-                                  xixx(iX) * (pressureData(iX + strideValues(vLevel), iY, iZ) - pressureData(iX - strideValues(vLevel), iY, iZ))/(2.0*hx(vLevel)) +
-                                  ety2(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY - strideValues(vLevel), iZ))/(hy(vLevel)*hy(vLevel)) +
-                                  etyy(iY) * (pressureData(iX, iY + strideValues(vLevel), iZ) - pressureData(iX, iY - strideValues(vLevel), iZ))/(2.0*hy(vLevel)) +
-                                  ztz2(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - 2.0*pressureData(iX, iY, iZ) + pressureData(iX, iY, iZ - strideValues(vLevel)))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(iZ) * (pressureData(iX, iY, iZ + strideValues(vLevel)) - pressureData(iX, iY, iZ - strideValues(vLevel)))/(2.0*hz(vLevel))) - inputRHSData(iX, iY, iZ));
+    for (int i = 0; i <= xEnd(0); ++i) {
+        for (int j = 0; j <= yEnd(0); ++j) {
+            for (int k = 0; k <= zEnd(0); ++k) {
+                tempValue = fabs((xix2(0)(i) * (pressureData(0)(i + 1, j, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
+                                  xixx(0)(i) * (pressureData(0)(i + 1, j, k) - pressureData(0)(i - 1, j, k))/(2.0*hx(vLevel)) +
+                                  ety2(0)(j) * (pressureData(0)(i, j + 1, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
+                                  etyy(0)(j) * (pressureData(0)(i, j + 1, k) - pressureData(0)(i, j - 1, k))/(2.0*hy(vLevel)) +
+                                  ztz2(0)(k) * (pressureData(0)(i, j, k + 1) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
+                                  ztzz(0)(k) * (pressureData(0)(i, j, k + 1) - pressureData(0)(i, j, k - 1))/(2.0*hz(vLevel))) - residualData(0)(i, j, k));
 
                 switch (normOrder) {
                     case 1:
@@ -347,7 +423,7 @@ real multigrid_d3::computeError(const int normOrder) {
                         break;
                     case 2:
                         numValLoc += tempValue*tempValue;
-                        denValLoc += inputRHSData(iX, iY, iZ)*inputRHSData(iX, iY, iZ);
+                        denValLoc += residualData(0)(i, j, k)*residualData(0)(i, j, k);
                         valCountLoc += 1;
                         break;
                 }
@@ -360,16 +436,24 @@ real multigrid_d3::computeError(const int normOrder) {
     int valCountGlo = 0;
     switch (normOrder) {
         case 1:
-            denValLoc = blitz::max(fabs(inputRHSData));
+            denValLoc = blitz::max(fabs(residualData(0)));
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-            residualVal = numValGlo/denValGlo;
+            if (denValGlo) {
+                residualVal = numValGlo/denValGlo;
+            } else {
+                residualVal = numValGlo;
+            }
             break;
         case 2:
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            if (denValGlo) {
+                residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+            } else {
+                residualVal = sqrt(numValGlo/valCountGlo);
+            }
             break;
     }
 
@@ -378,11 +462,7 @@ real multigrid_d3::computeError(const int normOrder) {
 
 
 void multigrid_d3::createMGSubArrays() {
-    int ptsCount;
-    int numPoints;
-    int areaVal, lengthVal;
-
-    blitz::Array<int, 1> blockIndx, blockSize;
+    int count, length, stride;
 
     recvStatus.resize(4);
     recvRequest.resize(4);
@@ -395,68 +475,39 @@ void multigrid_d3::createMGSubArrays() {
     mgSendFrn.resize(inputParams.vcDepth + 1);        mgSendBak.resize(inputParams.vcDepth + 1);
     mgRecvFrn.resize(inputParams.vcDepth + 1);        mgRecvBak.resize(inputParams.vcDepth + 1);
 
-    for(int i=0; i<=inputParams.vcDepth; i++) {
-        /**
-         * For transfer of non-contiguous, yet uniformly spaced blocks of data, the MPI_Type_indexed datatype is being used here.
-         * The number of such data blocks is represented by numPoints.
-         * Since single points are being transferred rather than small blocks, the blockSize array, which holds the block length
-         * of each block of data to be sent, is set to 1.
-         * The blockIndx variable holds the starting index of each block (here, each single data point) within the full global
-         * array of data.
-         */
+    /***************************************************************************************************
+    * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
+    * This condition remained as a hidden bug in the code for the long time
+    * Because for periodic cases, it was implicitly assumed that periodic data transfer will serve
+    * But for a sequential case with npX = 1 and npY = 1, this transfer will not happen
+    * Now xMGArray and yMGArray are defined irrespective of npX and npY
+    \**************************************************************************************************/
 
-        /***************************************************************************************************
-         * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
-         * This condition remained as a hidden bug in the code for the long time
-         * Because for periodic cases, it was implicitly assumed that periodic data transfer will serve
-         * But for a sequential case with npX = 1 and npY = 1, this transfer will not happen
-         * Now xMGArray and yMGArray are defined irrespective of npX and npY
-        \**************************************************************************************************/
+    for(int n=0; n<=inputParams.vcDepth; n++) {
         // CREATE X_MG_ARRAY DATATYPE
-        numPoints = mgSizeArray(localSizeIndex(1) - i)*mgSizeArray(localSizeIndex(2) - i);
-        blockIndx.resize(numPoints);
-        blockSize.resize(numPoints);
+        count = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2);
 
-        blockSize = 1;
-        ptsCount = 0;
-
-        lengthVal = (stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        for (int j = 0; j < mgSizeArray(localSizeIndex(1) - i); j++) {
-            for (int k = 0; k < mgSizeArray(localSizeIndex(2) - i); k++) {
-                blockIndx(ptsCount) = j*lengthVal*strideValues(i) + k*strideValues(i);
-                ptsCount += 1;
-            }
-        }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &xMGArray(i));
-        MPI_Type_commit(&xMGArray(i));
+        MPI_Type_contiguous(count, MPI_FP_REAL, &xMGArray(n));
+        MPI_Type_commit(&xMGArray(n));
 
         // CREATE Y_MG_ARRAY DATATYPE
-        numPoints = mgSizeArray(localSizeIndex(2) - i)*mgSizeArray(localSizeIndex(0) - i);
-        blockIndx.resize(numPoints);
-        blockSize.resize(numPoints);
+        count = stagFull(n).ubound(0) + 2;
+        length = stagFull(n).ubound(2) + 2;
+        stride = length*(stagFull(n).ubound(1) + 2);
 
-        blockSize = 1;
-        ptsCount = 0;
+        MPI_Type_vector(count, length, stride, MPI_FP_REAL, &yMGArray(n));
+        MPI_Type_commit(&yMGArray(n));
 
-        areaVal = (stagFull.ubound(1) - stagFull.lbound(1) + 1)*(stagFull.ubound(2) - stagFull.lbound(2) + 1);
-        for (int j = 0; j < mgSizeArray(localSizeIndex(0) - i); j++) {
-            for (int k = 0; k < mgSizeArray(localSizeIndex(2) - i); k++) {
-                blockIndx(ptsCount) = j*strideValues(i)*areaVal + k*strideValues(i);
-                ptsCount += 1;
-            }
-        }
-        MPI_Type_indexed(numPoints, blockSize.data(), blockIndx.data(), MPI_FP_REAL, &yMGArray(i));
-        MPI_Type_commit(&yMGArray(i));
+        // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
+        mgSendLft(n) =  1, -1, -1;
+        mgRecvLft(n) = -1, -1, -1;
+        mgSendRgt(n) = stagCore(n).ubound(0) - 1, -1, -1;
+        mgRecvRgt(n) = stagCore(n).ubound(0) + 1, -1, -1;
 
-        mgSendLft(i) =  strideValues(i), 0, 0;
-        mgRecvLft(i) = -strideValues(i), 0, 0;
-        mgSendRgt(i) = stagCore.ubound(0) - strideValues(i), 0, 0;
-        mgRecvRgt(i) = stagCore.ubound(0) + strideValues(i), 0, 0;
-
-        mgSendFrn(i) = 0,  strideValues(i), 0;
-        mgRecvFrn(i) = 0, -strideValues(i), 0;
-        mgSendBak(i) = 0, stagCore.ubound(1) - strideValues(i), 0;
-        mgRecvBak(i) = 0, stagCore.ubound(1) + strideValues(i), 0;
+        mgSendFrn(n) = -1,  1, -1;
+        mgRecvFrn(n) = -1, -1, -1;
+        mgSendBak(n) = -1, stagCore(n).ubound(1) - 1, -1;
+        mgRecvBak(n) = -1, stagCore(n).ubound(1) + 1, -1;
     }
 }
 
@@ -465,168 +516,173 @@ void multigrid_d3::initDirichlet() {
     real xDist, yDist, zDist;
 
     // Generate the walls as 2D Blitz arrays
-    xWall.resize(blitz::TinyVector<int, 2>(stagCore.ubound(1) - stagCore.lbound(1) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
-    xWall.reindexSelf(blitz::TinyVector<int, 2>(stagCore.lbound(1), stagCore.lbound(2)));
+    xWall.resize(stagFull(0).ubound(1) - stagFull(0).lbound(1) + 1, stagFull(0).ubound(2) - stagFull(0).lbound(2) + 1);
+    xWall.reindexSelf(blitz::TinyVector<int, 2>(stagFull(0).lbound(1), stagFull(0).lbound(2)));
     xWall = 0.0;
 
-    yWall.resize(blitz::TinyVector<int, 2>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(2) - stagCore.lbound(2) + 1));
-    yWall.reindexSelf(blitz::TinyVector<int, 2>(stagCore.lbound(0), stagCore.lbound(2)));
+    yWall.resize(stagFull(0).ubound(0) - stagFull(0).lbound(0) + 1, stagFull(0).ubound(2) - stagFull(0).lbound(2) + 1);
+    yWall.reindexSelf(blitz::TinyVector<int, 2>(stagFull(0).lbound(0), stagFull(0).lbound(2)));
     yWall = 0.0;
 
-    zWall.resize(blitz::TinyVector<int, 2>(stagCore.ubound(0) - stagCore.lbound(0) + 1, stagCore.ubound(1) - stagCore.lbound(1) + 1));
-    zWall.reindexSelf(blitz::TinyVector<int, 2>(stagCore.lbound(0), stagCore.lbound(1)));
+    zWall.resize(stagFull(0).ubound(0) - stagFull(0).lbound(0) + 1, stagFull(0).ubound(1) - stagFull(0).lbound(1) + 1);
+    zWall.reindexSelf(blitz::TinyVector<int, 2>(stagFull(0).lbound(0), stagFull(0).lbound(1)));
     zWall = 0.0;
 
-    // Compute values at the walls at all V-Cycle depths, using the (r^2)/6 formula
-    for (int i=0; i<=inputParams.vcDepth; i++) {
-        // Along X-direction - Left and Right Walls
-        xDist = hx(0)*(int(mgSizeArray(localSizeIndex(0))/2) + 1);
-        for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
-            yDist = hy(0)*(j - stagCore.ubound(1)/2);
-            for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
-                zDist = hz(0)*(k - stagCore.ubound(2)/2);
+    // Compute values at the walls using the (r^2)/6 formula
+    // First get the indices of the global mid-point of the domain
+    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+    int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
 
-                xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-            }
+    // Along X-direction - Left and Right Walls
+    xDist = hx(0) + mesh.inputParams.Lx/2.0;
+
+    for (int j=0; j<=stagCore(0).ubound(1); ++j) {
+        yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
+
+        for (int k=0; k<=stagCore(0).ubound(2); ++k) {
+            zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
+            xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
+    }
 
-        // Along Y-direction - Front and Rear Walls
-        yDist = hy(0)*(int(mgSizeArray(localSizeIndex(1))/2) + 1);
-        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
-            xDist = hx(0)*(i - stagCore.ubound(0)/2);
-            for (int k=stagCore.lbound(2); k<=stagCore.ubound(2); k++) {
-                zDist = hz(0)*(k - stagCore.ubound(2)/2);
+    // Along Y-direction - Front and Rear Walls
+    yDist = hy(0) + mesh.inputParams.Ly/2.0;
 
-                yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-            }
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+        for (int k=0; k<=stagCore(0).ubound(2); ++k) {
+            zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
+            yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
+    }
 
-        // Along Z-direction - Top and Bottom Walls
-        zDist = hz(0)*(int(mgSizeArray(localSizeIndex(2))/2) + 1);
-        for (int i=stagCore.lbound(0); i<=stagCore.ubound(0); i++) {
-            xDist = hx(0)*(i - stagCore.ubound(0)/2);
-            for (int j=stagCore.lbound(1); j<=stagCore.ubound(1); j++) {
-                yDist = hy(0)*(j - stagCore.ubound(1)/2);
+    // Along Z-direction - Top and Bottom Walls
+    zDist = hz(0) + mesh.inputParams.Lz/2.0;
 
-                zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-            }
+    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+        for (int j=0; j<=stagCore(0).ubound(1); ++j) {
+            yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
+
+            zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
     }
 }
 
 
 void multigrid_d3::imposeBC() {
-    updatePads();
+    updatePads(pressureData);
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT LEFT AND RIGHT WALLS
+        // DIRICHLET BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
-                pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = 0.0;
+                pressureData(vLevel)(-1, all, all) = -pressureData(vLevel)(1, all, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = 0.0;
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, all, all);
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(yMeshRange(vLevel), zMeshRange(vLevel));
+                pressureData(vLevel)(-1, all, all) = xWall(all, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = xWall(yMeshRange(vLevel), zMeshRange(vLevel));
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = xWall(all, all);
             }
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT LEFT WALL
+        // NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (mesh.rankData.xRank == 0) {
-            pressureData(-strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(vLevel)(-1, all, all) = pressureData(vLevel)(1, all, all);
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT RIGHT WALL
         if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-            pressureData(stagCore.ubound(0) + strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel)) = pressureData(stagCore.ubound(0) - strideValues(vLevel), yMeshRange(vLevel), zMeshRange(vLevel));
+            pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, all, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (not inputParams.yPer) {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT FRONT AND BACK WALLS
+        // DIRICHLET BOUNDARY CONDITION AT FRONT AND BACK WALLS
         if (zeroBC) {
             if (mesh.rankData.yRank == 0) {
-                pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = 0.0;
+                pressureData(vLevel)(all, -1, all) = -pressureData(vLevel)(all, 1, all);
             }
 
             if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-                pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = 0.0;
+                pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = -pressureData(vLevel)(all, stagCore(vLevel).ubound(1) - 1, all);
             }
         } else {
             if (mesh.rankData.yRank == 0) {
-                pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = yWall(xMeshRange(vLevel), zMeshRange(vLevel));
+                pressureData(vLevel)(all, -1, all) = yWall(all, all);
             }
 
             if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-                pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = yWall(xMeshRange(vLevel), zMeshRange(vLevel));
+                pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = yWall(all, all);
             }
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT FRONT WALL
+        // NEUMANN BOUNDARY CONDITION AT FRONT AND BACK WALLS
         if (mesh.rankData.yRank == 0) {
-            pressureData(xMeshRange(vLevel), -strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), strideValues(vLevel), zMeshRange(vLevel));
+            pressureData(vLevel)(all, -1, all) = pressureData(vLevel)(all, 1, all);
         }
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BACK WALL
         if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-            pressureData(xMeshRange(vLevel), stagCore.ubound(1) + strideValues(vLevel), zMeshRange(vLevel)) = pressureData(xMeshRange(vLevel), stagCore.ubound(1) - strideValues(vLevel), zMeshRange(vLevel));
+            pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = pressureData(vLevel)(all, stagCore(vLevel).ubound(1) - 1, all);
         }
 #endif
     } // PERIODIC BOUNDARY CONDITIONS ARE AUTOMATICALLY IMPOSED BY PERIODIC DATA TRANSFER ACROSS PROCESSORS THROUGH updatePads()
 
     if (inputParams.zPer) {
-        // PERIODIC BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
+        // PERIODIC BOUNDARY CONDITION AT BOTTOM WALL
+        pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
 
-        // PERIODIC BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
+        // PERIODIC BOUNDARY CONDITION AT TOP WALL
+        pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, 1);
 
     } else {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION ON PRESSURE AT BOTTOM AND TOP WALLS
+        // DIRICHLET BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
         if (zeroBC) {
-            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = 0.0;
+            pressureData(vLevel)(all, all, -1) = -pressureData(vLevel)(all, all, 1);
 
-            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = 0.0;
+            pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
         } else {
-            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = zWall(xMeshRange(vLevel), yMeshRange(vLevel));
+            pressureData(vLevel)(all, all, -1) = zWall(all, all);
 
-            pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = zWall(xMeshRange(vLevel), yMeshRange(vLevel));
+            pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = zWall(all, all);
         }
 #else
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT BOTTOM WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), -strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), strideValues(vLevel));
+        // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
+        pressureData(vLevel)(all, all, -1) = pressureData(vLevel)(all, all, 1);
 
-        // NEUMANN BOUNDARY CONDITION ON PRESSURE AT TOP WALL
-        pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) + strideValues(vLevel)) = pressureData(xMeshRange(vLevel), yMeshRange(vLevel), stagCore.ubound(2) - strideValues(vLevel));
+        pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
 #endif
     }
 }
 
 
-void multigrid_d3::updatePads() {
+void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
-    MPI_Irecv(&pressureData(mgRecvLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&pressureData(mgRecvRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    MPI_Irecv(&pressureData(mgRecvFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-    MPI_Irecv(&pressureData(mgRecvBak(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+    MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(&(data(vLevel)(mgRecvFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(&(data(vLevel)(mgRecvBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
 
-    MPI_Send(&pressureData(mgSendLft(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendRgt(vLevel)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendFrn(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
-    MPI_Send(&pressureData(mgSendBak(vLevel)), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 }
@@ -636,22 +692,22 @@ real multigrid_d3::testProlong() {
     vLevel = 0;
 
     // Fill the residualData array with correct values expected after prolongation
-    residualData = 0.0;
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                residualData(iX, iY, iZ) = (mesh.rankData.rank + 1)*1000 + iX*100 + iY*10 + iZ;
+    residualData(vLevel) = 0.0;
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        for (int j = 0; j <= yEnd(vLevel); ++j) {
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
+                residualData(vLevel)(i, j, k) = (mesh.rankData.rank + 1)*1000 + i*100 + j*10 + k;
             }
         }
     }
 
     // After going one level down the V-Cycle, populate the pressureData array with values at the corresponding stride
     vLevel += 1;
-    pressureData = 0.0;
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                pressureData(iX, iY, iZ) = (mesh.rankData.rank + 1)*1000 + iX*100 + iY*10 + iZ;
+    pressureData(vLevel) = 0.0;
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        for (int j = 0; j <= yEnd(vLevel); ++j) {
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
+                pressureData(vLevel)(i, j, k) = (mesh.rankData.rank + 1)*1000 + i*100 + j*10 + k;
             }
         }
     }
@@ -659,9 +715,9 @@ real multigrid_d3::testProlong() {
     // Perform prolongation
     prolong();
 
-    pressureData -= residualData;
+    pressureData(vLevel) -= residualData(vLevel - 1);
 
-    return blitz::max(fabs(pressureData));
+    return blitz::max(fabs(pressureData(vLevel)));
 }
 
 
@@ -670,50 +726,50 @@ real multigrid_d3::testTransfer() {
 
     vLevel = 0;
 
-    pressureData = 0.0;
-    residualData = 0.0;
+    pressureData(vLevel) = 0.0;
+    residualData(vLevel) = 0.0;
 
     MPI_Barrier(MPI_COMM_WORLD);
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += 1) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += 1) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += 1) {
-                pressureData(iX, iY, iZ) = (mesh.rankData.rank + 1)*1000 + iX*100 + iY*10 + iZ;
-                residualData(iX, iY, iZ) = pressureData(iX, iY, iZ);
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        for (int j = 0; j <= yEnd(vLevel); ++j) {
+            for (int k = 0; k <= zEnd(vLevel); ++k) {
+                pressureData(vLevel)(i, j, k) = (mesh.rankData.rank + 1)*1000 + i*100 + j*10 + k;
+                residualData(vLevel)(i, j, k) = pressureData(vLevel)(i, j, k);
             }
         }
     }
 
     // EXPECTED VALUES IN THE PAD REGIONS IF DATA TRANSFER HAPPENS WITH NO HITCH
-    for (int iX = 0; iX <= inputParams.vcDepth; iX++) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(iX)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iX)) {
-                residualData(-strideValues(iX), iY, iZ) = (mesh.rankData.nearRanks(0) + 1)*1000 + (stagCore.ubound(0) - strideValues(iX))*100 + iY*10 + iZ;
-                residualData(stagCore.ubound(0) + strideValues(iX), iY, iZ) = (mesh.rankData.nearRanks(1) + 1)*1000 + strideValues(iX)*100 + iY*10 + iZ;
+    for (int n = 0; n <= inputParams.vcDepth; n++) {
+        for (int j = 0; j <= yEnd(n); ++j) {
+            for (int k = 0; k <= zEnd(n); ++k) {
+                residualData(n)(-1, j, k) = (mesh.rankData.nearRanks(0) + 1)*1000 + (xEnd(n) - 1)*100 + j*10 + k;
+                residualData(n)(xEnd(n) + 1, j, k) = (mesh.rankData.nearRanks(1) + 1)*1000 + 100 + j*10 + k;
             }
         }
     }
 
-    for (int iY = 0; iY <= inputParams.vcDepth; iY++) {
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(iY)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iY)) {
-                residualData(iX, -strideValues(iY), iZ) = (mesh.rankData.nearRanks(2) + 1)*1000 + iX*100 + (stagCore.ubound(1) - strideValues(iY))*10 + iZ;
-                residualData(iX, stagCore.ubound(1) + strideValues(iY), iZ) = (mesh.rankData.nearRanks(3) + 1)*1000 + iX*100 + strideValues(iY)*10 + iZ;
+    for (int n = 0; n <= inputParams.vcDepth; n++) {
+        for (int i = 0; i <= xEnd(n); ++i) {
+            for (int k = 0; k <= zEnd(n); ++k) {
+                residualData(n)(i, -1, k) = (mesh.rankData.nearRanks(2) + 1)*1000 + i*100 + (yEnd(n) - 1)*10 + k;
+                residualData(n)(i, yEnd(n) + 1, k) = (mesh.rankData.nearRanks(3) + 1)*1000 + i*100 + 10 + k;
             }
         }
     }
 
-    for (int i=0; i<=inputParams.vcDepth; i++) {
-        updatePads();
+    for (int n=0; n<=inputParams.vcDepth; n++) {
+        updatePads(pressureData);
         vLevel += 1;
     }
 
-    pressureData -= residualData;
+    pressureData(vLevel) -= residualData(vLevel);
 
-    for (int iX = pressureData.lbound(0); iX <= pressureData.ubound(0); iX += 1) {
-        for (int iY = pressureData.lbound(1); iY <= pressureData.ubound(1); iY += 1) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += 1) {
-                if (abs(pressureData(iX, iY, iZ)) > maxVal) {
-                    maxVal = abs(pressureData(iX, iY, iZ));
+    for (int i = pressureData(vLevel).lbound(0); i <= pressureData(vLevel).ubound(0); i += 1) {
+        for (int j = pressureData(vLevel).lbound(1); j <= pressureData(vLevel).ubound(1); j += 1) {
+            for (int k = 0; k <= zEnd(vLevel); k += 1) {
+                if (abs(pressureData(vLevel)(i, j, k)) > maxVal) {
+                    maxVal = abs(pressureData(vLevel)(i, j, k));
                 }
             }
         }
@@ -728,77 +784,76 @@ real multigrid_d3::testPeriodic() {
     real yCoord = 0.0;
     real zCoord = 0.0;
 
-    vLevel = 0;
+    pressureData(0) = 0.0;
+    residualData(0) = 0.0;
 
-    pressureData = 0.0;
-    residualData = 0.0;
-
-    for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(vLevel)) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(vLevel)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(vLevel)) {
-                pressureData(iX, iY, iZ) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                           cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                           cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
-                residualData(iX, iY, iZ) = pressureData(iX, iY, iZ);
+    for (int i = 0; i <= xEnd(0); ++i) {
+        for (int j = 0; j <= yEnd(0); ++j) {
+            for (int k = 0; k <= zEnd(0); ++k) {
+                pressureData(0)(i, j, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                           cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                                           cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                residualData(0)(i, j, k) = pressureData(0)(i, j, k);
             }
         }
     }
 
     // EXPECTED VALUES IN THE PAD REGIONS IF DATA TRANSFER HAPPENS WITH NO HITCH
-    for (int iX = 0; iX <= inputParams.vcDepth; iX++) {
-        for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(iX)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iX)) {
-                xCoord = mesh.xStaggr(stagCore.lbound(0)) - (mesh.xStaggr(stagCore.lbound(0) + strideValues(iX)) - mesh.xStaggr(stagCore.lbound(0)));
-                residualData(stagCore.lbound(0) - strideValues(iX), iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+    for (int n = 0; n <= inputParams.vcDepth; n++) {
+        for (int j = 0; j <= yEnd(n); ++j) {
+            for (int k = 0; k <= zEnd(n); ++k) {
+                xCoord = mesh.xStaggr(0) - (mesh.xStaggr(strideValues(n)) - mesh.xStaggr(0));
+                residualData(n)(-1, j, k) = sin(2.0*M_PI*xCoord/mesh.xLen)*
+                                            cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                                            cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
 
-                xCoord = mesh.xStaggr(stagCore.ubound(0)) + (mesh.xStaggr(stagCore.ubound(0)) - mesh.xStaggr(stagCore.ubound(0) - strideValues(iX)));
-                residualData(stagCore.ubound(0) + strideValues(iX), iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                xCoord = mesh.xStaggr(xEnd(0)) + (mesh.xStaggr(xEnd(0)) - mesh.xStaggr(xEnd(0) - strideValues(n)));
+                residualData(n)(xEnd(n) + 1, j, k) = sin(2.0*M_PI*xCoord/mesh.xLen)*
+                                                     cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                                                     cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
             }
         }
     }
 
-    for (int iY = 0; iY <= inputParams.vcDepth; iY++) {
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(iY)) {
-            for (int iZ = stagCore.lbound(2); iZ <= stagCore.ubound(2); iZ += strideValues(iY)) {
-                yCoord = mesh.yStaggr(stagCore.lbound(1)) - (mesh.yStaggr(stagCore.lbound(1) + strideValues(iY)) - mesh.yStaggr(stagCore.lbound(1)));
-                residualData(iX, stagCore.lbound(1) - strideValues(iY), iZ) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+    for (int n = 0; n <= inputParams.vcDepth; n++) {
+        for (int i = 0; i <= xEnd(n); ++i) {
+            for (int k = 0; k <= zEnd(n); ++k) {
+                yCoord = mesh.yStaggr(0) - (mesh.yStaggr(strideValues(n)) - mesh.yStaggr(0));
+                residualData(n)(i, -1, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                            cos(2.0*M_PI*yCoord/mesh.yLen)*
+                                            cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
 
-                yCoord = mesh.yStaggr(stagCore.ubound(1)) + (mesh.yStaggr(stagCore.ubound(1)) - mesh.yStaggr(stagCore.ubound(1) - strideValues(iY)));
-                residualData(iX, stagCore.ubound(1) + strideValues(iY), iZ) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                                              cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                yCoord = mesh.yStaggr(yEnd(0)) + (mesh.yStaggr(yEnd(0)) - mesh.yStaggr(yEnd(0) - strideValues(n)));
+                residualData(n)(i, yEnd(n) + 1, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                                     cos(2.0*M_PI*yCoord/mesh.yLen)*
+                                                     cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
             }
         }
     }
 
-    for (int iZ = 0; iZ <= inputParams.vcDepth; iZ++) {
-        for (int iX = stagCore.lbound(0); iX <= stagCore.ubound(0); iX += strideValues(iZ)) {
-            for (int iY = stagCore.lbound(1); iY <= stagCore.ubound(1); iY += strideValues(iZ)) {
-                zCoord = mesh.zStaggr(stagCore.lbound(2)) - (mesh.zStaggr(stagCore.lbound(2) + strideValues(iZ)) - mesh.zStaggr(stagCore.lbound(2)));
-                residualData(iX, iY, stagCore.lbound(2) - strideValues(iZ)) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*zCoord/mesh.zLen);
+    for (int n = 0; n <= inputParams.vcDepth; n++) {
+        for (int i = 0; i <= xEnd(n); ++i) {
+            for (int j = 0; j <= yEnd(n); ++j) {
+                zCoord = mesh.zStaggr(0) - (mesh.zStaggr(strideValues(n)) - mesh.zStaggr(0));
+                residualData(n)(i, j, -1) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                            cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                                            cos(2.0*M_PI*zCoord/mesh.zLen);
 
-                zCoord = mesh.zStaggr(stagCore.ubound(2)) + (mesh.zStaggr(stagCore.ubound(2)) - mesh.zStaggr(stagCore.ubound(2) - strideValues(iZ)));
-                residualData(iX, iY, stagCore.ubound(2) + strideValues(iZ)) = sin(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                              cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                                              cos(2.0*M_PI*zCoord/mesh.zLen);
+                zCoord = mesh.zStaggr(zEnd(0)) + (mesh.zStaggr(zEnd(0)) - mesh.zStaggr(zEnd(0) - strideValues(n)));
+                residualData(n)(i, j, zEnd(n) + 1) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                                                     cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                                                     cos(2.0*M_PI*zCoord/mesh.zLen);
             }
         }
     }
 
-    for (int i=0; i<=inputParams.vcDepth; i++) {
+    vLevel = 0;
+    for (int n=0; n<=inputParams.vcDepth; n++) {
         imposeBC();
         vLevel += 1;
     }
 
-    pressureData -= residualData;
+    pressureData(vLevel) -= residualData(vLevel);
 
-    return blitz::max(fabs(pressureData));
+    return blitz::max(fabs(pressureData(vLevel)));
 }
