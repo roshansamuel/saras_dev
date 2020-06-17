@@ -116,7 +116,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 100.0
+    "Final Time": 30.0
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 10
@@ -127,7 +127,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 5.0
+    "Solution Write Interval": 10.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 50.0

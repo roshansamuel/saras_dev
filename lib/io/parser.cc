@@ -220,9 +220,8 @@ void parser::checkData() {
 
     // CHECK IF MORE THAN 1 PROCESSOR IS ASKED FOR ALONG Y-DIRECTION FOR A 2D SIMULATION
     if (yInd == 0 and npY > 1) {
-        std::cout << "ERROR: More than 1 processor is specified along Y-direction, but the yInd parameter is set to 0. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
+        std::cout << "WARNING: More than 1 processor is specified along Y-direction although the PLANAR flag is set. Setting npY to 1" << std::endl;
+        npY = 1;
     }
 
     // CHECK IF GRID SIZE SPECIFIED ALONG EACH DIRECTION IS SUFFICIENT ALONG WITH THE DOMAIN DIVIIONS TO REACH THE LOWEST LEVEL OF V-CYCLE DEPTH SPECIFIED
@@ -231,9 +230,13 @@ void parser::checkData() {
     localSize = gridSize/npX;
     coarsestSize = int(pow(2, vcDepth+1));
     if (localSize < coarsestSize) {
-        std::cout << "ERROR: The grid size and domain decomposition along X-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
+        int origDepth = vcDepth;
+        while (localSize < coarsestSize) {
+            vcDepth -= 1;
+            coarsestSize = int(pow(2, vcDepth+1));
+        }
+
+        std::cout << "WARNING: The grid size and domain decomposition along X-direction results in sub-domains too small to reach the V-Cycle depth specified. Reducing depth from " << origDepth << " to " << vcDepth << std::endl;
     }
 
     // ALONG Y-DIRECTION
@@ -241,10 +244,14 @@ void parser::checkData() {
     gridSize = int(pow(2, yInd));
     localSize = gridSize/npY;
     coarsestSize = int(pow(2, vcDepth+1));
-    if (yInd > 0 and localSize < coarsestSize) {
-        std::cout << "ERROR: The grid size and domain decomposition along Y-direction results in sub-domains too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
+    if (localSize < coarsestSize) {
+        int origDepth = vcDepth;
+        while (localSize < coarsestSize) {
+            vcDepth -= 1;
+            coarsestSize = int(pow(2, vcDepth+1));
+        }
+
+        std::cout << "WARNING: The grid size and domain decomposition along Y-direction results in sub-domains too small to reach the V-Cycle depth specified. Reducing depth from " << origDepth << " to " << vcDepth << std::endl;
     }
 #endif
 
@@ -252,9 +259,13 @@ void parser::checkData() {
     gridSize = int(pow(2, zInd));
     coarsestSize = int(pow(2, vcDepth+1));
     if (gridSize < coarsestSize) {
-        std::cout << "ERROR: The grid size along Z-direction is too coarse to reach the V-Cycle depth specified. Aborting" << std::endl;
-        MPI_Finalize();
-        exit(0);
+        int origDepth = vcDepth;
+        while (gridSize < coarsestSize) {
+            vcDepth -= 1;
+            coarsestSize = int(pow(2, vcDepth+1));
+        }
+
+        std::cout << "WARNING: The grid size along Z-direction is too small to reach the V-Cycle depth specified. Reducing depth from " << origDepth << " to " << vcDepth << std::endl;
     }
 
 #ifdef REAL_SINGLE

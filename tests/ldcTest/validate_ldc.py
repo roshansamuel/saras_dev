@@ -48,9 +48,6 @@ import numpy as np
 import h5py as hp
 import yaml as yl
 
-# Following module is imported only for a debug case. REMOVE LATER
-import os
-
 # Pyplot-specific directives
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams["mathtext.fontset"] = 'cm'
@@ -194,7 +191,7 @@ def checkTolerance():
     avgValue = sum(np.absolute(u_ghia[:,2]))/len(intpData)
 
     print("")
-    #print("Average absolute value of horizontal velocity, Ux = " + str(avgValue) + "\n")
+    print(r"Average absolute value of horizontal velocity, Ux = " + str(avgValue) + "\n")
     print("Average absolute value of deviation = " + str(avgError) + "\n")
 
     vProfile = W[:, int(Nz/2)]
@@ -205,7 +202,7 @@ def checkTolerance():
     avgError = sum(np.absolute(v_ghia[:,2] - intpData))/len(intpData)
     avgValue = sum(np.absolute(v_ghia[:,2]))/len(intpData)
 
-    #print("Average absolute value of vertical velocity, Uz = " + str(avgValue) + "\n")
+    print(r"Average absolute value of vertical velocity, Uz = " + str(avgValue) + "\n")
     print("Average absolute value of deviation = " + str(avgError) + "\n")
 
 
@@ -214,19 +211,11 @@ if __name__ == "__main__":
 
     parseYAML("input/parameters.yaml")
 
-    #loadData(30.0)
+    loadData(30.0)
 
     loadGhia()
 
-    #plotProfile()
+    plotProfile()
 
     #checkTolerance()
-
-    # DEBUG VERSION
-    for i in range(0, 101, 5):
-        loadData(float(i))
-        plotProfile()
-        checkTolerance()
-        fileName = "test_{0:03d}.png".format(i)
-        os.rename('ldc_validation.png',fileName)
 
