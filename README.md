@@ -139,8 +139,8 @@ If the compilation occurs without hiccups, an executable file named ``saras`` wi
 
 ### Set the parameters file
 
-When the file ``saras`` is executed, it will first read the parameters of the case from a YAML file named ``parameters.yaml``.
-The user must set all the parameters appropriately in this file before executing ``SARAS``.
+When the file ``saras`` is executed, it will first read the case parameters from a YAML file named ``parameters.yaml``.
+The user must set the parameters appropriately in this file before executing ``SARAS``.
 
 A sample ``parameters.yaml`` file is provided with the solver in the ``./input/`` folder.
 The parameters are grouped under 5 sections, viz., ``Program``, ``Mesh``, ``Parallel``, ``Solver`` and ``Multigrid``.
@@ -153,13 +153,23 @@ The parameters are grouped under 5 sections, viz., ``Program``, ``Mesh``, ``Para
 
 Each parameter has documentation written into the ``parameters.yaml`` file itself.
 
-**_NOTE:_** Additionally, the user can add custom boundary conditions to the ``boundary`` library.
-The source files of the ``boundary`` library can be found in ``./lib/boundary`` folder of the solver.
-Similarly, the user can add custom initial conditions to the ``initial`` library in the ``./lib/initial/`` folder,
-and custom forcing/source terms to the ``force`` library in ``./lib/force/``.
-All the source files in these libraries have extensive Doxygen documentation, and are written to be as self-explanatory as possible.
+> Additionally, the user can add custom boundary conditions to the ``boundary`` library.
+> The source files of the ``boundary`` library can be found in ``./lib/boundary`` folder of the solver.
+> Similarly, the user can add custom initial conditions to the ``initial`` library in the ``./lib/initial/`` folder,
+> and custom forcing/source terms to the ``force`` library in ``./lib/force/``.
+> All the source files in these libraries have extensive Doxygen documentation, and are written to be as self-explanatory as possible.
 
 ### Running and processing data
+
+The work folder where the executable will be run must contain two folders - ``./input/`` and ``./output/``.
+The ``parameters.yaml`` must be saved in ``./input/``, and the solver will write data into ``./output/``.
+
+Based on the parameters in the YAML file, solver will write solution data, time series, probe measurements, etc. in the ``./output/`` folder.
+A restart file, containing a data dump, will also be written periodically for the solver to resume computations when it stops.
+
+The solution data is written in HDF5 format, while time-series and probe data are written in ASCII format.
+Many open source visualization softwares are capable of reading HDF5 data format.
+Moreover, Python can also read HDF5 files using the ``h5py`` module.
 
 ## License
 
