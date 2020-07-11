@@ -392,15 +392,12 @@ void multigrid_d3::prolong() {
 
 real multigrid_d3::computeError(const int normOrder) {
     real residualVal = 0.0;
-
-    real tempValue = 0.0;
     real numValLoc = 0.0;
     real denValLoc = 0.0;
-    int valCountLoc = 0;
+    real tempNum = 0.0;
+    real tempDen = 0.0;
 
     // This function is called at the finest grid level only.
-    // Moreover it called only under the TEST_POISSON flag
-    // Hence it is not written to be very fast
 
     // Problem with Koenig lookup is that when using the function abs with blitz arrays, it automatically computes
     // the absolute of the float values without hitch.
@@ -410,21 +407,27 @@ real multigrid_d3::computeError(const int normOrder) {
     for (int i = 0; i <= xEnd(0); ++i) {
         for (int j = 0; j <= yEnd(0); ++j) {
             for (int k = 0; k <= zEnd(0); ++k) {
-                tempValue = fabs((xix2(0)(i) * (pressureData(0)(i + 1, j, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
-                                  xixx(0)(i) * (pressureData(0)(i + 1, j, k) - pressureData(0)(i - 1, j, k))/(2.0*hx(vLevel)) +
-                                  ety2(0)(j) * (pressureData(0)(i, j + 1, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
-                                  etyy(0)(j) * (pressureData(0)(i, j + 1, k) - pressureData(0)(i, j - 1, k))/(2.0*hy(vLevel)) +
-                                  ztz2(0)(k) * (pressureData(0)(i, j, k + 1) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
-                                  ztzz(0)(k) * (pressureData(0)(i, j, k + 1) - pressureData(0)(i, j, k - 1))/(2.0*hz(vLevel))) - residualData(0)(i, j, k));
+                tempNum = fabs((xix2(0)(i) * (pressureData(0)(i + 1, j, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i - 1, j, k))/(hx(vLevel)*hx(vLevel)) +
+                                xixx(0)(i) * (pressureData(0)(i + 1, j, k) - pressureData(0)(i - 1, j, k))/(2.0*hx(vLevel)) +
+                                ety2(0)(j) * (pressureData(0)(i, j + 1, k) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j - 1, k))/(hy(vLevel)*hy(vLevel)) +
+                                etyy(0)(j) * (pressureData(0)(i, j + 1, k) - pressureData(0)(i, j - 1, k))/(2.0*hy(vLevel)) +
+                                ztz2(0)(k) * (pressureData(0)(i, j, k + 1) - 2.0*pressureData(0)(i, j, k) + pressureData(0)(i, j, k - 1))/(hz(vLevel)*hz(vLevel)) +
+                                ztzz(0)(k) * (pressureData(0)(i, j, k + 1) - pressureData(0)(i, j, k - 1))/(2.0*hz(vLevel))) - residualData(0)(i, j, k));
+
+                tempDen = fabs(residualData(0)(i, j, k));
 
                 switch (normOrder) {
-                    case 1:
-                        if (tempValue > numValLoc) numValLoc = tempValue;
+                    case 0: // L-Infinity Norm
+                        if (tempNum > numValLoc) numValLoc = tempNum;
+                        if (tempDen > denValLoc) denValLoc = tempDen;
                         break;
-                    case 2:
-                        numValLoc += tempValue*tempValue;
-                        denValLoc += residualData(0)(i, j, k)*residualData(0)(i, j, k);
-                        valCountLoc += 1;
+                    case 1: // L-1 Norm
+                        numValLoc += tempNum;
+                        denValLoc += tempDen;
+                        break;
+                    case 2: // L-2 Norm
+                        numValLoc += tempNum*tempNum;
+                        denValLoc += tempDen*tempDen;
                         break;
                 }
             }
@@ -433,26 +436,35 @@ real multigrid_d3::computeError(const int normOrder) {
 
     real numValGlo = 0.0;
     real denValGlo = 0.0;
-    int valCountGlo = 0;
     switch (normOrder) {
-        case 1:
-            denValLoc = blitz::max(fabs(residualData(0)));
+        case 0:
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+
             if (denValGlo) {
                 residualVal = numValGlo/denValGlo;
             } else {
                 residualVal = numValGlo;
             }
             break;
+        case 1:
+            MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+
+            if (denValGlo) {
+                residualVal = numValGlo/denValGlo;
+            } else {
+                residualVal = numValGlo/pointCount;
+            }
+            break;
         case 2:
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-            MPI_Allreduce(&valCountLoc, &valCountGlo, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
             if (denValGlo) {
-                residualVal = sqrt(numValGlo/valCountGlo)/sqrt(denValGlo/valCountGlo);
+                residualVal = sqrt(numValGlo/pointCount)/sqrt(denValGlo/pointCount);
             } else {
-                residualVal = sqrt(numValGlo/valCountGlo);
+                residualVal = sqrt(numValGlo/pointCount);
             }
             break;
     }

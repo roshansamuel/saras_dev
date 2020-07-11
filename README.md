@@ -113,11 +113,11 @@ The following Python modules are necessary for the Python test script to execute
 
 At the end of the test, a plot of the x and y velocity profiles is shown to the user and saved as ``ldc_validation.png`` in the folder ``tests/ldcTest/``.
 
-## Setting a new case in SARAS
+## Setting up a new case in SARAS
 
 2D and 3D cases require separate executables of ``SARAS``.
 Once the dimensionality of the case is decided, ``SARAS`` has to compiled with appropriate compilation flags.
-The executable thus obtained may then be shifted to the work folder where it will be run.
+The executable file may then be shifted to a work folder where it will be run.
 
 ### Get the executable file
 
@@ -125,12 +125,12 @@ Users on UNIX systems are encouraged to use the BASH script, ``compileSaras.sh``
 Immediately below the license header at the top of the script, there are 6 flags which the user can enable/disable.
 A flag can be enabled or disabled by uncommenting or commenting it respectively.
 
-It is best to disable the ``EXECUTABLE_AFTER_COMPILE`` flag so that script doesn't run the executable immediately after compilation.
-If the ``EXECUTABLE_AFTER_COMPILE`` flag is disabled, the ``PROC`` variable, which sets the number of processes to run the executable, can be ignored.
+It is best to disable the ``EXECUTE_AFTER_COMPILE`` flag so that script doesn't run the executable immediately after compilation.
+If the ``EXECUTE_AFTER_COMPILE`` flag is disabled, the ``PROC`` variable, which sets the number of processes to run the executable with, can be ignored.
 The user must enable or disable the ``PLANAR`` flag depending on whether the case is 2D or 3D respectively.
 
 The ``REAL_TYPE`` flag has the default value of ``DOUBLE``.
-This indicates that the executable will compute all floating point numbers with double precision.
+This indicates that the executable will use double precision floating point numbers.
 To use single precision floats, set the flag to ``SINGLE``.
 The remaining two flags, ``TIME_RUN`` and ``TEST_RUN``, are used in special cases only and is best left to their default disabled states.
 
@@ -139,16 +139,16 @@ If the compilation occurs without hiccups, an executable file named ``saras`` wi
 
 ### Set the parameters file
 
-When the file ``saras`` is executed, it will first read the case parameters from a YAML file named ``parameters.yaml``.
-The user must set the parameters appropriately in this file before executing ``SARAS``.
+When ``saras`` is executed, it will first read the case parameters from a YAML file named ``parameters.yaml``.
+The user must set these parameters appropriately before executing ``saras``.
 
 A sample ``parameters.yaml`` file is provided with the solver in the ``./input/`` folder.
 The parameters are grouped under 5 sections, viz., ``Program``, ``Mesh``, ``Parallel``, ``Solver`` and ``Multigrid``.
 
-* The main parameters that set the boundary conditions, inital conditions, forcing/source terms, etc. are found under the ``Program`` section.
+* The main parameters that set the boundary conditions, initial conditions, forcing/source terms, etc. are found under the ``Program`` section.
 * Grid parameters like number of points, stretching parameter for non-uniform grids, etc. are found under the ``Mesh`` section.
 * ``Parallel`` section lets the user define how many MPI sub-domains to decompose the computational domain into, and the number of OpenMP threads to use.
-* The duration of execution, non-dimensional time-step, data file write intervals, and so on are set in the ``Solver`` section.
+* Non-dimensional time-step, file write intervals, final non-dimensional time and so on are set in the ``Solver`` section.
 * Finally, ``Multigrid`` section lets the user tweak the parameters of the Geometric Multigrid solver used to solve the pressure Poisson equation.
 
 Each parameter has documentation written into the ``parameters.yaml`` file itself.
@@ -161,14 +161,15 @@ Each parameter has documentation written into the ``parameters.yaml`` file itsel
 
 ### Running and processing data
 
-The work folder where the executable will be run must contain two folders - ``./input/`` and ``./output/``.
+The folder where the executable ``saras`` will be run must contain two subfolders - ``./input/`` and ``./output/``.
 The ``parameters.yaml`` must be saved in ``./input/``, and the solver will write data into ``./output/``.
 
-Based on the parameters in the YAML file, solver will write solution data, time series, probe measurements, etc. in the ``./output/`` folder.
-A restart file, containing a data dump, will also be written periodically for the solver to resume computations when it stops.
+Based on the values in ``parameters.yaml``, the solver will write solution data, time series, probe measurements, etc. in the ``./output/`` folder.
+The solver will also periodically dump the entire field data into a file named ``restartFile.h5``, in the ``./output/`` folder.
+This file will be read by the solver to resume computations, should it stop before completing the simulation.
 
 The solution data is written in HDF5 format, while time-series and probe data are written in ASCII format.
-Many open source visualization softwares are capable of reading HDF5 data format.
+Many open source visualization software are capable of reading HDF5 data format.
 Moreover, Python can also read HDF5 files using the ``h5py`` module.
 
 ## License

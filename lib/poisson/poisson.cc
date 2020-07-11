@@ -133,9 +133,45 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         vCycle();
 
         real mgResidual = computeError(inputParams.resType);
+
+        // DEBUG CODE //////////////////////////////////////////////////////////////////////
+
+        /*
+        blitz::Array<real, 3> pAnalytic, tempArray;
+
+        pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound() + 1));
+        pAnalytic = 0.0;
+
+        real xDist, zDist;
+
+        int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+        for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+            xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+            for (int k=0; k<=stagCore(0).ubound(2); ++k) {
+                zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
+                pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
+            }
+        }
+
+        tempArray.resize(pAnalytic.shape());
+        tempArray = pAnalytic - pressureData(0)(stagCore(0));
+
+        real gloMax = 0.0;
+        real locMax = blitz::max(fabs(tempArray));
+        MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Maximum absolute deviation from analytic solution is: " << std::scientific << std::setprecision(3) << gloMax << std::endl;
+        }
+        */
+
+        // END DEBUG CODE //////////////////////////////////////////////////////////////////
+
         if (inputParams.printResidual) {
 #ifdef TEST_POISSON
-            if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << std::setprecision(16) << mgResidual << std::endl;
+            if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << std::scientific << std::setprecision(3) << mgResidual << std::endl;
 #else
             if (mesh.rankData.rank == 0) std::cout << std::endl << "Residual after V Cycle " << i << " is " << mgResidual << std::endl;
 #endif
@@ -257,7 +293,11 @@ void poisson::vCycle() {
         pressureData(vLevel) = 0.0;
 
         // Step 3) Perform pre-smoothing iterations to solve for the error: Ae = r
-        (vLevel == inputParams.vcDepth)? solve(): smooth(inputParams.preSmooth);
+        (vLevel == inputParams.vcDepth)?
+            inputParams.solveFlag?
+                solve():
+                smooth(inputParams.preSmooth + inputParams.postSmooth):
+            smooth(inputParams.preSmooth);
     }
     // Step 4) Repeat steps 2-3 until you reach the coarsest grid level,
 
@@ -357,6 +397,9 @@ void poisson::setStagBounds() {
     // SET MAXIMUM NUMBER OF ITERATIONS FOR THE GAUSS-SEIDEL SOLVER AT COARSEST LEVEL OF MULTIGRID SOLVER
     blitz::TinyVector<int, 3> cgSize = stagFull(inputParams.vcDepth).ubound() - stagFull(inputParams.vcDepth).lbound();
     maxCount = cgSize(0)*cgSize(1)*cgSize(2);
+
+    int locPoints = (xEnd(0) + 1)*(yEnd(0) + 1)*(zEnd(0) + 1);
+    MPI_Allreduce(&locPoints, &pointCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 };
 
 

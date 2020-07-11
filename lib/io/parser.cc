@@ -147,6 +147,7 @@ void parser::parseYAML() {
     yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
     yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
 
+    yamlNode["Multigrid"]["Solve Coarsest"] >> solveFlag;
     yamlNode["Multigrid"]["Solve Tolerance"] >> mgTolerance;
 
     yamlNode["Multigrid"]["Smoothing Method"] >> gsSmooth;

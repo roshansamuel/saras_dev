@@ -149,11 +149,13 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 3
+    "V-Cycle Depth": 4
     # Number of V-Cycles to be performed
     "V-Cycle Count": 9
 
-    # Tolerance used in iterative method when solving at coarsest level
+    # Set the flag to true if the solver should solve at coarsest level instead of just smoothing
+    "Solve Coarsest": false
+    # If the above flag is true, set the tolerance used in iterative method when solving
     "Solve Tolerance": 1.0e-6
 
     # Iterative method to be used for smoothing
@@ -168,9 +170,9 @@
 
     # Type of residual to be computed at end of each V-Cycle of the multigrid method
     # This value can be set as below:
-    # 0 = Do not evaluate error
-    # 1 = Compute and print Mean Absolute Error (MAE)
-    # 2 = Compute and print Root Mean Square Error (RMSE)
+    # 0 = Maximum Absolute Error = max(|b - Ax|)/max(|b|)
+    # 1 = Mean Absolute Error = mean(|b - Ax|)/mean(|b|)
+    # 2 = Root Mean Square Error = rms(b - Ax)/rms(b)
     "Residual Type": 1
 
     # Flag to enable printing of the residual computed using above method (used mainly to test multigrid solver)

@@ -80,6 +80,7 @@ class parser {
 
         bool useCFL;
         bool nonHgBC;
+        bool solveFlag;
         bool readProbes;
         bool restartFlag;
         bool printResidual;
