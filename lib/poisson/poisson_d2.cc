@@ -316,7 +316,7 @@ real multigrid_d2::computeError(const int normOrder) {
     real numValGlo = 0.0;
     real denValGlo = 0.0;
     switch (normOrder) {
-        case 0:
+        case 0:     // L-Infinity Norm
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
@@ -326,7 +326,7 @@ real multigrid_d2::computeError(const int normOrder) {
                 residualVal = numValGlo;
             }
             break;
-        case 1:
+        case 1:     // L-1 Norm
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
@@ -336,7 +336,7 @@ real multigrid_d2::computeError(const int normOrder) {
                 residualVal = numValGlo/pointCount;
             }
             break;
-        case 2:
+        case 2:     // L-2 Norm
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
@@ -392,7 +392,7 @@ void multigrid_d2::initDirichlet() {
 
     // Compute values at the walls using the (r^2)/4 formula
     // Along X-direction - Left and Right Walls
-    xDist = hx(0) + mesh.inputParams.Lx/2.0;
+    xDist = mesh.inputParams.Lx/2.0;
 
     for (int k=0; k<=stagCore(0).ubound(2); ++k) {
         zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
@@ -401,7 +401,7 @@ void multigrid_d2::initDirichlet() {
     }
 
     // Along Z-direction - Top and Bottom Walls
-    zDist = hz(0) + mesh.inputParams.Lz/2.0;
+    zDist = mesh.inputParams.Lz/2.0;
 
     // In parallel runs, the domain is divided into slabs along X-axis
     // Hence some adjustments have to be made to get the right extents
@@ -430,11 +430,11 @@ void multigrid_d2::imposeBC() {
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = xWall(all);
+                pressureData(vLevel)(-1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(1, 0, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = xWall(all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
             }
         }
 #else
@@ -464,9 +464,9 @@ void multigrid_d2::imposeBC() {
 
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            pressureData(vLevel)(all, 0, -1) = zWall(all);
+            pressureData(vLevel)(all, 0, -1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, 1);
 
-            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = zWall(all);
+            pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS

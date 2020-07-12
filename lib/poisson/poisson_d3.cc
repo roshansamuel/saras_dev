@@ -437,7 +437,7 @@ real multigrid_d3::computeError(const int normOrder) {
     real numValGlo = 0.0;
     real denValGlo = 0.0;
     switch (normOrder) {
-        case 0:
+        case 0:     // L-Infinity Norm
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
@@ -447,7 +447,7 @@ real multigrid_d3::computeError(const int normOrder) {
                 residualVal = numValGlo;
             }
             break;
-        case 1:
+        case 1:     // L-1 Norm
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
@@ -457,7 +457,7 @@ real multigrid_d3::computeError(const int normOrder) {
                 residualVal = numValGlo/pointCount;
             }
             break;
-        case 2:
+        case 2:     // L-2 Norm
             MPI_Allreduce(&numValLoc, &numValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&denValLoc, &denValGlo, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
@@ -546,7 +546,7 @@ void multigrid_d3::initDirichlet() {
     int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
 
     // Along X-direction - Left and Right Walls
-    xDist = hx(0) + mesh.inputParams.Lx/2.0;
+    xDist = mesh.inputParams.Lx/2.0;
 
     for (int j=0; j<=stagCore(0).ubound(1); ++j) {
         yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
@@ -559,7 +559,7 @@ void multigrid_d3::initDirichlet() {
     }
 
     // Along Y-direction - Front and Rear Walls
-    yDist = hy(0) + mesh.inputParams.Ly/2.0;
+    yDist = mesh.inputParams.Ly/2.0;
 
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
         xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
@@ -572,7 +572,7 @@ void multigrid_d3::initDirichlet() {
     }
 
     // Along Z-direction - Top and Bottom Walls
-    zDist = hz(0) + mesh.inputParams.Lz/2.0;
+    zDist = mesh.inputParams.Lz/2.0;
 
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
         xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
@@ -602,11 +602,11 @@ void multigrid_d3::imposeBC() {
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, all, all) = xWall(all, all);
+                pressureData(vLevel)(-1, all, all) = 2.0*xWall(all, all) - pressureData(vLevel)(1, all, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = xWall(all, all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, all, all) = 2.0*xWall(all, all) - pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, all, all);
             }
         }
 #else
@@ -634,11 +634,11 @@ void multigrid_d3::imposeBC() {
             }
         } else {
             if (mesh.rankData.yRank == 0) {
-                pressureData(vLevel)(all, -1, all) = yWall(all, all);
+                pressureData(vLevel)(all, -1, all) = 2.0*yWall(all, all) - pressureData(vLevel)(all, 1, all);
             }
 
             if (mesh.rankData.yRank == mesh.rankData.npY - 1) {
-                pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = yWall(all, all);
+                pressureData(vLevel)(all, stagCore(vLevel).ubound(1) + 1, all) = 2.0*yWall(all, all) - pressureData(vLevel)(all, stagCore(vLevel).ubound(1) - 1, all);
             }
         }
 #else
@@ -668,9 +668,9 @@ void multigrid_d3::imposeBC() {
 
             pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
         } else {
-            pressureData(vLevel)(all, all, -1) = zWall(all, all);
+            pressureData(vLevel)(all, all, -1) = 2.0*zWall(all, all) - pressureData(vLevel)(all, all, 1);
 
-            pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = zWall(all, all);
+            pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) + 1) = 2.0*zWall(all, all) - pressureData(vLevel)(all, all, stagCore(vLevel).ubound(2) - 1);
         }
 #else
         // NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
