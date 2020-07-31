@@ -134,14 +134,13 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
         real mgResidual = computeError(inputParams.resType);
 
-        // DEBUG CODE //////////////////////////////////////////////////////////////////////
-
-        /*
+#ifdef TEST_POISSON
         blitz::Array<real, 3> pAnalytic, tempArray;
 
         pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound() + 1));
         pAnalytic = 0.0;
 
+#ifdef PLANAR
         real xDist, zDist;
 
         int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
@@ -154,6 +153,25 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
                 pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
             }
         }
+#else
+        real xDist, yDist, zDist;
+
+        int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+        int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
+        for (int i=0; i<=stagCore(0).ubound(0); ++i) {
+            xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+
+            for (int j=0; j<=stagCore(0).ubound(1); ++j) {
+                yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
+
+                for (int k=0; k<=stagCore(0).ubound(2); ++k) {
+                    zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+
+                    pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
+                }
+            }
+        }
+#endif
 
         tempArray.resize(pAnalytic.shape());
         tempArray = pAnalytic - pressureData(0)(stagCore(0));
@@ -163,11 +181,10 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
         if (mesh.rankData.rank == 0) {
+            std::cout << std::endl;
             std::cout << "Maximum absolute deviation from analytic solution is: " << std::scientific << std::setprecision(3) << gloMax << std::endl;
         }
-        */
-
-        // END DEBUG CODE //////////////////////////////////////////////////////////////////
+#endif
 
         if (inputParams.printResidual) {
 #ifdef TEST_POISSON
@@ -185,59 +202,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
     // RETURN CALCULATED PRESSURE DATA
     inFn.F = pressureData(0)(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
-
-#ifdef TEST_POISSON
-    blitz::Array<real, 3> pAnalytic, tempArray;
-
-    pAnalytic.resize(blitz::TinyVector<int, 3>(stagCore(0).ubound() + 1));
-    pAnalytic = 0.0;
-
-#ifdef PLANAR
-    real xDist, zDist;
-
-    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
-    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
-
-        for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-            zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
-
-            pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
-        }
-    }
-#else
-    real xDist, yDist, zDist;
-
-    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
-    int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
-    for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
-
-        for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-            yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
-
-            for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-                zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
-
-                pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
-            }
-        }
-    }
-#endif
-
-    tempArray.resize(pAnalytic.shape());
-    tempArray = pAnalytic - pressureData(0)(stagCore(0));
-
-    real gloMax = 0.0;
-    real locMax = blitz::max(fabs(tempArray));
-    MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
-
-    if (mesh.rankData.rank == 0) {
-        std::cout << std::endl;
-        std::cout << "Maximum absolute deviation from analytic solution is: " << gloMax << std::endl;
-        std::cout << std::endl;
-    }
-#endif
 };
 
 

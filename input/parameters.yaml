@@ -80,9 +80,9 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 6
-    "Y Index": 6
-    "Z Index": 6
+    "X Index": 5
+    "Y Index": 5
+    "Z Index": 5
 
 
 # Parellelization parameters
@@ -115,8 +115,8 @@
     "Use CFL Condition": false
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
-    "Time-Step": 0.001
-    "Final Time": 0.01
+    "Time-Step": 0.01
+    "Final Time": 10.0
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1
@@ -128,22 +128,19 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.1
+    "Solution Write Interval": 1.0
 
     # Time interval at which restart file must be written
-    "Restart Write Interval": 0.1
+    "Restart Write Interval": 20.0
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
-    "Record Probes": false
-    "Probe Time Interval": 0.1
+    "Record Probes": true
+    "Probe Time Interval": 0.01
 
     # Enter as many sets of probes as needed in Python NumPy's linspace style - startIndex:endIndex:noOfProbes
     # Enter each set in square braces [], with each set separated by new line or space
     "Probes": >
-        [5, 5, 5]
-        [1:62:3, 1:62:3, 1:62:3]
-        [1:62:3, 7, 1:62:3]
-        [5, 5, 6]
+        [29, 15, 29]
 
 
 # Poisson solver parameters
@@ -151,7 +148,7 @@
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 4
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 9
+    "V-Cycle Count": 5
 
     # Set the flag to true if the solver should solve at coarsest level instead of just smoothing
     "Solve Coarsest": false

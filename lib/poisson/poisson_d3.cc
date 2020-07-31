@@ -309,6 +309,8 @@ void multigrid_d3::prolong() {
 
     pressureData(vLevel) = 0.0;
 
+    // This method of using loops with conditional expressions is much faster (nearly 1.5 times)
+    // than the old method of using 3 vectorized sweeps with Blitz Range objects.
     for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i/2;
         if (isOdd(i)) {
@@ -365,28 +367,6 @@ void multigrid_d3::prolong() {
             }
         }
     }
-
-    /*
-    // Old method of prolongation by 3 sweeps of interpolation
-    // NOTE: Currently interpolating along X first, then Y and finally Z.
-    // Test and see if this order is better or the other order, with Z first, then Y and X is better
-    // Depending on the order of variables in memory, one of these may give better performance
-
-    // Transfer data at all even grid points
-    pressureData(vLevel)(blitz::Range(0, xEnd(vLevel), 2), blitz::Range(0, yEnd(vLevel), 2), blitz::Range(0, zEnd(vLevel), 2)) = pressureData(pLevel)(stagCore(pLevel));
-
-    // Interoplate data along X-axis
-    pressureData(vLevel)(blitz::Range(1, xEnd(vLevel), 2), all, all) = (pressureData(vLevel)(blitz::Range(0, xEnd(vLevel) - 2, 2), all, all) +
-                                                                        pressureData(vLevel)(blitz::Range(2, xEnd(vLevel), 2), all, all))/2.0;
-
-    // Interoplate data along Y-axis
-    pressureData(vLevel)(all, blitz::Range(1, yEnd(vLevel), 2), all) = (pressureData(vLevel)(all, blitz::Range(0, yEnd(vLevel) - 2, 2), all) +
-                                                                        pressureData(vLevel)(all, blitz::Range(2, yEnd(vLevel), 2), all))/2.0;
-
-    // Interoplate data along Z-axis
-    pressureData(vLevel)(all, all, blitz::Range(1, zEnd(vLevel), 2)) = (pressureData(vLevel)(all, all, blitz::Range(0, zEnd(vLevel) - 2, 2)) +
-                                                                        pressureData(vLevel)(all, all, blitz::Range(2, zEnd(vLevel), 2)))/2.0;
-    */
 }
 
 
