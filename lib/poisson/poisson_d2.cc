@@ -395,19 +395,29 @@ void multigrid_d2::initDirichlet() {
     xDist = mesh.inputParams.Lx/2.0;
 
     for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-        zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+        //zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
+        zDist = mesh.zStaggr(k) - 0.5;
+
+        //std::cout << zDist << "\t";
+        //std::cout << mesh.zStaggr(k) - 0.5 << "\t";
 
         xWall(k) = (xDist*xDist + zDist*zDist)/4.0;
     }
+
+    //std::cout << std::endl << mesh.zStaggr << std::endl;
+    //MPI_Finalize();
+    //exit(0);
 
     // Along Z-direction - Top and Bottom Walls
     zDist = mesh.inputParams.Lz/2.0;
 
     // In parallel runs, the domain is divided into slabs along X-axis
     // Hence some adjustments have to be made to get the right extents
-    int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
+    //int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+        //xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
+        // BELOW LINE WORKS FOR SERIAL RUNS ONLY
+        xDist = mesh.xStaggr(i) - 0.5;
 
         zWall(i) = (xDist*xDist + zDist*zDist)/4.0;
     }
