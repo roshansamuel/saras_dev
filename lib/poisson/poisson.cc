@@ -143,13 +143,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 #ifdef PLANAR
         real xDist, zDist;
 
-        //MPI_Barrier(MPI_COMM_WORLD);
-        //if (mesh.rankData.rank == 0) {
-        //    std::cout << mesh.xixxColloc << std::endl;
-        //}
-        //MPI_Finalize();
-        //exit(0);
-
         //int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
         for (int i=0; i<=stagCore(0).ubound(0); ++i) {
             //xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);

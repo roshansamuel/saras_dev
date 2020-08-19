@@ -67,7 +67,7 @@
     # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
     # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
     # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
-    "Mesh Type": "DDD"
+    "Mesh Type": "UUU"
 
     # Stretching factor to be used for tangent-hyperbolic grids.
     # This option is considered only when tangent-hyperbolic stretching is specified in the Mesh Type
@@ -80,9 +80,9 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 5
-    "Y Index": 5
-    "Z Index": 5
+    "X Index": 6
+    "Y Index": 6
+    "Z Index": 6
 
 
 # Parellelization parameters
@@ -149,7 +149,7 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 4
+    "V-Cycle Depth": 5
     # Number of V-Cycles to be performed
     "V-Cycle Count": 20
 
@@ -164,9 +164,9 @@
     "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed after restriction operations
-    "Pre-Smoothing Count": 3
+    "Pre-Smoothing Count": 5
     # Number of smoothing iterations to be performed after prolongation operations
-    "Post-Smoothing Count": 3
+    "Post-Smoothing Count": 5
 
     # Type of residual to be computed at end of each V-Cycle of the multigrid method
     # This value can be set as below:

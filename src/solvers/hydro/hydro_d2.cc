@@ -261,6 +261,11 @@ void hydro_d2::timeAdvance() {
     // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
     mgSolver.mgSolve(Pp, mgRHS);
 
+    //std::cout << V.Vx.F(29, 0, 29) << "\t" << V.Vz.F(29, 0, 29) << std::endl;
+    //std::cout << Pp.F(29, 0, 29) << std::endl;
+    //MPI_Finalize();
+    //exit(0);
+
     // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
     Pp.syncData();
 

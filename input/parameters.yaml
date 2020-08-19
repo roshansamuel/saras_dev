@@ -67,7 +67,7 @@
     # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
     # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
     # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
-    "Mesh Type": "DDD"
+    "Mesh Type": "UUU"
 
     # Stretching factor to be used for tangent-hyperbolic grids.
     # This option is considered only when tangent-hyperbolic stretching is specified in the Mesh Type

@@ -429,22 +429,26 @@ void multigrid_d2::imposeBC() {
 
     if (not inputParams.xPer) {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
+        // DIRICHLET/NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = -pressureData(vLevel)(1, 0, all);
+                pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
+                //pressureData(vLevel)(-1, 0, all) = -pressureData(vLevel)(1, 0, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(1, 0, all);
+                pressureData(vLevel)(-1, 0, all) = 0.5*hx(vLevel) + pressureData(vLevel)(1, 0, all);
+                //pressureData(vLevel)(-1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(1, 0, all);
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 0.5*hx(vLevel) + pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
             }
         }
 #else
@@ -468,14 +472,18 @@ void multigrid_d2::imposeBC() {
 
     } else {
 #ifdef TEST_POISSON
-        // DIRICHLET BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
+        // DIRICHLET/NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
         if (zeroBC) {
-            pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
+            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
 
+            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            pressureData(vLevel)(all, 0, -1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, 1);
+            pressureData(vLevel)(all, 0, -1) = 0.5*hz(vLevel) + pressureData(vLevel)(all, 0, 1);
+            //pressureData(vLevel)(all, 0, -1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, 1);
 
+            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 0.5*hz(vLevel) + pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         }
 #else
