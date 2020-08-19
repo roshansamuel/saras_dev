@@ -43,7 +43,7 @@
  ##
 
 # Test of Poisson library with Dirichlet BC
-PROC=1
+PROC=4
 
 # If build directory doesn't exist, create it
 if [ ! -d build ]; then
@@ -54,10 +54,10 @@ fi
 cd build
 
 # Run cmake with necessary flags for 2D Poisson test
-CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DTEST_POISSON=ON -DREAL_DOUBLE=ON
+#CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DTEST_POISSON=ON -DREAL_DOUBLE=ON
 
 # Run cmake with necessary flags for 3D Poisson test
-#CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
+CC=mpicc CXX=mpicxx cmake ../../ -DTEST_POISSON=ON -DREAL_DOUBLE=ON
 
 # Compile
 make -j8

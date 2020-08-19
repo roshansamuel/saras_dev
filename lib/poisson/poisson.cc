@@ -143,14 +143,9 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 #ifdef PLANAR
         real xDist, zDist;
 
-        //int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
         for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-            //xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
-            // BELOW LINE WORKS FOR SERIAL RUNS ONLY
             xDist = mesh.xStaggr(i) - 0.5;
-
             for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-                //zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
                 zDist = mesh.zStaggr(k) - 0.5;
 
                 pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
@@ -159,20 +154,11 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 #else
         real xDist, yDist, zDist;
 
-        //int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
-        //int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
         for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-            //xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
-            // BELOW LINE WORKS FOR SERIAL RUNS ONLY
             xDist = mesh.xStaggr(i) - 0.5;
-
             for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-                //yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
-                // BELOW LINE WORKS FOR SERIAL RUNS ONLY
                 yDist = mesh.yStaggr(j) - 0.5;
-
                 for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-                    //zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
                     zDist = mesh.zStaggr(k) - 0.5;
 
                     pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;

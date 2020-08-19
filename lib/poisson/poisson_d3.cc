@@ -521,20 +521,11 @@ void multigrid_d3::initDirichlet() {
     zWall = 0.0;
 
     // Compute values at the walls using the (r^2)/6 formula
-    // First get the indices of the global mid-point of the domain
-    //int halfIndX = stagCore(0).ubound(0)*mesh.rankData.npX/2;
-    //int halfIndY = stagCore(0).ubound(1)*mesh.rankData.npY/2;
-
     // Along X-direction - Left and Right Walls
     xDist = mesh.inputParams.Lx/2.0;
-
     for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-        //yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
-        // BELOW LINE WORKS FOR SERIAL RUNS ONLY
         yDist = mesh.yStaggr(j) - 0.5;
-
         for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-            //zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
             zDist = mesh.zStaggr(k) - 0.5;
 
             xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
@@ -543,14 +534,9 @@ void multigrid_d3::initDirichlet() {
 
     // Along Y-direction - Front and Rear Walls
     yDist = mesh.inputParams.Ly/2.0;
-
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        //xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
-        // BELOW LINE WORKS FOR SERIAL RUNS ONLY
         xDist = mesh.xStaggr(i) - 0.5;
-
         for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-            //zDist = hz(0)*(k - stagCore(0).ubound(2)/2);
             zDist = mesh.zStaggr(k) - 0.5;
 
             yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
@@ -559,15 +545,9 @@ void multigrid_d3::initDirichlet() {
 
     // Along Z-direction - Top and Bottom Walls
     zDist = mesh.inputParams.Lz/2.0;
-
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        //xDist = hx(0)*(mesh.rankData.xRank*stagCore(0).ubound(0) + i - halfIndX);
-        // BELOW LINE WORKS FOR SERIAL RUNS ONLY
         xDist = mesh.xStaggr(i) - 0.5;
-
         for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-            //yDist = hy(0)*(mesh.rankData.yRank*stagCore(0).ubound(1) + j - halfIndY);
-            // BELOW LINE WORKS FOR SERIAL RUNS ONLY
             yDist = mesh.yStaggr(j) - 0.5;
 
             zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
