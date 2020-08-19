@@ -425,6 +425,15 @@ void multigrid_d2::initDirichlet() {
 
 
 void multigrid_d2::imposeBC() {
+    // THIS FLAG WILL SWITCH BETWEEN TESTING NEUMANN BC AND DIRICHLET BC FOR TEST_POISSON RUNS.
+    // SINCE THIS IS NOT A SOLVER-WIDE FEATURE (ONLY WORKS FOR UNIFORM-GRID 2D CASE), IT IS
+    // CURRENTLY OFFERED ONLY AS A HIDDEN FLAG WITHIN THE CODE THAT WILL NOT BE FOUND UNLESS
+    // YOU GO LOOKING FOR TROUBLE.
+#ifdef TEST_POISSON
+    bool testNeumann = false;
+#endif
+
+    // FOR PARALLEL RUNS, FIRST UPDATE GHOST POINTS OF MPI SUB-DOMAINS
     updatePads(pressureData);
 
     if (not inputParams.xPer) {
@@ -432,23 +441,35 @@ void multigrid_d2::imposeBC() {
         // DIRICHLET/NEUMANN BOUNDARY CONDITION AT LEFT AND RIGHT WALLS
         if (zeroBC) {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
-                //pressureData(vLevel)(-1, 0, all) = -pressureData(vLevel)(1, 0, all);
+                if (testNeumann) {
+                    pressureData(vLevel)(-1, 0, all) = pressureData(vLevel)(1, 0, all);
+                } else {
+                    pressureData(vLevel)(-1, 0, all) = -pressureData(vLevel)(1, 0, all);
+                }
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
-                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                if (testNeumann) {
+                    pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                } else {
+                    pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = -pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                }
             }
         } else {
             if (mesh.rankData.xRank == 0) {
-                pressureData(vLevel)(-1, 0, all) = 0.5*hx(vLevel) + pressureData(vLevel)(1, 0, all);
-                //pressureData(vLevel)(-1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(1, 0, all);
+                if (testNeumann) {
+                    pressureData(vLevel)(-1, 0, all) = 0.5*hx(vLevel) + pressureData(vLevel)(1, 0, all);
+                } else {
+                    pressureData(vLevel)(-1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(1, 0, all);
+                }
             }
 
             if (mesh.rankData.xRank == mesh.rankData.npX - 1) {
-                pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 0.5*hx(vLevel) + pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
-                //pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                if (testNeumann) {
+                    pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 0.5*hx(vLevel) + pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                } else {
+                    pressureData(vLevel)(stagCore(vLevel).ubound(0) + 1, 0, all) = 2.0*xWall(all) - pressureData(vLevel)(stagCore(vLevel).ubound(0) - 1, 0, all);
+                }
             }
         }
 #else
@@ -474,16 +495,22 @@ void multigrid_d2::imposeBC() {
 #ifdef TEST_POISSON
         // DIRICHLET/NEUMANN BOUNDARY CONDITION AT BOTTOM AND TOP WALLS
         if (zeroBC) {
-            pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
-            //pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            if (testNeumann) {
+                pressureData(vLevel)(all, 0, -1) = pressureData(vLevel)(all, 0, 1);
+            } else {
+                pressureData(vLevel)(all, 0, -1) = -pressureData(vLevel)(all, 0, 1);
+            }
 
-            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+            // WHETHER testNeumann IS ENABLED OR NOT, THE TOP WALL HAS DIRICHLET BC SINCE ALL 4 WALLS SHOULD NOT HAVE NEUMANN BC
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = -pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         } else {
-            pressureData(vLevel)(all, 0, -1) = 0.5*hz(vLevel) + pressureData(vLevel)(all, 0, 1);
-            //pressureData(vLevel)(all, 0, -1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, 1);
+            if (testNeumann) {
+                pressureData(vLevel)(all, 0, -1) = 0.5*hz(vLevel) + pressureData(vLevel)(all, 0, 1);
+            } else {
+                pressureData(vLevel)(all, 0, -1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, 1);
+            }
 
-            //pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 0.5*hz(vLevel) + pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
+            // WHETHER testNeumann IS ENABLED OR NOT, THE TOP WALL HAS DIRICHLET BC SINCE ALL 4 WALLS SHOULD NOT HAVE NEUMANN BC
             pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) + 1) = 2.0*zWall(all) - pressureData(vLevel)(all, 0, stagCore(vLevel).ubound(2) - 1);
         }
 #else

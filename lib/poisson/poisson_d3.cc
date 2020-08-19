@@ -577,6 +577,7 @@ void multigrid_d3::initDirichlet() {
 
 
 void multigrid_d3::imposeBC() {
+    // FOR PARALLEL RUNS, FIRST UPDATE GHOST POINTS OF MPI SUB-DOMAINS
     updatePads(pressureData);
 
     if (not inputParams.xPer) {
