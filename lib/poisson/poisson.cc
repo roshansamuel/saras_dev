@@ -233,6 +233,10 @@ void poisson::vCycle() {
     // Step 1) Pre-smoothing iterations of Ax = b
     smooth(inputParams.preSmooth);
 
+        //int nStart = int(pow(2, (5-vLevel)) - 1);
+        //std::cout << pressureData(vLevel)(blitz::Range(nStart, blitz::toEnd), blitz::Range(nStart, blitz::toEnd), blitz::Range(nStart, blitz::toEnd)) << std::endl;
+        //std::cout << pressureData(vLevel)(blitz::Range(blitz::fromStart, 1), blitz::Range(blitz::fromStart, 1), blitz::Range(blitz::fromStart, 1)) << std::endl;
+
     // From now on, homogeneous Dirichlet BCs are used till end of V-Cycle
     zeroBC = true;
 
@@ -246,6 +250,9 @@ void poisson::vCycle() {
 
         // Restrict the residual to a coarser level
         coarsen();
+
+        //int nStart = int(pow(2, (5-vLevel)) - 2);
+        //std::cout << residualData(vLevel)(blitz::Range(nStart, nStart+2), blitz::Range(nStart, nStart+2), blitz::Range(nStart, nStart+2)) << std::endl;
 
         // Initialize pressureData to 0, or the convergence will be drastically slow
         pressureData(vLevel) = 0.0;
