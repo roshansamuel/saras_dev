@@ -365,8 +365,6 @@ void hydro_d3::timeAdvance() {
     imposeUBCs();
     imposeVBCs();
     imposeWBCs();
-
-    //std::cout << V.Vx.F(29, 29, 29) << "\t" << V.Vy.F(29, 29, 29) << "\t" << V.Vz.F(29, 29, 29) << std::endl;
 }
 
 void hydro_d3::solveVx() {

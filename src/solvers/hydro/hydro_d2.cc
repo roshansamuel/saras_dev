@@ -282,8 +282,6 @@ void hydro_d2::timeAdvance() {
     // IMPOSE BOUNDARY CONDITIONS ON V
     imposeUBCs();
     imposeWBCs();
-
-    //std::cout << V.Vx.F(29, 0, 29) << "\t" << V.Vz.F(29, 0, 29) << std::endl;
 }
 
 void hydro_d2::solveVx() {
