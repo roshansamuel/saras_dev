@@ -142,12 +142,8 @@ class poisson {
  *
  *  The class implements the geometric multi-grid method for solving the Poisson equation on a non-uniform grid across MPI decomposed
  *  domains for parallel computations.
- *  The data structure used by the class for computing multi-grid V-cycles across sub-domains is a blitz array with very wide overlap.
- *  When calculating the finite differences at the sub-domain boundaries, at the coarsest level of the V-cycle, data points from very
- *  deep within the neighbouring sub-domains are necessary.
- *  This is the reason for using a wide pad, that spans up to the nearest node of the adjacent sub-domain at the coarsest mesh.
- *  This increases the memory footprint, but doesn't increase the computational time as only a single finite-difference calculation
- *  is being done using the pads at all levels of the V-cycle.
+ *  The data structure used by the class for computing multi-grid V-cycles across sub-domains is an array of blitz arrays
+ *  with each blitz array corresponding to the data at a given V-cycle depth.
  *
  *  All the necessary functions to perform the V-cycle - prolongation, solving at coarsest mesh, smoothening, etc. are implemented
  *  within the \ref poisson class.

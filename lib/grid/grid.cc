@@ -61,6 +61,8 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     /** Depending on the finite-difference scheme chosen for calculating derivatives, set the \ref padWidths along all directions. */
     if (inputParams.dScheme == 1) {
         padWidths = 1, 1, 1;
+    } else if (inputParams.dScheme == 2) {
+        padWidths = 2, 2, 2;
     } else {
         if (rankData.rank == 0) {
             std::cout << "Undefined finite differencing scheme in YAML file. ABORTING" << std::endl;
@@ -86,6 +88,7 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     dZt = 1.0/real(globalSize(2) - 1);
 
 #ifdef PLANAR
+    // IS IT OKAY TO SET BELOW VALUE AS 1 EVEN WHEN inputParams.dScheme IS NOT 1?
     padWidths(1) = 1;
     yLen = 1.0;
     dEt = 1.0;

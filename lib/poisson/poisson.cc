@@ -195,7 +195,7 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     }
 
     // RETURN CALCULATED PRESSURE DATA
-    inFn.F = pressureData(0)(blitz::RectDomain<3>(inFn.F.lbound(), inFn.F.ubound()));
+    inFn.F(stagFull(0)) = pressureData(0)(stagFull(0));
 };
 
 
@@ -347,6 +347,7 @@ void poisson::setStagBounds() {
         stagCore(i) = blitz::RectDomain<3>(loBound, upBound);
 
         // LOWER BOUND AND UPPER BOUND OF STAGGERED FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
+        // NOTE THAT THE PAD WIDTH USED IN POISSON SOLVER IS 1 BY DEFAULT, AND NOT THE SAME AS THAT IN GRID CLASS
         loBound = -1, -1, -1;
         upBound = stagCore(i).ubound() - loBound;
         stagFull(i) = blitz::RectDomain<3>(loBound, upBound);
@@ -448,9 +449,12 @@ void poisson::setCoefficients() {
  * \brief   Function to copy the staggered grid derivatives from the grid class to local arrays
  *
  *          Though the grid derivatives in the grid class can be read and accessed, they cannot be used directly
- *          along with the arrays defined in the poisson class as the local arrays have wide pads on both sides.
- *          Therefore, correspondingly wide arrays for grid derivatives are used, into which the staggered grid
- *          derivatives from the grid class are written and stored.
+ *          along with the arrays defined in the poisson class.
+ *          Depending on the differentiation scheme selected by user, the arrays in grid class may have different
+ *          pad widths, but within poisson class, only a single pad point is used everywhere, since the schemes
+ *          used here are second order accurate by default.
+ *          Therefore, corresponding arrays with single pad for grid derivatives are used, into which the staggered
+ *          grid derivatives from the grid class are written and stored.
  *          This function serves this purpose of copying the grid derivatives.
  ********************************************************************************************************************************************
  */

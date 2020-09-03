@@ -96,7 +96,7 @@
 "Solver":
     # Choose from following list of differentiation stencils
     # 1 = Second-order central-difference
-    # 2 = Fourth-order central-difference (To Be Implemented)
+    # 2 = Fourth-order central-difference
     "Differentiation Scheme": 1
 
     # Choose from following list of integration schemes:

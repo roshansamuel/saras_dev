@@ -64,6 +64,7 @@ class derivative {
         blitz::thirdIndex k;    
 
         blitz::Range fullRange;
+        blitz::Range xRange, yRange, zRange;
 
         blitz::Array<real, 1> x_Metric, y_Metric, z_Metric;
         blitz::Array<real, 1> xxMetric, yyMetric, zzMetric;

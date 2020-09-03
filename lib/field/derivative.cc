@@ -63,6 +63,9 @@ derivative::derivative(const grid &gridData, const field &F): gridData(gridData)
     invDelz = 1.0/gridData.dZt; 
 
     fullRange = blitz::Range::all();
+    xRange = blitz::Range(-gridData.padWidths(0) + 1, F.fCore.ubound(0) + gridData.padWidths(0) - 1, 1);
+    yRange = blitz::Range(-gridData.padWidths(1) + 1, F.fCore.ubound(1) + gridData.padWidths(1) - 1, 1);
+    zRange = blitz::Range(-gridData.padWidths(2) + 1, F.fCore.ubound(2) + gridData.padWidths(2) - 1, 1);
 
     if (F.xStag) {
         x_Metric.reference(gridData.xi_xStaggr);
@@ -106,7 +109,7 @@ derivative::derivative(const grid &gridData, const field &F): gridData(gridData)
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative1_x(blitz::Array<real, 3> outputMat) {
-    outputMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central12n(F.F, 0);
+    outputMat(xRange, fullRange, fullRange) = central12n(F.F, 0);
     outputMat *= invDelx;
 
     outputMat = x_Metric(i)*outputMat(i, j, k);
@@ -121,7 +124,7 @@ void derivative::calcDerivative1_x(blitz::Array<real, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative1_y(blitz::Array<real, 3> outputMat) {
-    outputMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central12n(F.F, 1);
+    outputMat(fullRange, yRange, fullRange) = central12n(F.F, 1);
     outputMat *= invDely;
 
     outputMat = y_Metric(j)*outputMat(i, j, k);
@@ -136,7 +139,7 @@ void derivative::calcDerivative1_y(blitz::Array<real, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative1_z(blitz::Array<real, 3> outputMat) {
-    outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central12n(F.F, 2);
+    outputMat(fullRange, fullRange, zRange) = central12n(F.F, 2);
     outputMat *= invDelz;
 
     outputMat = z_Metric(k)*outputMat(i, j, k);
@@ -151,10 +154,10 @@ void derivative::calcDerivative1_z(blitz::Array<real, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative2xx(blitz::Array<real, 3> outputMat) {
-    tempMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central12n(F.F, 0);
+    tempMat(xRange, fullRange, fullRange) = central12n(F.F, 0);
     tempMat *= invDelx;
 
-    outputMat(blitz::Range(0, F.F.ubound(0) - 1), fullRange, fullRange) = central22n(F.F, 0);
+    outputMat(xRange, fullRange, fullRange) = central22n(F.F, 0);
     outputMat *= invDelx*invDelx;
 
     if (gridData.inputParams.iScheme == 1) {
@@ -174,10 +177,10 @@ void derivative::calcDerivative2xx(blitz::Array<real, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative2yy(blitz::Array<real, 3> outputMat) {
-    tempMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central12n(F.F, 1);
+    tempMat(fullRange, yRange, fullRange) = central12n(F.F, 1);
     tempMat *= invDely;
 
-    outputMat(fullRange, blitz::Range(0, F.F.ubound(1) - 1), fullRange) = central22n(F.F, 1);
+    outputMat(fullRange, yRange, fullRange) = central22n(F.F, 1);
     outputMat *= invDely*invDely;
     
     if (gridData.inputParams.iScheme == 1) {
@@ -196,10 +199,10 @@ void derivative::calcDerivative2yy(blitz::Array<real, 3> outputMat) {
  ********************************************************************************************************************************************
  */
 void derivative::calcDerivative2zz(blitz::Array<real, 3> outputMat) {
-    tempMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central12n(F.F, 2);
+    tempMat(fullRange, fullRange, zRange) = central12n(F.F, 2);
     tempMat *= invDelz;
 
-    outputMat(fullRange, fullRange, blitz::Range(0, F.F.ubound(2) - 1)) = central22n(F.F, 2);
+    outputMat(fullRange, fullRange, zRange) = central22n(F.F, 2);
     outputMat *= invDelz*invDelz;
     
     if (gridData.inputParams.iScheme == 1) {
