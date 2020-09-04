@@ -88,8 +88,8 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 1
-    "X Number of Procs": 1
-    "Y Number of Procs": 1
+    "X Number of Procs": 2
+    "Y Number of Procs": 2
 
 
 # Solver parameters
@@ -97,7 +97,7 @@
     # Choose from following list of differentiation stencils
     # 1 = Second-order central-difference
     # 2 = Fourth-order central-difference
-    "Differentiation Scheme": 1
+    "Differentiation Scheme": 2
 
     # Choose from following list of integration schemes:
     # 1 = Implicit Crank-Nicholson
@@ -146,7 +146,7 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 4
+    "V-Cycle Depth": 3
     # Number of V-Cycles to be performed
     "V-Cycle Count": 5
 
