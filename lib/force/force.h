@@ -150,7 +150,8 @@ class constantPGrad: public force {
     public:
         constantPGrad(const grid &mesh, vfield &U): force(mesh, U) { };
 
-        inline void addForcing(plainvf &Hv) {Hv.Vx += 1.0;};
+        // PRESENTLY UNIT PRESSURE GRADIENT IS TOO HIGH FOR SOME REASON
+        inline void addForcing(plainvf &Hv) {Hv.Vx(V.Vx.fBulk) += 0.5;};
         inline void addForcing(plainsf &Ht) { };
 };
 

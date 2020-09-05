@@ -46,7 +46,6 @@
 #include <blitz/array.h>
 #include <blitz/array/stencil-et.h>
 #include <blitz/array/stencilops.h>
-#include <string>
 
 #include "field.h"
 #include "grid.h"
@@ -63,6 +62,15 @@ class derivative {
         blitz::secondIndex j;
         blitz::thirdIndex k;    
 
+        blitz::RectDomain<3> x0Lft, x0Mid, x0Rgt;
+        blitz::RectDomain<3> x1Lft, x1Mid, x1Rgt;
+
+        blitz::RectDomain<3> y0Lft, y0Mid, y0Rgt;
+        blitz::RectDomain<3> y1Lft, y1Mid, y1Rgt;
+
+        blitz::RectDomain<3> z0Lft, z0Mid, z0Rgt;
+        blitz::RectDomain<3> z1Lft, z1Mid, z1Rgt;
+
         blitz::Range fullRange;
         blitz::Range xRange, yRange, zRange;
 
@@ -71,6 +79,8 @@ class derivative {
         blitz::Array<real, 1> x2Metric, y2Metric, z2Metric;
 
         blitz::Array<real, 3> tempMat;
+
+        void setWallRectDomains();
 
     public:
         derivative(const grid &gridData, const field &F);
@@ -90,7 +100,7 @@ class derivative {
  *  \brief Derivative class to perform finite difference operations on the data stored in field
  *
  *  It contains functions to perform the finite difference operations with constant grid spacing.
- *  For many classes of this solver, empty destructors are removed. Refer reference [5] of README for more details.
+ *  For many classes of this solver, empty destructors are removed. Refer reference [3] of General Articles in README for more details.
  ********************************************************************************************************************************************
  */
 
