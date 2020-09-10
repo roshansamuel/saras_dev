@@ -105,7 +105,6 @@ void channelRand::initializeField(vfield &uField) {
             uField.Vz.F(i, 0, k) = uP;
         }
     }
-
 #else
     // VELOCITY PERTURBATION FOR PERIODIC CHANNEL FLOW
     // X-VELOCITY

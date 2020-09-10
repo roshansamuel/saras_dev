@@ -96,10 +96,11 @@ void parser::parseYAML() {
     yamlNode["Program"]["Y Length"] >> Ly;
     yamlNode["Program"]["Z Length"] >> Lz;
 
-    yamlNode["Program"]["Force"] >> forceType;
-
     yamlNode["Program"]["Heating Plate"] >> nonHgBC;
     yamlNode["Program"]["Plate Radius"] >> patchRadius;
+
+    yamlNode["Program"]["Force"] >> forceType;
+    yamlNode["Program"]["Mean Pressure Gradient"] >> meanPGrad;
 
     /********** Mesh parameters **********/
 
