@@ -107,6 +107,11 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
 #endif
     MPI_Allreduce(&localVol, &totalVol, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
+    // Check on calculation of totalVol may be necessary
+    //if (mesh.rankData.rank == 0) std::cout << totalVol << std::endl;
+    //MPI_Finalize();
+    //exit(0);
+
     // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
     if (mesh.rankData.rank == 0) {
         if (mesh.inputParams.probType <= 4) {
