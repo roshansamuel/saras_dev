@@ -61,22 +61,25 @@ channelRand::channelRand(const grid &mesh): initial(mesh) { }
  * \brief   Function to impose random initial condition for channel flow on the given input velocity field.
  *
  *          The function generates random values for the entire domain (with independent seeds for individual ranks).
- *          The random values are scaled by multiplying with an inverse parabola and then added to the mean velocity field.
- *          The mean field is assumed to have value 1.0
+ *          The random values are scaled by a factor, and depending on a hardcoded parameter (mainly for debugging),
+ *          are either added directly to the mean velocity field or multiplied with an inverse parabola before being
+ *          added to the mean velocity field.
  *
  ********************************************************************************************************************************************
  */
 void channelRand::initializeField(vfield &uField) {
     if (mesh.rankData.rank == 0) std::cout << "Imposing random initial condition for channel flow" << std::endl << std::endl;
 
+    // Mode of imposing the random fluctuations on mean field:
+    // 0 - Add directly to mean field
+    // 1 - Scale by an inverse parabola before adding to mean field
+    int rfMode = 0;
+
     // Seed the random number generator with both time and rank to get different random numbers in different MPI sub-domains
     int randSeed = std::time(0) + mesh.rankData.rank;
     std::srand(randSeed);
 
-    // DEBUG CODE
-    //std::srand(mesh.rankData.rank);
-    // END DEBUG CODE
-
+    // Compute the uniform velocity field
     // Von Karman constant for log law
     real vkConst = 0.41;
 
@@ -87,87 +90,132 @@ void channelRand::initializeField(vfield &uField) {
     // Substituting this value in the log law will give centreline velocity non-dimensionalized by u_tau.
     real vCentre = log(mesh.inputParams.Re)/vkConst + cPlus;
 
-    // Generate inverted parabolic profile with vCentre as velocity at edges
-    // Two profiles are generated for cell centered and face centered variables
-    blitz::Array<real, 1> proStag, proColl;
-    proStag.resize(uField.Vx.fCore.ubound(2) + 1);
-    proColl.resize(uField.Vz.fCore.ubound(2) + 1);
+    // Scaling factor for random velocity fluctuations
+    real vScale = vCentre*0.15;
 
-    proStag = 0.0;
-    for (int k=0; k <= uField.Vx.fCore.ubound(2); k++) {
-        real ndZ = mesh.zStaggr(k)/mesh.zLen;
-        proStag(k) = vCentre*(4.0*ndZ*(ndZ - 1.0) + 1);
-    }
+    // Random velocity fluctuation to be computed point-wise
+    real vRandom;
 
-    proColl = 0.0;
-    for (int k=0; k <= uField.Vz.fCore.ubound(2); k++) {
-        real ndZ = mesh.zColloc(k)/mesh.zLen;
-        proColl(k) = vCentre*(4.0*ndZ*(ndZ - 1.0) + 1);
-    }
-
+    switch (rfMode) {
+        case 0:
 #ifdef PLANAR
-    // VELOCITY PERTURBATION FOR PERIODIC CHANNEL FLOW
-    // X-VELOCITY
-    for (int i=uField.Vx.fCore.lbound(0); i <= uField.Vx.fCore.ubound(0); i++) {
-        for (int k=uField.Vx.fCore.lbound(2); k <= uField.Vx.fCore.ubound(2); k++) {
-            real randNum = real(std::rand())/RAND_MAX;
+            // X-VELOCITY
+            for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
+                for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
+                    vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
 
-            // ALONG X, THERE IS A MEAN FLOW OF vCentre UNITS
-            uField.Vx.F(i, 0, k) = vCentre + randNum*proStag(k);
-        }
-    }
+                    uField.Vx.F(i, 0, k) = vCentre + vRandom;
+                }
+            }
 
-    // Z-VELOCITY
-    for (int i=uField.Vz.fCore.lbound(0); i <= uField.Vz.fCore.ubound(0); i++) {
-        for (int k=uField.Vz.fCore.lbound(2); k <= uField.Vz.fCore.ubound(2); k++) {
-            real randNum = real(std::rand())/RAND_MAX;
+            // Z-VELOCITY
+            for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
+                for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
+                    vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
 
-            uField.Vz.F(i, 0, k) = randNum*proColl(k);
-        }
-    }
+                    uField.Vz.F(i, 0, k) = vRandom;
+                }
+            }
 #else
-    // VELOCITY PERTURBATION FOR PERIODIC CHANNEL FLOW
-    // X-VELOCITY
-    for (int i=uField.Vx.fCore.lbound(0); i <= uField.Vx.fCore.ubound(0); i++) {
-        for (int j=uField.Vx.fCore.lbound(1); j <= uField.Vx.fCore.ubound(1); j++) {
-            for (int k=uField.Vx.fCore.lbound(2); k <= uField.Vx.fCore.ubound(2); k++) {
-                real randNum = real(std::rand())/RAND_MAX;
+            // X-VELOCITY
+            for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
+                for (int j=uField.Vx.F.lbound(1); j <= uField.Vx.F.ubound(1); j++) {
+                    for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
+                        vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
 
-                // ALONG X, THERE IS A MEAN FLOW OF vCentre UNITS
-                uField.Vx.F(i, j, k) = vCentre + randNum*proStag(k);
+                        uField.Vx.F(i, j, k) = vCentre + vRandom;
+                    }
+                }
             }
-        }
-    }
 
-    // Y-VELOCITY
-    for (int i=uField.Vy.fCore.lbound(0); i <= uField.Vy.fCore.ubound(0); i++) {
-        for (int j=uField.Vy.fCore.lbound(1); j <= uField.Vy.fCore.ubound(1); j++) {
-            for (int k=uField.Vy.fCore.lbound(2); k <= uField.Vy.fCore.ubound(2); k++) {
-                real randNum = real(std::rand())/RAND_MAX;
+            // Y-VELOCITY
+            for (int i=uField.Vy.F.lbound(0); i <= uField.Vy.F.ubound(0); i++) {
+                for (int j=uField.Vy.F.lbound(1); j <= uField.Vy.F.ubound(1); j++) {
+                    for (int k=uField.Vy.F.lbound(2); k <= uField.Vy.F.ubound(2); k++) {
+                        vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
 
-                uField.Vy.F(i, j, k) = randNum*proStag(k);
+                        uField.Vy.F(i, j, k) = vRandom;
+                    }
+                }
             }
-        }
-    }
 
-    // Z-VELOCITY
-    for (int i=uField.Vz.fCore.lbound(0); i <= uField.Vz.fCore.ubound(0); i++) {
-        for (int j=uField.Vz.fCore.lbound(1); j <= uField.Vz.fCore.ubound(1); j++) {
-            for (int k=uField.Vz.fCore.lbound(2); k <= uField.Vz.fCore.ubound(2); k++) {
-                real randNum = real(std::rand())/RAND_MAX;
+            // Z-VELOCITY
+            for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
+                for (int j=uField.Vz.F.lbound(1); j <= uField.Vz.F.ubound(1); j++) {
+                    for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
+                        vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
 
-                uField.Vz.F(i, j, k) = randNum*proColl(k);
+                        uField.Vz.F(i, j, k) = vRandom;
+                    }
+                }
             }
-        }
-    }
 #endif
+            break;
 
-    //for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-    //    real ndZ = mesh.zStaggr(k)/mesh.zLen;
-    //    real uP = vCentre*(4.0*ndZ*(ndZ - 1.0) + 1);
-    //    if (mesh.rankData.rank == 0) std::cout << k << "\t" << ndZ << "\t" << uP << std::endl;
-    //}
-    //if (mesh.rankData.rank == 0) std::cout << uField.Vx.F(5, 5, blitz::Range::all()) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
+        case 1:
+            real normalZ, randNum;
+#ifdef PLANAR
+            // X-VELOCITY
+            for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
+                for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
+                    randNum = vScale*real(std::rand())/RAND_MAX;
+                    normalZ = mesh.zStaggr(k)/mesh.zLen;
+                    vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                    uField.Vx.F(i, 0, k) = vCentre + vRandom;
+                }
+            }
+
+            // Z-VELOCITY
+            for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
+                for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
+                    randNum = vScale*real(std::rand())/RAND_MAX;
+                    normalZ = mesh.zColloc(k)/mesh.zLen;
+                    vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                    uField.Vz.F(i, 0, k) = vRandom;
+                }
+            }
+#else
+            // X-VELOCITY
+            for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
+                for (int j=uField.Vx.F.lbound(1); j <= uField.Vx.F.ubound(1); j++) {
+                    for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
+                        randNum = vScale*real(std::rand())/RAND_MAX;
+                        normalZ = mesh.zStaggr(k)/mesh.zLen;
+                        vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                        uField.Vx.F(i, j, k) = vCentre + vRandom;
+                    }
+                }
+            }
+
+            // Y-VELOCITY
+            for (int i=uField.Vy.F.lbound(0); i <= uField.Vy.F.ubound(0); i++) {
+                for (int j=uField.Vy.F.lbound(1); j <= uField.Vy.F.ubound(1); j++) {
+                    for (int k=uField.Vy.F.lbound(2); k <= uField.Vy.F.ubound(2); k++) {
+                        randNum = vScale*real(std::rand())/RAND_MAX;
+                        normalZ = mesh.zStaggr(k)/mesh.zLen;
+                        vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                        uField.Vy.F(i, j, k) = vRandom;
+                    }
+                }
+            }
+
+            // Z-VELOCITY
+            for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
+                for (int j=uField.Vz.F.lbound(1); j <= uField.Vz.F.ubound(1); j++) {
+                    for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
+                        randNum = vScale*real(std::rand())/RAND_MAX;
+                        normalZ = mesh.zColloc(k)/mesh.zLen;
+                        vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                        uField.Vz.F(i, j, k) = vRandom;
+                    }
+                }
+            }
+#endif
+            break;
+    }
 }

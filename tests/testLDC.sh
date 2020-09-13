@@ -31,9 +31,9 @@
  #
  ############################################################################################################################################
  ##
- ##! \file testSaras.sh
+ ##! \file testLDC.sh
  #
- #   \brief Shell script to automatically compile and run tests on SARAS
+ #   \brief Shell script to automatically compile and run LDC test of SARAS
  #
  #   \author Roshan Samuel
  #   \date Jan 2020
