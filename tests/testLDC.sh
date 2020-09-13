@@ -72,4 +72,4 @@ cd ../../tests/ldcTest/
 mpirun -np $PROC ./saras
 
 # Run the python script to read the output file and compare with Ghia results
-python validate_ldc.py
+python checkLDC.py

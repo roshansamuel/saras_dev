@@ -31,15 +31,15 @@
     "RBC Type": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 10
+    "Reynolds Number": 1
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
     "Taylor Number": 0.0
 
     # Dimensions of the domain
-    "X Length": 12.5664
-    "Y Length": 6.2832
+    "X Length": 4.0
+    "Y Length": 2.0
     "Z Length": 2.0
 
     # For Problem Type 5, heating can be applied at bottom wall using a circular heating plate
@@ -83,7 +83,7 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 7
+    "X Index": 6
     "Y Index": 6
     "Z Index": 5
 
@@ -119,10 +119,10 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.5
+    "Final Time": 10.0
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 1
+    "I/O Count": 10
 
     # Select the format in which solution data must be written at each solution write interval
     # 1 = Write a single HDF5 file inside ./output/, containing all the variables - Vx, Vy, P, etc.
@@ -131,7 +131,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 1.0
+    "Solution Write Interval": 5.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 20.0

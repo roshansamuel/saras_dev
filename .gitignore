@@ -9,3 +9,4 @@ doc/
 compile/build/
 tests/build/
 tests/ldcTest/*.png
+tests/channelTest/*.png

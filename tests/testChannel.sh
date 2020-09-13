@@ -70,3 +70,6 @@ cd ../../tests/channelTest/
 
 # Run the test case
 mpirun -np $PROC ./saras
+
+# Run the python script to read the output file and compare with analytic solution
+python checkChannel.py
