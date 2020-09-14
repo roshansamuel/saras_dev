@@ -133,12 +133,12 @@ def generateZGrid():
     zColl = np.array([zLen*(1.0 - np.tanh(zBeta*(1.0 - 2.0*i))/np.tanh(zBeta))/2.0 for i in [(zt[j] + zt[j+1])/2 for j in range(len(zt) - 1)]])
 
 
-def computeSolution():
+def computeAnalytic():
     global zLen
     global zStag
     global Re, dPdX
-    global uProfile
-    global tProfile
+    global uAnalyticProfile
+    global tAnalyticProfile
 
     delta = zLen/2.0
     uTau = 1.0
@@ -155,43 +155,62 @@ def computeSolution():
 
     # Laminar velocity profile
     normZ = zStag/delta
-    uProfile = lpFactor*normZ*(2.0 - normZ)
+    uAnalyticProfile = lpFactor*normZ*(2.0 - normZ)
 
     # Shear stress profile
-    tProfile = tauw*(1.0 - normZ)
+    tAnalyticProfile = tauw*(1.0 - normZ)
 
 
-def plotProfile():
+def computeProfiles():
+    global Re, zLen
+    global U, Nz, zStag
+    global uComputedProfile
+    global tComputedProfile
+
+    uComputedProfile = np.zeros(Nz)
+    for i in range(Nz):
+        uComputedProfile[i] = np.mean(U[:, :, i])
+
+    rho = 1.0
+    delta = zLen/2.0
+    nu = delta/Re
+    mu = nu*rho
+    tComputedProfile = np.zeros(Nz)
+    for i in range(Nz-1):
+        tComputedProfile[i] = mu*np.mean((U[:, :, i+1] - U[:, :, i])/(zStag[i+1] - zStag[i]))
+
+    i = Nz-1
+    tComputedProfile[i] = mu*np.mean((U[:, :, i] - U[:, :, i-1])/(zStag[i] - zStag[i-1]))
+
+
+def plotProfiles():
     global U, Nz
     global zStag
-    global uProfile
-    global tProfile
+    global uAnalyticProfile
+    global uComputedProfile
+    global tAnalyticProfile
+    global tComputedProfile
 
-    # Plot a data frame
+    # Plot both profiles as subplots in a single figure
     fig, axes = plt.subplots(1, 2, figsize=figSize)
 
-    velProf = np.zeros(Nz)
-    for i in range(Nz):
-        velProf[i] = np.mean(U[:, :, i])
-
-    axes[0].plot(velProf, zStag, linestyle='--', label='Computed')
-    axes[0].plot(uProfile, zStag, linewidth=2, label='Analytic')
-    #axes[0].set_xlim([-0.6, 1.1])
+    # Plot mean velocity profile
+    axes[0].plot(uAnalyticProfile, zStag, linewidth=2, label='Analytic')
+    axes[0].plot(uComputedProfile, zStag, linestyle='--', label='Computed')
     axes[0].set_xlabel(r"$u_x$", fontsize=25)
     axes[0].set_ylabel(r"$z$", fontsize=25)
     axes[0].tick_params(labelsize=20)
     axes[0].legend(fontsize=20)
-    axes[0].set_title("Mean Velocity Profile", fontsize=25)
+    axes[0].set_title("Mean Velocity Profile", fontsize=20)
 
-    #axes[1].plot(profAxis, vProfile, linestyle='--', label='SARAS')
-    axes[1].plot(tProfile, zStag, linewidth=2, label='Analytic')
-    #axes[1].set_ylim([-0.62, 0.42])
-    #axes[1].set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    # Plot shear stress profile
+    axes[1].plot(tAnalyticProfile, zStag, linewidth=2, label='Analytic')
+    axes[1].plot(tComputedProfile, zStag, linestyle='--', label='Computed')
     axes[1].set_xlabel(r"$\tau$", fontsize=25)
     axes[1].set_ylabel(r"$z$", fontsize=25)
     axes[1].tick_params(labelsize=20)
     axes[1].legend(fontsize=20)
-    axes[1].set_title("Shear Stress Profile", fontsize=25)
+    axes[1].set_title("Shear Stress Profile", fontsize=20)
 
     plt.gca().set_aspect('auto')
     plt.tight_layout()
@@ -203,47 +222,17 @@ def plotProfile():
         plt.show()
 
 
-def checkTolerance():
-    global U, W
-    global Nx, Nz
-    global u_ghia, v_ghia
-
-    uProfile = U[int(Nx/2), :]
-    profAxis = np.linspace(0.0, zLen, Nz)
-    intpAxis = u_ghia[:,1]
-    intpData = griddata(profAxis, uProfile, intpAxis)
-
-    avgError = sum(np.absolute(u_ghia[:,2] - intpData))/len(intpData)
-    avgValue = sum(np.absolute(u_ghia[:,2]))/len(intpData)
-
-    print("")
-    print(r"Average absolute value of horizontal velocity, Ux = " + str(avgValue) + "\n")
-    print("Average absolute value of deviation = " + str(avgError) + "\n")
-
-    vProfile = W[:, int(Nz/2)]
-    profAxis = np.linspace(0.0, xLen, Nx)
-    intpAxis = v_ghia[:,1]
-    intpData = griddata(profAxis, vProfile, intpAxis)
-
-    avgError = sum(np.absolute(v_ghia[:,2] - intpData))/len(intpData)
-    avgValue = sum(np.absolute(v_ghia[:,2]))/len(intpData)
-
-    print(r"Average absolute value of vertical velocity, Uz = " + str(avgValue) + "\n")
-    print("Average absolute value of deviation = " + str(avgError) + "\n")
-
-
 if __name__ == "__main__":
     init()
 
     parseYAML("input/parameters.yaml")
 
-    loadData(10.0)
+    loadData(30.0)
 
     generateZGrid()
 
-    computeSolution()
+    computeAnalytic()
+    computeProfiles()
 
-    plotProfile()
-
-    #checkTolerance()
+    plotProfiles()
 

@@ -31,7 +31,7 @@
     "RBC Type": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 1
+    "Reynolds Number": 10
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
@@ -119,10 +119,10 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 10.0
+    "Final Time": 30.0
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 10
+    "I/O Count": 100
 
     # Select the format in which solution data must be written at each solution write interval
     # 1 = Write a single HDF5 file inside ./output/, containing all the variables - Vx, Vy, P, etc.
