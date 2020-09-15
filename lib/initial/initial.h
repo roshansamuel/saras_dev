@@ -96,17 +96,32 @@ class channelSine: public initial {
  ********************************************************************************************************************************************
  */
 
-class channelRand: public initial {
+class uniformRandom: public initial {
     public:
-        channelRand(const grid &mesh);
+        uniformRandom(const grid &mesh);
 
         void initializeField(vfield &uField);
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class channelRand initial.h "lib/initial/initial.h"
- *  \brief The derived class from initial to impose random initial condition for channel flow.
+ *  \class uniformRandom initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose uniform random initial condition for channel flow.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class parabolicRandom: public initial {
+    public:
+        parabolicRandom(const grid &mesh);
+
+        void initializeField(vfield &uField);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class parabolicRandom initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose parabolic random initial condition for channel flow.
  *
  ********************************************************************************************************************************************
  */

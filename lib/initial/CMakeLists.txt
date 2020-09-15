@@ -44,5 +44,6 @@ add_library (initial
              initial.cc
              taylorGreen.cc
              channelSine.cc
-             channelRand.cc
+             uniformRandom.cc
+             parabolicRandom.cc
 )

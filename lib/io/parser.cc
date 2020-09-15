@@ -83,6 +83,7 @@ void parser::parseYAML() {
 
     yamlNode["Program"]["Problem Type"] >> probType;
     yamlNode["Program"]["Initial Condition"] >> icType;
+    yamlNode["Program"]["Perturbation Intensity"] >> rfIntensity;
     yamlNode["Program"]["Domain Type"] >> domainType;
     yamlNode["Program"]["RBC Type"] >> rbcType;
 

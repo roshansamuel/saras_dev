@@ -99,6 +99,7 @@ class parser {
         real Lx, Ly, Lz;
         real tStp, tMax;
         real patchRadius;
+        real rfIntensity;
         real courantNumber;
         real betaX, betaY, betaZ;
         real cnTolerance, mgTolerance;

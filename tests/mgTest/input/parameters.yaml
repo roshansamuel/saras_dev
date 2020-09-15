@@ -13,9 +13,15 @@
     # Choose from the following initial conditions
     # 0 = Zero-initial condition
     # 1 = Taylor Green Vortices
-    # 2 = Sinusoidal Perturbation (for Channel Flows)
-    # 3 = Random Perturbation (for Channel Flows)
+    # 2 = Sinusoidal Perturbation (for Channel Flow)
+    # 3 = Uniform Random Perturbation (for Channel Flow)
+    # 4 = Parabolic Random Perturbation (for Channel Flow)
     "Initial Condition": 0
+
+    # Intensity of random perturbation (for Channel Flow)
+    # If option 3 or 4 is selected above, the intensity of perturbation can be set below.
+    # The intensity is expressed as a percentage of the uniform mean flow velocity
+    "Perturbation Intensity": 15
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN

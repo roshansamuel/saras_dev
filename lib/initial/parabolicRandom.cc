@@ -29,7 +29,7 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file channelSine.cc
+/*! \file parabolicRandom.cc
  *
  *  \brief Definitions for functions of class initial
  *  \sa initial.h
@@ -40,6 +40,7 @@
  ********************************************************************************************************************************************
  */
 
+#include <ctime>
 #include <cstdlib>
 #include "initial.h"
 
@@ -52,58 +53,102 @@
  * \param   mesh is a const reference to the global data contained in the grid class
  ********************************************************************************************************************************************
  */
-channelSine::channelSine(const grid &mesh): initial(mesh) { }
+parabolicRandom::parabolicRandom(const grid &mesh): initial(mesh) { }
 
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to generate sinusoidal perturbation for channel flow
+ * \brief   Function to impose random initial condition for channel flow on the given input velocity field.
  *
- *          The sinusoidal function is multiplied with the equation of a parabola in order to satisfy the channel flow BCs.
- *          This is not divergence-free and has performed poorly in tests so far.
+ *          The function generates random values for the entire domain (with independent seeds for individual ranks).
+ *          The random values chosen between 0.0 to 1.0 are first scaled by a factor. Then they are multiplied with an
+ *          inverse parabolic profile and added to the computed uniform mean velocity field.
  *
  ********************************************************************************************************************************************
  */
-void channelSine::initializeField(vfield &uField) {
-    real kx = 10.0;
+void parabolicRandom::initializeField(vfield &uField) {
+    if (mesh.rankData.rank == 0) std::cout << "Imposing inverse parabolic random initial condition for channel flow" << std::endl << std::endl;
 
-    if (mesh.rankData.rank == 0) std::cout << "Imposing sinusoidal perturbation initial condition for channel flow" << std::endl << std::endl;
+    // Seed the random number generator with both time and rank to get different random numbers in different MPI sub-domains
+    int randSeed = std::time(0) + mesh.rankData.rank;
+    std::srand(randSeed);
 
+    // Compute the uniform velocity field
+    // Von Karman constant for log law
+    real vkConst = 0.41;
+
+    // Second constant of the log law
+    real cPlus = 5.0;
+
+    // Assuming that the Re specified is in terms of wall shear stress, the y_plus at centreline will be Re_tau.
+    // Substituting this value in the log law will give centreline velocity non-dimensionalized by u_tau.
+    real vCentre = log(mesh.inputParams.Re)/vkConst + cPlus;
+
+    // Scaling factor for random velocity fluctuations
+    real vScale = vCentre*mesh.inputParams.rfIntensity/100.0;
+
+    // Random velocity fluctuation to be computed point-wise
+    real vRandom;
+
+    real normalZ, randNum;
 #ifdef PLANAR
-    // VELOCITY PERTURBATION FOR PERIODIC CHANNEL FLOW
     // X-VELOCITY
     for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
         for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-            uField.Vx.F(i, 0, k) = 4.0*(mesh.zStaggr(k) - mesh.zStaggr(k)*mesh.zStaggr(k));
+            randNum = vScale*real(std::rand())/RAND_MAX;
+            normalZ = mesh.zStaggr(k)/mesh.zLen;
+            vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+            uField.Vx.F(i, 0, k) = vCentre + vRandom;
         }
     }
 
     // Z-VELOCITY
     for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
         for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
-            uField.Vz.F(i, 0, k) = 0.1*(mesh.zStaggr(k) - mesh.zStaggr(k)*mesh.zStaggr(k))*sin(2.0*M_PI*kx*mesh.xColloc(i)/mesh.xLen);
+            randNum = vScale*real(std::rand())/RAND_MAX;
+            normalZ = mesh.zColloc(k)/mesh.zLen;
+            vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+            uField.Vz.F(i, 0, k) = vRandom;
         }
     }
-
 #else
-    // VELOCITY PERTURBATION FOR PERIODIC CHANNEL FLOW
     // X-VELOCITY
     for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
         for (int j=uField.Vx.F.lbound(1); j <= uField.Vx.F.ubound(1); j++) {
             for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-                uField.Vx.F(i, j, k) = 4.0*(mesh.zStaggr(k) - mesh.zStaggr(k)*mesh.zStaggr(k));
+                randNum = vScale*real(std::rand())/RAND_MAX;
+                normalZ = mesh.zStaggr(k)/mesh.zLen;
+                vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                uField.Vx.F(i, j, k) = vCentre + vRandom;
             }
         }
     }
 
     // Y-VELOCITY
-    uField.Vy.F = 0.0;
+    for (int i=uField.Vy.F.lbound(0); i <= uField.Vy.F.ubound(0); i++) {
+        for (int j=uField.Vy.F.lbound(1); j <= uField.Vy.F.ubound(1); j++) {
+            for (int k=uField.Vy.F.lbound(2); k <= uField.Vy.F.ubound(2); k++) {
+                randNum = vScale*real(std::rand())/RAND_MAX;
+                normalZ = mesh.zStaggr(k)/mesh.zLen;
+                vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                uField.Vy.F(i, j, k) = vRandom;
+            }
+        }
+    }
 
     // Z-VELOCITY
     for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
         for (int j=uField.Vz.F.lbound(1); j <= uField.Vz.F.ubound(1); j++) {
             for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
-                uField.Vz.F(i, j, k) = 0.1*(mesh.zStaggr(k) - mesh.zStaggr(k)*mesh.zStaggr(k))*sin(2.0*M_PI*kx*mesh.xColloc(i)/mesh.xLen);
+                randNum = vScale*real(std::rand())/RAND_MAX;
+                normalZ = mesh.zColloc(k)/mesh.zLen;
+                vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
+
+                uField.Vz.F(i, j, k) = vRandom;
             }
         }
     }

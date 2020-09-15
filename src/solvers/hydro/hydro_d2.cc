@@ -94,7 +94,9 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
                 break;
             case 2: initCond = new channelSine(mesh);
                 break;
-            case 3: initCond = new channelRand(mesh);
+            case 3: initCond = new uniformRandom(mesh);
+                break;
+            case 4: initCond = new parabolicRandom(mesh);
                 break;
             default: initCond = new zeroInitial(mesh);
         }
@@ -282,8 +284,6 @@ void hydro_d2::timeAdvance() {
     // IMPOSE BOUNDARY CONDITIONS ON V
     imposeUBCs();
     imposeWBCs();
-
-    //std::cout << V.Vx.F(29, 0, 29) << "\t" << V.Vz.F(29, 0, 29) << std::endl;
 }
 
 void hydro_d2::solveVx() {

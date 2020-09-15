@@ -29,7 +29,7 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file initial.cc
+/*! \file taylorGreen.cc
  *
  *  \brief Definitions for functions of class initial
  *  \sa initial.h
