@@ -53,9 +53,6 @@ class scalar: public hydro {
         /** The scalar field that stores the temperature field */
         sfield T;
 
-        /** Instance of force class to handle temperature field forcing */
-        force *tForcing;
-
         real nu, kappa; 
 
         scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);

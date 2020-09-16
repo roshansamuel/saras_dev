@@ -67,9 +67,6 @@ class hydro {
         /** The scalar field that stores the pressure field */
         sfield P;
 
-        /** Instance of force class to handle velocity field forcing */
-        force *vForcing;
-
         hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
 
         virtual void solvePDE();

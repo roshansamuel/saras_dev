@@ -51,6 +51,7 @@
 class plainsf;
 class plainvf;
 class sfield;
+class force;
 
 class vfield {
     private:
@@ -69,6 +70,9 @@ class vfield {
 
         /** This string is used to identify the vector field, and is useful in file-writing */
         std::string fieldName;
+
+        /** Instance of force class to handle vector field forcing */
+        force *vForcing;
 
         /** Instances of the \ref boundary class to impose boundary conditions on all the 6 walls for the 3 components of the vector field. */
         //@{

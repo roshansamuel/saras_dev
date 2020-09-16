@@ -283,7 +283,7 @@ void hydro_d3::timeAdvance() {
     gettimeofday(&begin, NULL);
 #endif
 
-    vForcing->addForcing(nseRHS);
+    V.vForcing->addForcing(nseRHS);
 
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);

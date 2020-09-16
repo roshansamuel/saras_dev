@@ -225,7 +225,7 @@ void scalar_d2::timeAdvance() {
     V.computeNLin(V, nseRHS);
 
     //ADD VELOCITY FORCING TO THE RHS
-    vForcing->addForcing(nseRHS);
+    V.vForcing->addForcing(nseRHS);
     
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
     pressureGradient = 0.0;
@@ -294,7 +294,7 @@ void scalar_d2::timeAdvance() {
     }
 
     // ADD SCALAR FORCING TO THE TEMPERATURE EQUATION
-    tForcing->addForcing(tmpRHS);
+    T.tForcing->addForcing(tmpRHS);
 
     // MULTIPLY WITH TIME-STEP AND ADD THE CALCULATED VALUE TO THE TEMPERATURE AT START OF TIME-STEP
     tmpRHS *= dt;

@@ -50,6 +50,7 @@
 class plainsf;
 class plainvf;
 class vfield;
+class force;
 
 class sfield {
     private:
@@ -70,6 +71,9 @@ class sfield {
         //@{
         boundary *tLft, *tRgt, *tFrn, *tBak, *tTop, *tBot;
         //@}
+
+        /** Instance of force class to handle scalar field forcing */
+        force *tForcing;
 
         blitz::Array<real, 3> interTempF;
 

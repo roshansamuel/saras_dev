@@ -47,7 +47,6 @@
 
 #include "plainvf.h"
 #include "sfield.h"
-#include "vfield.h"
 
 class force {
     public:

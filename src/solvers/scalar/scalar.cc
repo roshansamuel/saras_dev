@@ -132,27 +132,27 @@ void scalar::initVForcing() {
     switch (inputParams.forceType) {
         case 0:
             if (mpiData.rank == 0) std::cout << "WARNING: Running scalar simulation with zero velocity forcing" << std::endl << std::endl;
-            vForcing = new zeroForcing(mesh, V);
+            V.vForcing = new zeroForcing(mesh, V);
             break;
         case 1:
             if (mpiData.rank == 0) std::cout << "WARNING: Running scalar simulation with random velocity forcing" << std::endl << std::endl;
-            vForcing = new randomForcing(mesh, V);
+            V.vForcing = new randomForcing(mesh, V);
             break;
         case 2:
             if (mpiData.rank == 0) std::cout << "WARNING: Running scalar simulation with pure rotation" << std::endl << std::endl;
-            vForcing = new coriolisForce(mesh, V);
+            V.vForcing = new coriolisForce(mesh, V);
             break;
         case 3:
             if (mpiData.rank == 0) std::cout << "Running convection simulation with pure buoyancy forcing for velocity" << std::endl << std::endl;
-            vForcing = new buoyantForce(mesh, V, T);
+            V.vForcing = new buoyantForce(mesh, V, T);
             break;
         case 4:
             if (mpiData.rank == 0) std::cout << "Running rotating convection simulation with both buoyancy and Coriolis forcing for velocity" << std::endl << std::endl;
-            vForcing = new rotatingConv(mesh, V, T);
+            V.vForcing = new rotatingConv(mesh, V, T);
             break;
         default:
             if (mpiData.rank == 0) std::cout << "WARNING: Chosen velocity forcing is incompatible with scalar runs. Defaulting to buoyant forcing" << std::endl << std::endl;
-            vForcing = new buoyantForce(mesh, V, T);
+            V.vForcing = new buoyantForce(mesh, V, T);
     }
 }
 
@@ -169,7 +169,7 @@ void scalar::initVForcing() {
 void scalar::initTForcing() {
     // Currently no forcing for scalar terms are available
     if (mpiData.rank == 0) std::cout << "Running scalar simulation with zero scalar forcing" << std::endl << std::endl;
-    tForcing = new zeroForcing(mesh, V);
+    T.tForcing = new zeroForcing(mesh, V);
 }
 
 
