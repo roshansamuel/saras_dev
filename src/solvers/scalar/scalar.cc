@@ -182,26 +182,26 @@ void scalar::initTForcing() {
  *          the appropriate BCs are chosen according to the type of problem being solved.
  ********************************************************************************************************************************************
  */
-void scalar::initTBC() {
+void scalar::initTBCs() {
     // ADIABATIC BC FOR RBC, SST AND RRBC
     if (inputParams.probType == 5 || inputParams.probType == 6 || inputParams.probType == 8) {
-        tLft = new neumannCC(mesh, T.F, 0, 0.0);
-        tRgt = new neumannCC(mesh, T.F, 1, 0.0);
+        T.tLft = new neumannCC(mesh, T.F, 0, 0.0);
+        T.tRgt = new neumannCC(mesh, T.F, 1, 0.0);
 
     // CONDUCTING BC FOR VERTICAL CONVECTION
     } else if (inputParams.probType == 7) {
-        tLft = new dirichletCC(mesh, T.F, 0, 1.0);
-        tRgt = new dirichletCC(mesh, T.F, 1, 0.0);
+        T.tLft = new dirichletCC(mesh, T.F, 0, 1.0);
+        T.tRgt = new dirichletCC(mesh, T.F, 1, 0.0);
     }
 
 #ifndef PLANAR
-    tFrn = new neumannCC(mesh, T.F, 2, 0.0);
-    tBak = new neumannCC(mesh, T.F, 3, 0.0);
+    T.tFrn = new neumannCC(mesh, T.F, 2, 0.0);
+    T.tBak = new neumannCC(mesh, T.F, 3, 0.0);
 #endif
 
     if (inputParams.zPer) {
-        tBot = new periodicCC(mesh, T.F, 4);
-        tTop = new periodicCC(mesh, T.F, 5);
+        T.tBot = new periodicCC(mesh, T.F, 4);
+        T.tTop = new periodicCC(mesh, T.F, 5);
     } else {
         // HOT PLATE AT BOTTOM AND COLD PLATE AT TOP FOR RBC AND RRBC
         if (inputParams.probType == 5 || inputParams.probType == 8) {
@@ -209,47 +209,20 @@ void scalar::initTBC() {
             if (inputParams.nonHgBC) {
 #ifndef PLANAR
                 if (mpiData.rank == 0) std::cout << "Using non-homogeneous boundary condition (heating plate) on bottom wall" << std::endl << std::endl;
-                tBot = new hotPlateCC(mesh, T.F, 4, inputParams.patchRadius);
+                T.tBot = new hotPlateCC(mesh, T.F, 4, inputParams.patchRadius);
 #else
                 if (mpiData.rank == 0) std::cout << "WARNING: Non-homogenous BC flag is set to true in input paramters for 2D simulation. IGNORING" << std::endl << std::endl;
 #endif
             } else {
-                tBot = new dirichletCC(mesh, T.F, 4, 1.0);
+                T.tBot = new dirichletCC(mesh, T.F, 4, 1.0);
             }
-            tTop = new dirichletCC(mesh, T.F, 5, 0.0);
+            T.tTop = new dirichletCC(mesh, T.F, 5, 0.0);
 
         // COLD PLATE AT BOTTOM AND HOT PLATE AT TOP FOR SST
         } else if (mesh.inputParams.probType == 6) {
-            tBot = new dirichletCC(mesh, T.F, 4, 0.0);
-            tTop = new dirichletCC(mesh, T.F, 5, 1.0);
+            T.tBot = new dirichletCC(mesh, T.F, 4, 0.0);
+            T.tTop = new dirichletCC(mesh, T.F, 5, 1.0);
         }
     }
 };
 
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions for temperature
- *
- *          The function first calls the syncData() function of the temperature field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
- *          of each boundary class object assigned to each wall.
- *
- ********************************************************************************************************************************************
- */
-void scalar::imposeTBCs() {
-    T.syncData();
-
-    if (not inputParams.xPer) {
-        tLft->imposeBC();
-        tRgt->imposeBC();
-    }
-#ifndef PLANAR
-    if (not inputParams.yPer) {
-        tFrn->imposeBC();
-        tBak->imposeBC();
-    }
-#endif
-    tTop->imposeBC();
-    tBot->imposeBC();
-};

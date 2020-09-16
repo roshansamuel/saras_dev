@@ -67,10 +67,7 @@ class scalar: public hydro {
         plainsf guessedScalar;
         plainsf scalarLaplacian;
 
-        boundary *tLft, *tRgt, *tFrn, *tBak, *tTop, *tBot;
-
-        void initTBC();
-        void imposeTBCs();
+        void initTBCs();
 
         void initVForcing();
         void initTForcing();

@@ -44,6 +44,7 @@
 #define VFIELD_H
 
 #include "field.h"
+#include "boundary.h"
 #include "derivative.h"
 
 // Forward declarations of relevant classes
@@ -69,6 +70,13 @@ class vfield {
         /** This string is used to identify the vector field, and is useful in file-writing */
         std::string fieldName;
 
+        /** Instances of the \ref boundary class to impose boundary conditions on all the 6 walls for the 3 components of the vector field. */
+        //@{
+        boundary *uLft, *uRgt, *uFrn, *uBak, *uTop, *uBot;
+        boundary *vLft, *vRgt, *vFrn, *vBak, *vTop, *vBot;
+        boundary *wLft, *wRgt, *wFrn, *wBak, *wTop, *wBot;
+        //@}
+
         blitz::Array<real, 3> interTempX, interTempY, interTempZ;
 
         vfield(const grid &gridData, std::string fieldName);
@@ -80,6 +88,12 @@ class vfield {
         void divergence(plainsf &divV, const sfield &P);
 
         void syncData();
+
+        void imposeVxBC();
+        void imposeVyBC();
+        void imposeVzBC();
+
+        void imposeBCs();
 
         vfield& operator += (plainvf &a);
         vfield& operator -= (plainvf &a);

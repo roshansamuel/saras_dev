@@ -56,13 +56,20 @@ class sfield {
         const grid &gridData;
 
         blitz::Array<real, 3> derivTempF;
-        
+
     public:
         field F;
 
+        /** derS is an instance of the derivative class used to compute derivatives */
         derivative derS;
 
+        /** This string is used to identify the vector field, and is useful in file-writing */
         std::string fieldName;
+
+        /** Instances of the \ref boundary class to impose boundary conditions on all the 6 walls of the scalar field. */
+        //@{
+        boundary *tLft, *tRgt, *tFrn, *tBak, *tTop, *tBot;
+        //@}
 
         blitz::Array<real, 3> interTempF;
 
@@ -74,6 +81,8 @@ class sfield {
         void gradient(plainvf &gradF, const vfield &V);
 
         void syncData();
+
+        void imposeBCs();
 
         sfield& operator += (plainsf &a);
         sfield& operator -= (plainsf &a);

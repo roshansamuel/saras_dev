@@ -50,8 +50,8 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the vfield class
  *
- *          Three instances of the sfield class to store the data of the three component scalar fields are initialized.
- *          The scalar fields are initialized with appropriate grid staggering to place the components on the cell faces.
+ *          Three instances of the field class to store the data of the three components are initialized.
+ *          The fields are initialized with appropriate grid staggering to place the components on the cell faces.
  *          The name for the vector field as given by the user is also assigned.
  *
  * \param   gridData is a const reference to the global data contained in the grid class
@@ -92,7 +92,7 @@ vfield::vfield(const grid &gridData, std::string fieldName):
  ********************************************************************************************************************************************
  * \brief   Function to compute the diffusion term
  *
- *          It is assumed that the velocity is specified at face-centers, as required by the \ref sfield#computeNLin
+ *          It is assumed that the vector field is specified at face-centers, as required by the \ref sfield#computeNLin
  *          "computeNLin" function of sfield.
  *
  * \param   H is a pointer to a vector field (vfield) to which the output of the function is to be written
@@ -324,6 +324,110 @@ void vfield::syncData() {
     Vx.syncData();
     Vy.syncData();
     Vz.syncData();
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions for the X-component of the vector field
+ *
+ *          The function first calls the \ref field#syncData "syncData" function of the Vx field to update the sub-domain pads.
+ *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
+ *          of each boundary class object assigned to each wall.
+ *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
+ *          The corner values are not being imposed specifically and is thus dependent on the above order.
+ *
+ ********************************************************************************************************************************************
+ */
+void vfield::imposeVxBC() {
+    Vx.syncData();
+
+    if (not gridData.inputParams.xPer) {
+        uLft->imposeBC();
+        uRgt->imposeBC();
+    }
+#ifndef PLANAR
+    if (not gridData.inputParams.yPer) {
+        uFrn->imposeBC();
+        uBak->imposeBC();
+    }
+#endif
+    uTop->imposeBC();
+    uBot->imposeBC();
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions for the Y-component of the vector field
+ *
+ *          The function first calls the \ref field#syncData "syncData" function of the Vy field to update the sub-domain pads.
+ *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
+ *          of each boundary class object assigned to each wall.
+ *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
+ *          The corner values are not being imposed specifically and is thus dependent on the above order.
+ *
+ ********************************************************************************************************************************************
+ */
+void vfield::imposeVyBC() {
+    Vy.syncData();
+
+    if (not gridData.inputParams.xPer) {
+        vLft->imposeBC();
+        vRgt->imposeBC();
+    }
+#ifndef PLANAR
+    if (not gridData.inputParams.yPer) {
+        vFrn->imposeBC();
+        vBak->imposeBC();
+    }
+#endif
+    vTop->imposeBC();
+    vBot->imposeBC();
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions for the Z-component of the vector field
+ *
+ *          The function first calls the \ref field#syncData "syncData" function of the Vz field to update the sub-domain pads.
+ *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
+ *          of each boundary class object assigned to each wall.
+ *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
+ *          The corner values are not being imposed specifically and is thus dependent on the above order.
+ *
+ ********************************************************************************************************************************************
+ */
+void vfield::imposeVzBC() {
+    Vz.syncData();
+
+    if (not gridData.inputParams.xPer) {
+        wLft->imposeBC();
+        wRgt->imposeBC();
+    }
+#ifndef PLANAR
+    if (not gridData.inputParams.yPer) {
+        wFrn->imposeBC();
+        wBak->imposeBC();
+    }
+#endif
+    wTop->imposeBC();
+    wBot->imposeBC();
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions for all the components of the vfield
+ *
+ *          The function merely calls \ref vfield#imposeVxBC "imposeVxBC", \ref vfield#imposeVyBC "imposeVyBC"
+ *          and \ref vfield#imposeVzBC "imposeVzBC" functions together.
+ *
+ ********************************************************************************************************************************************
+ */
+void vfield::imposeBCs() {
+    imposeVxBC();
+#ifndef PLANAR
+    imposeVyBC();
+#endif
+    imposeVzBC();
 }
 
 /**

@@ -92,18 +92,16 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
     checkPeriodic();
 
     // Initialize velocity and temperature boundary conditions
-    initVBC();
-    initTBC();
+    initVBCs();
+    initTBCs();
 
     // Initialize velocity and temperature forcing fields
     initVForcing();
     initTForcing();
 
-    imposeUBCs();
-    imposeVBCs();
-    imposeWBCs();
-
-    imposeTBCs();
+    // Impose boundary conditions on velocity and temperature fields
+    V.imposeBCs();
+    T.imposeBCs();
 }
 
 
@@ -361,12 +359,10 @@ void scalar_d3::timeAdvance() {
     solveT();
 
     // IMPOSE BOUNDARY CONDITIONS ON V
-    imposeUBCs();
-    imposeVBCs();
-    imposeWBCs();
+    V.imposeBCs();
 
     // IMPOSE BOUNDARY CONDITIONS ON T
-    imposeTBCs();
+    T.imposeBCs();
 }
 
 
@@ -390,7 +386,7 @@ void scalar_d3::solveVx() {
 
         V.Vx.F = guessedVelocity.Vx;
 
-        imposeUBCs();
+        V.imposeVxBC();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
@@ -445,7 +441,7 @@ void scalar_d3::solveVy() {
 
         V.Vy.F = guessedVelocity.Vy;
 
-        imposeVBCs();
+        V.imposeVyBC();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = V.Vy.fBulk.lbound(0); iX <= V.Vy.fBulk.ubound(0); iX++) {
@@ -500,7 +496,7 @@ void scalar_d3::solveVz() {
 
         V.Vz.F = guessedVelocity.Vz;
 
-        imposeWBCs();
+        V.imposeVzBC();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
@@ -555,7 +551,7 @@ void scalar_d3::solveT() {
 
         T = guessedScalar;
 
-        imposeTBCs();
+        T.imposeBCs();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none)
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
@@ -726,9 +722,7 @@ real scalar_d3::testPeriodic() {
         }
     }
 
-    imposeUBCs();
-    imposeVBCs();
-    imposeWBCs();
+    V.imposeBCs();
 
     V -= nseRHS;
 

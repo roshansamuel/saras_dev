@@ -284,180 +284,90 @@ void hydro::initVForcing() {
  *          the appropriate BCs are chosen according to the type of problem being solved.
  ********************************************************************************************************************************************
  */
-void hydro::initVBC() {
+void hydro::initVBCs() {
     if (inputParams.probType == 3) {
         // INFLOW AND OUTFLOW BCS
-        uLft = new dirichletFC(mesh, V.Vx, 0, 1.0);
-        uRgt = new neumannFC(mesh, V.Vx, 1, 0.0);
+        V.uLft = new dirichletFC(mesh, V.Vx, 0, 1.0);
+        V.uRgt = new neumannFC(mesh, V.Vx, 1, 0.0);
     } else {
         // NO-PENETRATION BCS
-        uLft = new dirichletFC(mesh, V.Vx, 0, 0.0);
-        uRgt = new dirichletFC(mesh, V.Vx, 1, 0.0);
+        V.uLft = new dirichletFC(mesh, V.Vx, 0, 0.0);
+        V.uRgt = new dirichletFC(mesh, V.Vx, 1, 0.0);
     }
 
 #ifndef PLANAR
     // NO-SLIP BCS
-    uFrn = new dirichletCC(mesh, V.Vx, 2, 0.0);
-    uBak = new dirichletCC(mesh, V.Vx, 3, 0.0);
+    V.uFrn = new dirichletCC(mesh, V.Vx, 2, 0.0);
+    V.uBak = new dirichletCC(mesh, V.Vx, 3, 0.0);
 #endif
 
     if (inputParams.zPer) {
         // PERIODIC BC
-        uBot = new periodicCC(mesh, V.Vx, 4);
-        uTop = new periodicCC(mesh, V.Vx, 5);
+        V.uBot = new periodicCC(mesh, V.Vx, 4);
+        V.uTop = new periodicCC(mesh, V.Vx, 5);
     } else {
         if (inputParams.probType == 1) {
             // NO-SLIP BCS FOR LDC
-            uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
-            uTop = new dirichletCC(mesh, V.Vx, 5, 1.0);
+            V.uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
+            V.uTop = new dirichletCC(mesh, V.Vx, 5, 1.0);
         } else {
             // NO-SLIP BCS
-            uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
-            uTop = new dirichletCC(mesh, V.Vx, 5, 0.0);
+            V.uBot = new dirichletCC(mesh, V.Vx, 4, 0.0);
+            V.uTop = new dirichletCC(mesh, V.Vx, 5, 0.0);
         }
     }
 
 #ifndef PLANAR
     if (inputParams.probType == 3) {
         // INFLOW AND OUTFLOW BCS
-        vLft = new dirichletCC(mesh, V.Vy, 0, 0.0);
-        vRgt = new neumannCC(mesh, V.Vy, 1, 0.0);
+        V.vLft = new dirichletCC(mesh, V.Vy, 0, 0.0);
+        V.vRgt = new neumannCC(mesh, V.Vy, 1, 0.0);
     } else {
         // NO-SLIP BCS
-        vLft = new dirichletCC(mesh, V.Vy, 0, 0.0);
-        vRgt = new dirichletCC(mesh, V.Vy, 1, 0.0);
+        V.vLft = new dirichletCC(mesh, V.Vy, 0, 0.0);
+        V.vRgt = new dirichletCC(mesh, V.Vy, 1, 0.0);
     }
 
     // NO-PENETRATION BCS
-    vFrn = new dirichletFC(mesh, V.Vy, 2, 0.0);
-    vBak = new dirichletFC(mesh, V.Vy, 3, 0.0);
+    V.vFrn = new dirichletFC(mesh, V.Vy, 2, 0.0);
+    V.vBak = new dirichletFC(mesh, V.Vy, 3, 0.0);
 
     if (inputParams.zPer) {
         // PERIODIC BC
-        vBot = new periodicCC(mesh, V.Vy, 4);
-        vTop = new periodicCC(mesh, V.Vy, 5);
+        V.vBot = new periodicCC(mesh, V.Vy, 4);
+        V.vTop = new periodicCC(mesh, V.Vy, 5);
     } else {
         // NO-SLIP BCS
-        vBot = new dirichletCC(mesh, V.Vy, 4, 0.0);
-        vTop = new dirichletCC(mesh, V.Vy, 5, 0.0);
+        V.vBot = new dirichletCC(mesh, V.Vy, 4, 0.0);
+        V.vTop = new dirichletCC(mesh, V.Vy, 5, 0.0);
     }
 #endif
 
     if (inputParams.probType == 3) {
         // INFLOW AND OUTFLOW BCS
-        wLft = new dirichletCC(mesh, V.Vz, 0, 0.0);
-        wRgt = new neumannCC(mesh, V.Vz, 1, 0.0);
+        V.wLft = new dirichletCC(mesh, V.Vz, 0, 0.0);
+        V.wRgt = new neumannCC(mesh, V.Vz, 1, 0.0);
     } else {
         // NO-SLIP BCS
-        wLft = new dirichletCC(mesh, V.Vz, 0, 0.0);
-        wRgt = new dirichletCC(mesh, V.Vz, 1, 0.0);
+        V.wLft = new dirichletCC(mesh, V.Vz, 0, 0.0);
+        V.wRgt = new dirichletCC(mesh, V.Vz, 1, 0.0);
     }
 
 #ifndef PLANAR
     // NO-SLIP BCS
-    wFrn = new dirichletCC(mesh, V.Vz, 2, 0.0);
-    wBak = new dirichletCC(mesh, V.Vz, 3, 0.0);
+    V.wFrn = new dirichletCC(mesh, V.Vz, 2, 0.0);
+    V.wBak = new dirichletCC(mesh, V.Vz, 3, 0.0);
 #endif
 
     if (inputParams.zPer) {
         // PERIODIC BC
-        wBot = new periodicFC(mesh, V.Vz, 4);
-        wTop = new periodicFC(mesh, V.Vz, 5);
+        V.wBot = new periodicFC(mesh, V.Vz, 4);
+        V.wTop = new periodicFC(mesh, V.Vz, 5);
     } else {
         // NO-SLIP BCS
-        wBot = new dirichletFC(mesh, V.Vz, 4, 0.0);
-        wTop = new dirichletFC(mesh, V.Vz, 5, 0.0);
+        V.wBot = new dirichletFC(mesh, V.Vz, 4, 0.0);
+        V.wTop = new dirichletFC(mesh, V.Vz, 5, 0.0);
     }
-};
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions for the X-component of velocity
- *
- *          The function first calls the \ref sfield#syncData "syncData" function of the Vx field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
- *          of each boundary class object assigned to each wall.
- *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- *
- ********************************************************************************************************************************************
- */
-void hydro::imposeUBCs() {
-    V.Vx.syncData();
-
-    if (not inputParams.xPer) {
-        uLft->imposeBC();
-        uRgt->imposeBC();
-    }
-#ifndef PLANAR
-    if (not inputParams.yPer) {
-        uFrn->imposeBC();
-        uBak->imposeBC();
-    }
-#endif
-    uTop->imposeBC();
-    uBot->imposeBC();
-};
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions for the Y-component of velocity
- *
- *          The function first calls the \ref sfield#syncData "syncData" function of the Vy field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
- *          of each boundary class object assigned to each wall.
- *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- *
- ********************************************************************************************************************************************
- */
-void hydro::imposeVBCs() {
-    V.Vy.syncData();
-
-    if (not inputParams.xPer) {
-        vLft->imposeBC();
-        vRgt->imposeBC();
-    }
-#ifndef PLANAR
-    if (not inputParams.yPer) {
-        vFrn->imposeBC();
-        vBak->imposeBC();
-    }
-#endif
-    vTop->imposeBC();
-    vBot->imposeBC();
-};
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to impose the boundary conditions for the Z-component of velocity
- *
- *          The function first calls the \ref sfield#syncData "syncData" function of the Vz field to update the sub-domain pads.
- *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
- *          of each boundary class object assigned to each wall.
- *          The order of imposing boundary conditions is - left, right, front, back, bottom and top boundaries.
- *          The corner values are not being imposed specifically and is thus dependent on the above order.
- *
- ********************************************************************************************************************************************
- */
-void hydro::imposeWBCs() {
-    V.Vz.syncData();
-
-    if (not inputParams.xPer) {
-        wLft->imposeBC();
-        wRgt->imposeBC();
-    }
-#ifndef PLANAR
-    if (not inputParams.yPer) {
-        wFrn->imposeBC();
-        wBak->imposeBC();
-    }
-#endif
-    wTop->imposeBC();
-    wBot->imposeBC();
 };
 
 
@@ -466,7 +376,7 @@ void hydro::imposeWBCs() {
  * \brief   Function to test whether periodic BC is being implemented properly
  *
  *          The function populates the arrays with predetermined values at all locations.
- *          It then calls imposeUBCs, imposeVBCs and imposeWBCs functions and checks if the correct values of the functions are imposed at boundaries
+ *          It then calls imposeUBCs, imposeVBCs and imposeWBCs and checks if the correct values of the functions are imposed at boundaries
  ********************************************************************************************************************************************
  */
 real hydro::testPeriodic() { return 0; };

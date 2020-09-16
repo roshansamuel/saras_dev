@@ -49,12 +49,9 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the sfield class
  *
- *          The instance of the field class to store the data of the scalar field is initialized, and the necessary grid
- *          transformation derivatives along each direction are chosen according to the grid staggering.
- *          The arrays to store the output from various operators like derivatives, convective derivatives, etc. are also
- *          allocated.
- *          Finally, an instance of the <B>mpidata</B> class is initialized to store the sub-arrays to be send/received
- *          across the processors during MPI communication.
+ *          One instance of the field class to store the data of the scalar field is initialized.
+ *          The field is initialized with appropriate grid staggering to place the scalar on the cell centres.
+ *          The name for the vector field as given by the user is also assigned.
  *
  * \param   gridData is a const reference to the global data contained in the grid class
  * \param   fieldName is a string value set by the user to name and identify the scalar field
@@ -88,7 +85,7 @@ void sfield::computeDiff(plainsf &H) {
     derivTempF = 0.0;
     derS.calcDerivative2xx(derivTempF);
     H.F(F.fCore) += derivTempF(F.fCore);
-    
+
 #ifndef PLANAR
     derivTempF = 0.0;
     derS.calcDerivative2yy(derivTempF);
@@ -183,6 +180,33 @@ void sfield::gradient(plainvf &gradF, const vfield &V) {
 void sfield::syncData() {
     F.syncData();
 }
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to impose the boundary conditions for the scalar field
+ *
+ *          The function first calls the syncData() function of the field to update the sub-domain pads.
+ *          Then the boundary conditions are applied at the full domain boundaries by calling the imposeBC()
+ *          of each boundary class object assigned to each wall.
+ *
+ ********************************************************************************************************************************************
+ */
+void sfield::imposeBCs() {
+    F.syncData();
+
+    if (not gridData.inputParams.xPer) {
+        tLft->imposeBC();
+        tRgt->imposeBC();
+    }
+#ifndef PLANAR
+    if (not gridData.inputParams.yPer) {
+        tFrn->imposeBC();
+        tBak->imposeBC();
+    }
+#endif
+    tTop->imposeBC();
+    tBot->imposeBC();
+};
 
 /**
  ********************************************************************************************************************************************

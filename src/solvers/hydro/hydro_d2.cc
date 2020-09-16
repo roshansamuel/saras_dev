@@ -106,13 +106,13 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
     checkPeriodic();
 
     // Initialize velocity boundary conditions
-    initVBC();
+    initVBCs();
 
     // Initialize velocity forcing field
     initVForcing();
 
-    imposeUBCs();
-    imposeWBCs();
+    // Impose boundary conditions on velocity field
+    V.imposeBCs();
 }
 
 
@@ -179,6 +179,7 @@ void hydro_d2::solvePDE() {
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         timeAdvance();
+
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {
@@ -282,8 +283,7 @@ void hydro_d2::timeAdvance() {
     V -= pressureGradient;
 
     // IMPOSE BOUNDARY CONDITIONS ON V
-    imposeUBCs();
-    imposeWBCs();
+    V.imposeBCs();
 }
 
 void hydro_d2::solveVx() {
@@ -304,7 +304,7 @@ void hydro_d2::solveVx() {
 
         V.Vx.F = guessedVelocity.Vx;
 
-        imposeUBCs();
+        V.imposeVxBC();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
@@ -353,7 +353,7 @@ void hydro_d2::solveVz() {
 
         V.Vz.F = guessedVelocity.Vz;
 
-        imposeWBCs();
+        V.imposeVzBC();
 
 #pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
@@ -462,8 +462,7 @@ real hydro_d2::testPeriodic() {
         }
     }
 
-    imposeUBCs();
-    imposeWBCs();
+    V.imposeBCs();
 
     V -= nseRHS;
 
