@@ -137,7 +137,7 @@ void hydro_d3::solvePDE() {
     // Fields to be written into HDF5 file are passed to writer class as a vector
     std::vector<field> writeFields;
 
-    // Populate the vector with required scalar fields
+    // Populate the vector with required fields
     writeFields.push_back(V.Vx);
     writeFields.push_back(V.Vy);
     writeFields.push_back(V.Vz);

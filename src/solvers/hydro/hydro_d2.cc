@@ -113,6 +113,8 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
     // Impose boundary conditions on velocity field
     V.imposeBCs();
+
+    ivpSolver = new eulerCN_d2(mesh);
 }
 
 
@@ -178,7 +180,7 @@ void hydro_d2::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        timeAdvance();
+        ivpSolver.timeAdvance();
 
         if (inputParams.useCFL) {
             V.computeTStp(dt);
@@ -222,6 +224,7 @@ void hydro_d2::solvePDE() {
 }
 
 
+/*
 void hydro_d2::timeAdvance() {
     nseRHS = 0.0;
 
@@ -383,6 +386,7 @@ void hydro_d2::solveVz() {
         }
     }
 }
+*/
 
 
 real hydro_d2::testPeriodic() {

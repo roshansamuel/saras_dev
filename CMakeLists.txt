@@ -51,6 +51,7 @@ set (HEADER_DIR ${PARENT_DIR}/lib)
 
 include_directories (${HEADER_DIR}/parallel
                      ${HEADER_DIR}/boundary
+                     ${HEADER_DIR}/timestep
                      ${HEADER_DIR}/initial
                      ${HEADER_DIR}/poisson
                      ${HEADER_DIR}/force

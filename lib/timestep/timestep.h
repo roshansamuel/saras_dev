@@ -29,9 +29,9 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file hydro.h
+/*! \file timestep.h
  *
- *  \brief Class declaration of the hydro solver for both 2D and 3D cases.
+ *  \brief Class declaration of timestep
  *
  *  \author Roshan Samuel
  *  \date Nov 2019
@@ -40,64 +40,27 @@
  ********************************************************************************************************************************************
  */
 
-#ifndef HYDRO_H
-#define HYDRO_H
+#ifndef TIMESTEP_H
+#define TIMESTEP_H
 
 #include <blitz/array.h>
 
-#include "boundary.h"
-#include "parallel.h"
-#include "timestep.h"
-#include "poisson.h"
-#include "plainvf.h"
-#include "tseries.h"
-#include "writer.h"
-#include "reader.h"
-#include "probes.h"
-#include "sfield.h"
 #include "vfield.h"
-#include "parser.h"
-#include "force.h"
-#include "grid.h"
+#include "sfield.h"
+#include "plainsf.h"
+#include "plainvf.h"
 
-class hydro {
+class timestep {
     public:
-        /** The vector field that stores the velocity field */
-        vfield V;
+        vfield &V;
+        sfield &P;
 
-        /** The scalar field that stores the pressure field */
-        sfield P;
+        timestep(const grid &mesh);
 
-        hydro(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        virtual void solvePDE();
-        virtual real testPeriodic();
-
-        virtual ~hydro() { };
+        virtual void timeAdvance(vfield &uField);
 
     protected:
-        /** Integer value for the number of time-steps elapsed - it is incremented by 1 in each time-step. */
-        int timeStepCount;
-
-        /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
-        int maxIterations;
-
-        real time, dt;
-
-        real hx, hy, hz;
-        real hx2, hz2, hz2hx2;
-        real hx2hy2, hy2hz2, hx2hy2hz2;
-
         const grid &mesh;
-        const parser &inputParams;
-
-        const real inverseRe;
-
-        /** Instance of the \ref probe class to collect data from probes in the domain. */
-        probes *dataProbe;
-
-        /** Instance of the \ref parallel class that holds the MPI-related data like rank, xRank, etc. */
-        parallel &mpiData;
 
         /** Plain scalar field into which the pressure correction is calculated and written by the Poisson solver */
         plainsf Pp;
@@ -112,91 +75,60 @@ class hydro {
         plainvf pressureGradient;
         /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
         plainvf guessedVelocity;
-
-        void checkPeriodic();
-        void setCoefficients();
-
-        void initVBCs();
-        void initVForcing();
-
-        virtual void solveVx();
-        virtual void solveVy();
-        virtual void solveVz();
-
-        virtual void timeAdvance();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class hydro hydro.h "lib/hydro.h"
- *  \brief The base class hydro to solve the incompressible Navier-Stokes equations
+ *  \class timestep timestep.h "lib/timestep/timestep.h"
+ *  \brief Contains all the global variables related to time-advancing the solution by one time-step
  *
- *  The class initializes and stores the velocity vector field and the pressure scalar field along with a few auxilliary
- *  fields to solve the PDE.
- *  It solves the NSE using the \ref solvePDE function from within which the implicit Crank-Nicholson method is used
- *  to solve the PDE.
  ********************************************************************************************************************************************
  */
 
-class hydro_d2: public hydro {
+class eulerCN_d2: public timestep {
     public:
-        hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        real testPeriodic();
-
-        ~hydro_d2();
-
-    private:
-        timestep *ivpSolver;
-        //multigrid_d2 mgSolver;
-
-        //void solveVx();
-        //void solveVz();
-
-        //void timeAdvance();
-};
-
-/**
- ********************************************************************************************************************************************
- *  \class hydro_d2 hydro.h "lib/hydro.h"
- *  \brief The derived class from the hydro base class to solve the incompressible NSE in 2D
- *
- *  Since the class is instantiated when solving the NSE in 2D, the y-direction component of the grid is supressed.
- *  Consequently, the boundary conditions are imposed only on 4 sides of the domain.
- ********************************************************************************************************************************************
- */
-
-class hydro_d3: public hydro {
-    public:
-        hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        real testPeriodic();
-
-        ~hydro_d3();
-
-    private:
-        multigrid_d3 mgSolver;
-
-#ifdef TIME_RUN
-        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
-#endif
-
-        void solveVx();
-        void solveVy();
-        void solveVz();
+        eulerCN_d2(const grid &mesh, vfield &V, sfield &P);
 
         void timeAdvance();
+
+    private:
+        multigrid_d2 mgSolver;
+
+        void solveVx();
+        void solveVz();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class hydro_d3 hydro.h "lib/hydro.h"
- *  \brief The derived class from the hydro base class to solve the incompressible NSE in 3D
+ *  \class eulerCN_d2 timestep.h "lib/timestep/timestep.h"
+ *  \brief The derived class from timestep to advance the 2D solution using explicit Euler and implicit Crank-Nicholson methods
  *
- *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Moreover, it imposes boundary conditions on all the three faces of the computational domain.
+ ********************************************************************************************************************************************
+ */
+
+//class eulerCN_d3: public timestep {
+//    public:
+//        eulerCN(const grid &mesh);
+//
+//        void timeAdvance(vfield &uField);
+//
+//    private:
+//        multigrid_d3 mgSolver;
+//
+//#ifdef TIME_RUN
+//        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
+//#endif
+//
+//        void solveVx();
+//        void solveVy();
+//        void solveVz();
+//};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class eulerCN_d3 timestep.h "lib/timestep/timestep.h"
+ *  \brief The derived class from timestep to advance the 3D solution using explicit Euler and implicit Crank-Nicholson methods
+ *
  ********************************************************************************************************************************************
  */
 
