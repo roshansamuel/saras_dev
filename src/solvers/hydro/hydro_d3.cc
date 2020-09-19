@@ -259,7 +259,7 @@ void hydro_d3::timeAdvance() {
 
     nseRHS = 0.0;
 
-    // CALCULATE RHS OF NSE FROM THE NON LINEAR TERMS AND HALF THE VISCOUS TERMS
+    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.computeDiff(nseRHS);
@@ -271,7 +271,7 @@ void hydro_d3::timeAdvance() {
     nseRHS *= inverseRe;
 #endif
 
-    // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
+    // Compute the non-linear term and subtract it from the RHS
 #ifndef TIME_RUN
     V.computeNLin(V, nseRHS);
 #else
@@ -283,16 +283,16 @@ void hydro_d3::timeAdvance() {
     gettimeofday(&begin, NULL);
 #endif
 
+    // Add the velocity forcing term
     V.vForcing->addForcing(nseRHS);
 
+    // Subtract the pressure gradient term
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);
-
-    // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
     nseRHS -= pressureGradient;
-    nseRHS *= dt;
 
-    // ADD THE CALCULATED VALUES TO THE VELOCITY AT START OF TIME-STEP
+    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
+    nseRHS *= dt;
     nseRHS += V;
 
 #ifdef TIME_RUN
@@ -300,10 +300,10 @@ void hydro_d3::timeAdvance() {
     intr_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-    // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
     nseRHS.syncData();
 
-    // CALCULATE V IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
+    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
 #endif
@@ -316,7 +316,7 @@ void hydro_d3::timeAdvance() {
     impl_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-    // CALCULATE THE RHS FOR THE POISSON SOLVER FROM THE GUESSED VALUES OF VELOCITY IN V
+    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.divergence(mgRHS, P);
@@ -334,7 +334,7 @@ void hydro_d3::timeAdvance() {
     mgRHS.F = 1.0;
 #endif
 
-    // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
+    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     mgSolver.mgSolve(Pp, mgRHS);
@@ -344,7 +344,7 @@ void hydro_d3::timeAdvance() {
     mgSolver.mgSolve(Pp, mgRHS);
 #endif
 
-    // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
+    // Synchronise the pressure correction term across processors
     Pp.syncData();
 
     // IF THE POISSON SOLVER IS BEING TESTED, THE PRESSURE IS SET TO ZERO.
@@ -354,15 +354,15 @@ void hydro_d3::timeAdvance() {
     P.F = 0.0;
 #endif
 
-    // ADD THE PRESSURE CORRECTION CALCULATED FROM THE POISSON SOLVER TO P
+    // Add the pressure correction term to the pressure field of previous time-step, P
     P += Pp;
 
-    // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
+    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
     Pp.gradient(pressureGradient, V);
     pressureGradient *= dt;
     V -= pressureGradient;
 
-    // IMPOSE BOUNDARY CONDITIONS ON V
+    // Impose boundary conditions on the updated velocity field, V
     V.imposeBCs();
 }
 
