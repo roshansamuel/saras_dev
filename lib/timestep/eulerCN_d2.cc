@@ -51,15 +51,14 @@
  * \param   mesh is a const reference to the global data contained in the grid class.
  ********************************************************************************************************************************************
  */
-eulerCN_d2::eulerCN_d2(const grid &mesh, vfield &V, sfield &P):
-    V(V), P(P),
-    timestep(mesh),
-    Pp(mesh, P),
-    mgRHS(mesh, P),
-    nseRHS(mesh, V),
+eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
+    timestep(mesh, dt, V, P),
+    guessedVelocity(mesh, V),
     velocityLaplacian(mesh, V),
-    pressureGradient(mesh, V),
-    guessedVelocity(mesh, V) { }
+    mgSolver(mesh, mesh.inputParams)
+{
+    maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+}
 
 
 /**
@@ -136,27 +135,27 @@ void eulerCN_d2::timeAdvance() {
 }
 
 
-void hydro_d2::solveVx() {
+void eulerCN_d2::solveVx() {
     int iterCount = 0;
     real maxError = 0.0;
 
     while (true) {
         int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
                                                    hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                                 dt / ( hz2hx2 * 2.0 * inputParams.Re) + nseRHS.Vx(iX, iY, iZ)) /
-                             (1.0 + dt * ((hz2 * mesh.xix2Colloc(iX) + hx2 * mesh.ztz2Staggr(iZ)))/(inputParams.Re * hz2hx2));
+                                 dt / ( hz2hx2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vx(iX, iY, iZ)) /
+                             (1.0 + dt * ((hz2 * mesh.xix2Colloc(iX) + hx2 * mesh.ztz2Staggr(iZ)))/(mesh.inputParams.Re * hz2hx2));
             }
         }
 
         V.Vx.F = guessedVelocity.Vx;
 
-        imposeUBCs();
+        V.imposeVxBC();
 
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                 velocityLaplacian.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
@@ -169,7 +168,7 @@ void hydro_d2::solveVx() {
 
         maxError = velocityLaplacian.vxMax();
 
-        if (maxError < inputParams.cnTolerance) {
+        if (maxError < mesh.inputParams.cnTolerance) {
             break;
         }
 
@@ -186,27 +185,27 @@ void hydro_d2::solveVx() {
 }
 
 
-void hydro_d2::solveVz() {
+void eulerCN_d2::solveVz() {
     int iterCount = 0;
     real maxError = 0.0;
 
     while (true) {
         int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
                                                    hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                                    dt / ( hz2hx2 * 2.0 * inputParams.Re) + nseRHS.Vz(iX, iY, iZ)) /
-                             (1.0 + dt * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/(inputParams.Re * hz2hx2));
+                                    dt / ( hz2hx2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vz(iX, iY, iZ)) /
+                             (1.0 + dt * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/(mesh.inputParams.Re * hz2hx2));
             }
         }
 
         V.Vz.F = guessedVelocity.Vz;
 
-        imposeWBCs();
+        V.imposeVzBC();
 
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                 velocityLaplacian.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
@@ -219,7 +218,7 @@ void hydro_d2::solveVz() {
 
         maxError = velocityLaplacian.vzMax();
 
-        if (maxError < inputParams.cnTolerance) {
+        if (maxError < mesh.inputParams.cnTolerance) {
             break;
         }
 
@@ -234,3 +233,32 @@ void hydro_d2::solveVz() {
         }
     }
 }
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to set the coefficients used for solving the implicit equations of U, V and W
+ *
+ *          The function assigns values to the variables \ref hx, \ref hy, etc.
+ *          These coefficients are repeatedly used at many places in the iterative solver for implicit calculation of velocities.
+ ********************************************************************************************************************************************
+ */
+void eulerCN_d2::setCoefficients() {
+    hx = mesh.dXi;
+    hz = mesh.dZt;
+
+    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
+
+#ifdef PLANAR
+    hx2 = pow(mesh.dXi, 2.0);
+    hz2 = pow(mesh.dZt, 2.0);
+
+#else
+    hy = mesh.dEt;
+
+    hx2hy2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
+    hy2hz2 = pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+
+    hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+#endif
+};

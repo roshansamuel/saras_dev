@@ -45,22 +45,23 @@
 
 #include <blitz/array.h>
 
-#include "vfield.h"
-#include "sfield.h"
-#include "plainsf.h"
-#include "plainvf.h"
+#include "force.h"
+#include "poisson.h"
 
 class timestep {
     public:
-        vfield &V;
-        sfield &P;
+        timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
-        timestep(const grid &mesh);
-
-        virtual void timeAdvance(vfield &uField);
+        virtual void timeAdvance();
 
     protected:
         const grid &mesh;
+
+        const real &dt;
+        real inverseRe;
+
+        vfield &V;
+        sfield &P;
 
         /** Plain scalar field into which the pressure correction is calculated and written by the Poisson solver */
         plainsf Pp;
@@ -69,12 +70,8 @@ class timestep {
 
         /** Plain vector field into which the RHS of the Navier-Stokes equation is written and stored */
         plainvf nseRHS;
-        /** Plain vector field into which the RHS of the implicit equation for velocities are calculated during iterative solving. */
-        plainvf velocityLaplacian;
         /** Plain vector field which stores the pressure gradient term. */
         plainvf pressureGradient;
-        /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
-        plainvf guessedVelocity;
 };
 
 /**
@@ -87,15 +84,30 @@ class timestep {
 
 class eulerCN_d2: public timestep {
     public:
-        eulerCN_d2(const grid &mesh, vfield &V, sfield &P);
+        eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
         void timeAdvance();
 
     private:
+        /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
+        int maxIterations;
+
+        real hx, hy, hz;
+        real hx2, hz2, hz2hx2;
+        real hx2hy2, hy2hz2, hx2hy2hz2;
+
+        /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
+        plainvf guessedVelocity;
+
+        /** Plain vector field into which the RHS of the implicit equation for velocities are calculated during iterative solving. */
+        plainvf velocityLaplacian;
+
         multigrid_d2 mgSolver;
 
         void solveVx();
         void solveVz();
+
+        void setCoefficients();
 };
 
 /**

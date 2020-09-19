@@ -58,8 +58,8 @@
  ********************************************************************************************************************************************
  */
 hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam):
-            hydro(mesh, solParam, mpiParam),
-            mgSolver(mesh, inputParams)
+            hydro(mesh, solParam, mpiParam)
+            //mgSolver(mesh, inputParams)
 {
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
@@ -114,7 +114,7 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
     // Impose boundary conditions on velocity field
     V.imposeBCs();
 
-    ivpSolver = new eulerCN_d2(mesh);
+    ivpSolver = new eulerCN_d2(mesh, dt, V, P);
 }
 
 
@@ -180,7 +180,7 @@ void hydro_d2::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        ivpSolver.timeAdvance();
+        ivpSolver->timeAdvance();
 
         if (inputParams.useCFL) {
             V.computeTStp(dt);

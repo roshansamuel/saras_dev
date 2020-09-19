@@ -84,6 +84,7 @@ class hydro {
 
         real time, dt;
 
+        // The below variables can be removed if timestep class is working
         real hx, hy, hz;
         real hx2, hz2, hz2hx2;
         real hx2hy2, hy2hz2, hx2hy2hz2;

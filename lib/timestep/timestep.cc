@@ -53,7 +53,16 @@
  * \param   mesh is a const reference to the global data contained in the grid class
  ********************************************************************************************************************************************
  */
-timestep::timestep(const grid &mesh): mesh(mesh) { }
+timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
+    mesh(mesh),
+    dt(dt), V(V), P(P),
+    Pp(mesh, P),
+    mgRHS(mesh, P),
+    nseRHS(mesh, V),
+    pressureGradient(mesh, V)
+{
+    inverseRe = 1.0/mesh.inputParams.Re;
+}
 
 /**
  ********************************************************************************************************************************************
@@ -62,4 +71,4 @@ timestep::timestep(const grid &mesh): mesh(mesh) { }
  * \param   uField is a reference to the solution velocity vector field to be advanced
  ********************************************************************************************************************************************
  */
-void timestep::timeAdvance(vfield &uField) { };
+void timestep::timeAdvance() { };
