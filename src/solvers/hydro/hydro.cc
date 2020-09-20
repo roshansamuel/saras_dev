@@ -62,7 +62,6 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             P(mesh, "P"),
             mesh(mesh),
             inputParams(solParam),
-            inverseRe(1.0/inputParams.Re),
             mpiData(mpiParam),
             Pp(mesh, P),
             mgRHS(mesh, P),

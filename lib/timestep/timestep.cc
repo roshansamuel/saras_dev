@@ -61,7 +61,7 @@ timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
     nseRHS(mesh, V),
     pressureGradient(mesh, V)
 {
-    inverseRe = 1.0/mesh.inputParams.Re;
+    nu = 1.0/mesh.inputParams.Re;
 }
 
 /**

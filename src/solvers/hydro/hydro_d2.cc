@@ -49,7 +49,6 @@
  *
  *          The constructor passes its arguments to the base hydro class and then initializes all the scalar and
  *          vector fields necessary for solving the NS equations.
- *          The various coefficients for solving the equations are also set by a call to the \ref setCoefficients function.
  *          Based on the problem type specified by the user in the parameters file, and stored by the \ref parser class as
  *          \ref parser#probType "probType", the appropriate boundary conditions are specified.
  *
@@ -60,9 +59,6 @@
 hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam):
             hydro(mesh, solParam, mpiParam)
 {
-    // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
-    setCoefficients();
-
     // INITIALIZE VARIABLES
     if (inputParams.restartFlag) {
         // Fields to be read from HDF5 file are passed to reader class as a vector
@@ -222,171 +218,6 @@ void hydro_d2::solvePDE() {
         }
     }
 }
-
-
-/*
-void hydro_d2::timeAdvance() {
-    nseRHS = 0.0;
-
-    // CALCULATE RHS OF NSE FROM THE NON LINEAR TERMS AND HALF THE VISCOUS TERMS
-    V.computeDiff(nseRHS);
-    nseRHS *= inverseRe;
-
-    // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
-    V.computeNLin(V, nseRHS);
-
-    V.vForcing->addForcing(nseRHS);
-
-    pressureGradient = 0.0;
-    P.gradient(pressureGradient, V);
-
-    // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
-    nseRHS -= pressureGradient;
-    nseRHS *= dt;
-
-    // ADD THE CALCULATED VALUES TO THE VELOCITY AT START OF TIME-STEP
-    nseRHS += V;
-
-    // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
-    nseRHS.syncData();
-
-    // CALCULATE V IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
-    solveVx();
-    solveVz();
-
-    // CALCULATE THE RHS FOR THE POISSON SOLVER FROM THE GUESSED VALUES OF VELOCITY IN V
-    V.divergence(mgRHS, P);
-    mgRHS *= 1.0/dt;
-
-    // IF THE POISSON SOLVER IS BEING TESTED, THE RHS IS SET TO ONE.
-    // THIS IS FOR TESTING ONLY AND A SINGLE TIME ADVANCE IS PERFORMED IN THIS TEST
-#ifdef TEST_POISSON
-    mgRHS.F = 1.0;
-#endif
-
-    // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
-    mgSolver.mgSolve(Pp, mgRHS);
-
-    // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
-    Pp.syncData();
-
-    // IF THE POISSON SOLVER IS BEING TESTED, THE PRESSURE IS SET TO ZERO.
-    // THIS WAY, AFTER THE SOLUTION OF MG SOLVER, Pp, IS DIRECTLY WRITTEN INTO P AND AVAILABLE FOR PLOTTING
-    // THIS IS FOR TESTING ONLY AND A SINGLE TIME ADVANCE IS PERFORMED IN THIS TEST
-#ifdef TEST_POISSON
-    P.F = 0.0;
-#endif
-
-    // ADD THE PRESSURE CORRECTION CALCULATED FROM THE POISSON SOLVER TO P
-    P += Pp;
-
-    // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
-    Pp.gradient(pressureGradient, V);
-    pressureGradient *= dt;
-    V -= pressureGradient;
-
-    // IMPOSE BOUNDARY CONDITIONS ON V
-    V.imposeBCs();
-}
-
-void hydro_d2::solveVx() {
-    int iterCount = 0;
-    real maxError = 0.0;
-
-    while (true) {
-        int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
-                                                   hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                                 dt / ( hz2hx2 * 2.0 * inputParams.Re) + nseRHS.Vx(iX, iY, iZ)) /
-                             (1.0 + dt * ((hz2 * mesh.xix2Colloc(iX) + hx2 * mesh.ztz2Staggr(iZ)))/(inputParams.Re * hz2hx2));
-            }
-        }
-
-        V.Vx.F = guessedVelocity.Vx;
-
-        V.imposeVxBC();
-
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                velocityLaplacian.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
-                          mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
-                          mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2));
-            }
-        }
-
-        velocityLaplacian.Vx(V.Vx.fBulk) = abs(velocityLaplacian.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
-
-        maxError = velocityLaplacian.vxMax();
-
-        if (maxError < inputParams.cnTolerance) {
-            break;
-        }
-
-        iterCount += 1;
-
-        if (iterCount > maxIterations) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << "ERROR: Jacobi iterations for solution of Vx not converging. Aborting" << std::endl;
-            }
-            MPI_Finalize();
-            exit(0);
-        }
-    }
-}
-
-void hydro_d2::solveVz() {
-    int iterCount = 0;
-    real maxError = 0.0;
-
-    while (true) {
-        int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
-                                                   hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                                    dt / ( hz2hx2 * 2.0 * inputParams.Re) + nseRHS.Vz(iX, iY, iZ)) /
-                             (1.0 + dt * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/(inputParams.Re * hz2hx2));
-            }
-        }
-
-        V.Vz.F = guessedVelocity.Vz;
-
-        V.imposeVzBC();
-
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                velocityLaplacian.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
-                          mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
-                          mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2));
-            }
-        }
-
-        velocityLaplacian.Vz(V.Vz.fBulk) = abs(velocityLaplacian.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
-
-        maxError = velocityLaplacian.vzMax();
-
-        if (maxError < inputParams.cnTolerance) {
-            break;
-        }
-
-        iterCount += 1;
-
-        if (iterCount > maxIterations) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << "ERROR: Jacobi iterations for solution of Vz not converging. Aborting" << std::endl;
-            }
-            MPI_Finalize();
-            exit(0);
-        }
-    }
-}
-*/
 
 
 real hydro_d2::testPeriodic() {

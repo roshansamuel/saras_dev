@@ -92,8 +92,6 @@ class hydro {
         const grid &mesh;
         const parser &inputParams;
 
-        const real inverseRe;
-
         /** Instance of the \ref probe class to collect data from probes in the domain. */
         probes *dataProbe;
 
@@ -150,12 +148,7 @@ class hydro_d2: public hydro {
 
     private:
         timestep *ivpSolver;
-        //multigrid_d2 mgSolver;
 
-        //void solveVx();
-        //void solveVz();
-
-        //void timeAdvance();
 };
 
 /**
@@ -179,17 +172,10 @@ class hydro_d3: public hydro {
 
     private:
         timestep *ivpSolver;
-        //multigrid_d3 mgSolver;
 
 #ifdef TIME_RUN
-        //real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
+        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
-
-        //void solveVx();
-        //void solveVy();
-        //void solveVz();
-
-        //void timeAdvance();
 };
 
 /**

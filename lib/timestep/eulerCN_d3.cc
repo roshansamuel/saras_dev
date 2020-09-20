@@ -54,7 +54,6 @@
 eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
     timestep(mesh, dt, V, P),
     guessedVelocity(mesh, V),
-    velocityLaplacian(mesh, V),
     mgSolver(mesh, mesh.inputParams)
 {
     setCoefficients();
@@ -79,19 +78,19 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 
     nseRHS = 0.0;
 
-    // CALCULATE RHS OF NSE FROM THE NON LINEAR TERMS AND HALF THE VISCOUS TERMS
+    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.computeDiff(nseRHS);
-    nseRHS *= inverseRe;
+    nseRHS *= nu;
     gettimeofday(&end, NULL);
     visc_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #else
     V.computeDiff(nseRHS);
-    nseRHS *= inverseRe;
+    nseRHS *= nu;
 #endif
 
-    // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
+    // Compute the non-linear term and subtract it from the RHS
 #ifndef TIME_RUN
     V.computeNLin(V, nseRHS);
 #else
@@ -103,16 +102,16 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     gettimeofday(&begin, NULL);
 #endif
 
+    // Add the velocity forcing term
     V.vForcing->addForcing(nseRHS);
 
+    // Subtract the pressure gradient term
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);
-
-    // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
     nseRHS -= pressureGradient;
-    nseRHS *= dt;
 
-    // ADD THE CALCULATED VALUES TO THE VELOCITY AT START OF TIME-STEP
+    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
+    nseRHS *= dt;
     nseRHS += V;
 
 #ifdef TIME_RUN
@@ -120,10 +119,10 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     intr_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-    // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
     nseRHS.syncData();
 
-    // CALCULATE V IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
+    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
 #endif
@@ -136,7 +135,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     impl_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-    // CALCULATE THE RHS FOR THE POISSON SOLVER FROM THE GUESSED VALUES OF VELOCITY IN V
+    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.divergence(mgRHS, P);
@@ -154,7 +153,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     mgRHS.F = 1.0;
 #endif
 
-    // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
+    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     mgSolver.mgSolve(Pp, mgRHS);
@@ -164,7 +163,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     mgSolver.mgSolve(Pp, mgRHS);
 #endif
 
-    // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
+    // Synchronise the pressure correction term across processors
     Pp.syncData();
 
     // IF THE POISSON SOLVER IS BEING TESTED, THE PRESSURE IS SET TO ZERO.
@@ -174,15 +173,15 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     P.F = 0.0;
 #endif
 
-    // ADD THE PRESSURE CORRECTION CALCULATED FROM THE POISSON SOLVER TO P
+    // Add the pressure correction term to the pressure field of previous time-step, P
     P += Pp;
 
-    // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
+    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
     Pp.gradient(pressureGradient, V);
     pressureGradient *= dt;
     V -= pressureGradient;
 
-    // IMPOSE BOUNDARY CONDITIONS ON V
+    // Impose boundary conditions on the updated velocity field, V
     V.imposeBCs();
 }
 
@@ -199,10 +198,8 @@ void eulerCN_d3::solveVx(vfield &V) {
                     guessedVelocity.Vx(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
                                                        hz2hx2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
                                                        hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                                     dt / ( hx2hy2hz2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vx(iX, iY, iZ)) /
-                                 (1.0 + dt * ((hy2hz2 * mesh.xix2Colloc(iX) +
-                                               hz2hx2 * mesh.ety2Staggr(iY) +
-                                               hx2hy2 * mesh.ztz2Staggr(iZ)))/(mesh.inputParams.Re * hx2hy2hz2));
+                            dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vx(iX, iY, iZ)) /
+                     (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Colloc(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
                 }
             }
         }
@@ -215,7 +212,7 @@ void eulerCN_d3::solveVx(vfield &V) {
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iY = V.Vx.fBulk.lbound(1); iY <= V.Vx.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                    velocityLaplacian.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
+                    guessedVelocity.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
                               mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
                               mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY-1, iZ)) / (hy2) +
                               mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2));
@@ -223,9 +220,9 @@ void eulerCN_d3::solveVx(vfield &V) {
             }
         }
 
-        velocityLaplacian.Vx(V.Vx.fBulk) = abs(velocityLaplacian.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
+        guessedVelocity.Vx(V.Vx.fBulk) = abs(guessedVelocity.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
 
-        maxError = velocityLaplacian.vxMax();
+        maxError = guessedVelocity.vxMax();
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -256,10 +253,8 @@ void eulerCN_d3::solveVy(vfield &V) {
                     guessedVelocity.Vy(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
                                                        hz2hx2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
                                                        hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1))) *
-                                     dt / ( hx2hy2hz2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vy(iX, iY, iZ)) /
-                                 (1.0 + dt * ((hy2hz2 * mesh.xix2Staggr(iX) +
-                                               hz2hx2 * mesh.ety2Colloc(iY) +
-                                               hx2hy2 * mesh.ztz2Staggr(iZ)))/(mesh.inputParams.Re * hx2hy2hz2));
+                            dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vy(iX, iY, iZ)) /
+                     (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Colloc(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
                 }
             }
         }
@@ -272,7 +267,7 @@ void eulerCN_d3::solveVy(vfield &V) {
         for (int iX = V.Vy.fBulk.lbound(0); iX <= V.Vy.fBulk.ubound(0); iX++) {
             for (int iY = V.Vy.fBulk.lbound(1); iY <= V.Vy.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vy.fBulk.lbound(2); iZ <= V.Vy.fBulk.ubound(2); iZ++) {
-                    velocityLaplacian.Vy(iX, iY, iZ) = V.Vy.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
+                    guessedVelocity.Vy(iX, iY, iZ) = V.Vy.F(iX, iY, iZ) - 0.5 * dt * nu * (
                               mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) / (hx2) +
                               mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY-1, iZ)) / (hy2) +
                               mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY, iZ-1)) / (hz2));
@@ -280,9 +275,9 @@ void eulerCN_d3::solveVy(vfield &V) {
             }
         }
 
-        velocityLaplacian.Vy(V.Vy.fBulk) = abs(velocityLaplacian.Vy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
+        guessedVelocity.Vy(V.Vy.fBulk) = abs(guessedVelocity.Vy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
 
-        maxError = velocityLaplacian.vyMax();
+        maxError = guessedVelocity.vyMax();
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -313,10 +308,8 @@ void eulerCN_d3::solveVz(vfield &V) {
                     guessedVelocity.Vz(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
                                                        hz2hx2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
                                                        hx2hy2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                                     dt / ( hx2hy2hz2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vz(iX, iY, iZ)) /
-                                 (1.0 + dt * ((hy2hz2 * mesh.xix2Staggr(iX) +
-                                               hz2hx2 * mesh.ety2Staggr(iY) +
-                                               hx2hy2 * mesh.ztz2Colloc(iZ)))/(mesh.inputParams.Re * hx2hy2hz2));
+                            dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vz(iX, iY, iZ)) /
+                     (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Colloc(iZ)))/hx2hy2hz2);
                 }
             }
         }
@@ -329,7 +322,7 @@ void eulerCN_d3::solveVz(vfield &V) {
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iY = V.Vz.fBulk.lbound(1); iY <= V.Vz.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                    velocityLaplacian.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
+                    guessedVelocity.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
                               mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
                               mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY-1, iZ)) / (hy2) +
                               mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2));
@@ -337,9 +330,9 @@ void eulerCN_d3::solveVz(vfield &V) {
             }
         }
 
-        velocityLaplacian.Vz(V.Vz.fBulk) = abs(velocityLaplacian.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
+        guessedVelocity.Vz(V.Vz.fBulk) = abs(guessedVelocity.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
 
-        maxError = velocityLaplacian.vzMax();
+        maxError = guessedVelocity.vzMax();
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;

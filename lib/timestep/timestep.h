@@ -50,6 +50,8 @@
 
 class timestep {
     public:
+        real nu, kappa;
+
         timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
         virtual void timeAdvance(vfield &V, sfield &P);
@@ -58,8 +60,6 @@ class timestep {
         const real &dt;
 
         const grid &mesh;
-
-        real inverseRe;
 
         /** Plain scalar field into which the pressure correction is calculated and written by the Poisson solver */
         plainsf Pp;
@@ -94,9 +94,6 @@ class eulerCN_d2: public timestep {
 
         /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
         plainvf guessedVelocity;
-
-        /** Plain vector field into which the RHS of the implicit equation for velocities are calculated during iterative solving. */
-        plainvf velocityLaplacian;
 
         multigrid_d2 mgSolver;
 
@@ -133,9 +130,6 @@ class eulerCN_d3: public timestep {
 
         /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
         plainvf guessedVelocity;
-
-        /** Plain vector field into which the RHS of the implicit equation for velocities are calculated during iterative solving. */
-        plainvf velocityLaplacian;
 
         multigrid_d3 mgSolver;
 
