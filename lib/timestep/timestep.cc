@@ -54,8 +54,8 @@
  ********************************************************************************************************************************************
  */
 timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
+    dt(dt),
     mesh(mesh),
-    dt(dt), V(V), P(P),
     Pp(mesh, P),
     mgRHS(mesh, P),
     nseRHS(mesh, V),
@@ -71,4 +71,4 @@ timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
  * \param   uField is a reference to the solution velocity vector field to be advanced
  ********************************************************************************************************************************************
  */
-void timestep::timeAdvance() { };
+void timestep::timeAdvance(vfield &V, sfield &P) { };

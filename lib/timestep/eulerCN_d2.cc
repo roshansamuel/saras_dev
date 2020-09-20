@@ -57,6 +57,8 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
     velocityLaplacian(mesh, V),
     mgSolver(mesh, mesh.inputParams)
 {
+    setCoefficients();
+
     maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
 }
 
@@ -70,7 +72,7 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
  *
  ********************************************************************************************************************************************
  */
-void eulerCN_d2::timeAdvance() {
+void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
     nseRHS = 0.0;
 
     // CALCULATE RHS OF NSE FROM THE NON LINEAR TERMS AND HALF THE VISCOUS TERMS
@@ -96,8 +98,8 @@ void eulerCN_d2::timeAdvance() {
     nseRHS.syncData();
 
     // CALCULATE V IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
-    solveVx();
-    solveVz();
+    solveVx(V);
+    solveVz(V);
 
     // CALCULATE THE RHS FOR THE POISSON SOLVER FROM THE GUESSED VALUES OF VELOCITY IN V
     V.divergence(mgRHS, P);
@@ -135,13 +137,13 @@ void eulerCN_d2::timeAdvance() {
 }
 
 
-void eulerCN_d2::solveVx() {
+void eulerCN_d2::solveVx(vfield &V) {
     int iterCount = 0;
     real maxError = 0.0;
 
     while (true) {
         int iY = 0;
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
@@ -155,7 +157,7 @@ void eulerCN_d2::solveVx() {
 
         V.imposeVxBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                 velocityLaplacian.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
@@ -185,13 +187,13 @@ void eulerCN_d2::solveVx() {
 }
 
 
-void eulerCN_d2::solveVz() {
+void eulerCN_d2::solveVz(vfield &V) {
     int iterCount = 0;
     real maxError = 0.0;
 
     while (true) {
         int iY = 0;
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                 guessedVelocity.Vz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
@@ -205,7 +207,7 @@ void eulerCN_d2::solveVz() {
 
         V.imposeVzBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                 velocityLaplacian.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * inverseRe * (
@@ -244,21 +246,8 @@ void eulerCN_d2::solveVz() {
  ********************************************************************************************************************************************
  */
 void eulerCN_d2::setCoefficients() {
-    hx = mesh.dXi;
-    hz = mesh.dZt;
-
-    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
-
-#ifdef PLANAR
     hx2 = pow(mesh.dXi, 2.0);
     hz2 = pow(mesh.dZt, 2.0);
 
-#else
-    hy = mesh.dEt;
-
-    hx2hy2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
-    hy2hz2 = pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-
-    hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-#endif
+    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
 };

@@ -52,16 +52,14 @@ class timestep {
     public:
         timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
-        virtual void timeAdvance();
+        virtual void timeAdvance(vfield &V, sfield &P);
 
     protected:
+        const real &dt;
+
         const grid &mesh;
 
-        const real &dt;
         real inverseRe;
-
-        vfield &V;
-        sfield &P;
 
         /** Plain scalar field into which the pressure correction is calculated and written by the Poisson solver */
         plainsf Pp;
@@ -86,15 +84,13 @@ class eulerCN_d2: public timestep {
     public:
         eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
-        void timeAdvance();
+        void timeAdvance(vfield &V, sfield &P);
 
     private:
         /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
         int maxIterations;
 
-        real hx, hy, hz;
         real hx2, hz2, hz2hx2;
-        real hx2hy2, hy2hz2, hx2hy2hz2;
 
         /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
         plainvf guessedVelocity;
@@ -104,8 +100,8 @@ class eulerCN_d2: public timestep {
 
         multigrid_d2 mgSolver;
 
-        void solveVx();
-        void solveVz();
+        void solveVx(vfield &V);
+        void solveVz(vfield &V);
 
         void setCoefficients();
 };
@@ -118,23 +114,37 @@ class eulerCN_d2: public timestep {
  ********************************************************************************************************************************************
  */
 
-//class eulerCN_d3: public timestep {
-//    public:
-//        eulerCN(const grid &mesh);
-//
-//        void timeAdvance(vfield &uField);
-//
-//    private:
-//        multigrid_d3 mgSolver;
-//
-//#ifdef TIME_RUN
-//        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
-//#endif
-//
-//        void solveVx();
-//        void solveVy();
-//        void solveVz();
-//};
+class eulerCN_d3: public timestep {
+    public:
+        eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P);
+
+        void timeAdvance(vfield &V, sfield &P);
+
+    private:
+        /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
+        int maxIterations;
+
+        real hx2, hy2, hz2;
+        real hx2hy2, hz2hx2, hy2hz2, hx2hy2hz2;
+
+#ifdef TIME_RUN
+        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
+#endif
+
+        /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
+        plainvf guessedVelocity;
+
+        /** Plain vector field into which the RHS of the implicit equation for velocities are calculated during iterative solving. */
+        plainvf velocityLaplacian;
+
+        multigrid_d3 mgSolver;
+
+        void solveVx(vfield &V);
+        void solveVy(vfield &V);
+        void solveVz(vfield &V);
+
+        void setCoefficients();
+};
 
 /**
  ********************************************************************************************************************************************

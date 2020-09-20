@@ -61,8 +61,7 @@
  ********************************************************************************************************************************************
  */
 hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam):
-            hydro(mesh, solParam, mpiParam),
-            mgSolver(mesh, inputParams)
+            hydro(mesh, solParam, mpiParam)
 {
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
@@ -117,6 +116,9 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
     // Impose boundary conditions on velocity field
     V.imposeBCs();
+
+    // Initialize semi-implicit Euler-CN time-stepping method
+    ivpSolver = new eulerCN_d3(mesh, dt, V, P);
 }
 
 
@@ -195,7 +197,8 @@ void hydro_d3::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        timeAdvance();
+        ivpSolver->timeAdvance(V, P);
+
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {
@@ -252,6 +255,7 @@ void hydro_d3::solvePDE() {
 }
 
 
+/*
 void hydro_d3::timeAdvance() {
 #ifdef TIME_RUN
     struct timeval begin, end;
@@ -533,6 +537,7 @@ void hydro_d3::solveVz() {
         }
     }
 }
+*/
 
 
 real hydro_d3::testPeriodic() {

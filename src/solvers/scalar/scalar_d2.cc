@@ -166,6 +166,7 @@ void scalar_d2::solvePDE() {
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         timeAdvance();
+
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {
@@ -226,7 +227,7 @@ void scalar_d2::timeAdvance() {
 
     //ADD VELOCITY FORCING TO THE RHS
     V.vForcing->addForcing(nseRHS);
-    
+
     // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);

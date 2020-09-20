@@ -178,17 +178,18 @@ class hydro_d3: public hydro {
         ~hydro_d3();
 
     private:
-        multigrid_d3 mgSolver;
+        timestep *ivpSolver;
+        //multigrid_d3 mgSolver;
 
 #ifdef TIME_RUN
-        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
+        //real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
 
-        void solveVx();
-        void solveVy();
-        void solveVz();
+        //void solveVx();
+        //void solveVy();
+        //void solveVz();
 
-        void timeAdvance();
+        //void timeAdvance();
 };
 
 /**
