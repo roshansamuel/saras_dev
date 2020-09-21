@@ -102,6 +102,8 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
                 break;
             case 4: initCond = new parabolicRandom(mesh);
                 break;
+            case 5: initCond = new sineRandom(mesh);
+                break;
             default: initCond = new zeroInitial(mesh);
         }
         initCond->initializeField(V);

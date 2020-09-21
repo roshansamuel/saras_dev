@@ -227,7 +227,7 @@ if __name__ == "__main__":
 
     parseYAML("input/parameters.yaml")
 
-    loadData(30.0)
+    loadData(20.0)
 
     generateZGrid()
 

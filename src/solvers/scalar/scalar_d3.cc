@@ -66,7 +66,7 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
     // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
     setCoefficients();
 
-    // INITIALIZE PRESSURE AND SCALAR
+    // INITIALIZE VARIABLES
     if (inputParams.restartFlag) {
         // Fields to be read from HDF5 file are passed to reader class as a vector
         std::vector<field> readFields;
@@ -188,7 +188,7 @@ void scalar_d3::solvePDE() {
                 dt = inputParams.tStp;
             }
         }
-        
+
         timeStepCount += 1;
         time += dt;
 
@@ -246,7 +246,7 @@ void scalar_d3::timeAdvance() {
     nseRHS = 0.0;
     tmpRHS = 0.0;
 
-    // CALCULATE RHS OF NSE FROM THE NON LINEAR TERMS AND HALF THE VISCOUS TERMS
+    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.computeDiff(nseRHS);
@@ -258,7 +258,7 @@ void scalar_d3::timeAdvance() {
     nseRHS *= nu;
 #endif
 
-    // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN nseRHS
+    // Compute the non-linear term and subtract it from the RHS
 #ifndef TIME_RUN
     V.computeNLin(V, nseRHS);
 #else
@@ -270,18 +270,16 @@ void scalar_d3::timeAdvance() {
     gettimeofday(&begin, NULL);
 #endif
 
-    //ADD VELOCITY FORCING TO THE RHS
+    // Add the velocity forcing term
     V.vForcing->addForcing(nseRHS);
 
-    // RESET pressureGradient VFIELD AND CALCULATE THE PRESSURE GRADIENT
+    // Subtract the pressure gradient term
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);
-
-    // ADD PRESSURE GRADIENT TO NON-LINEAR TERMS AND MULTIPLY WITH TIME-STEP
     nseRHS -= pressureGradient;
-    nseRHS *= dt;
 
-    // ADD THE CALCULATED VALUES TO THE VELOCITY AT START OF TIME-STEP
+    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
+    nseRHS *= dt;
     nseRHS += V;
 
 #ifdef TIME_RUN
@@ -289,10 +287,10 @@ void scalar_d3::timeAdvance() {
     intr_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-    // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
     nseRHS.syncData();
 
-    // CALCULATE V IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
+    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
 #endif
@@ -305,7 +303,7 @@ void scalar_d3::timeAdvance() {
     impl_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
 #endif
 
-    // CALCULATE THE RHS FOR THE POISSON SOLVER FROM THE GUESSED VALUES OF VELOCITY IN V
+    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     V.divergence(mgRHS, P);
@@ -317,7 +315,7 @@ void scalar_d3::timeAdvance() {
     mgRHS *= 1.0/dt;
 #endif
 
-    // USING THE CALCULATED mgRHS, EVALUATE Pp USING MULTI-GRID METHOD
+    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
     mgSolver.mgSolve(Pp, mgRHS);
@@ -327,41 +325,41 @@ void scalar_d3::timeAdvance() {
     mgSolver.mgSolve(Pp, mgRHS);
 #endif
 
-    // SYNCHRONISE THE PRESSURE CORRECTION ACROSS PROCESSORS
+    // Synchronise the pressure correction term across processors
     Pp.syncData();
 
-    // ADD THE PRESSURE CORRECTION CALCULATED FROM THE POISSON SOLVER TO P
+    // Add the pressure correction term to the pressure field of previous time-step, P
     P += Pp;
 
-    // CALCULATE FINAL VALUE OF V BY SUBTRACTING THE GRADIENT OF PRESSURE CORRECTION
+    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
     Pp.gradient(pressureGradient, V);
     pressureGradient *= dt;
     V -= pressureGradient;
 
-    // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE SCALAR EQUATION
+    // Next compute the explicit part of the semi-implicit diffusion term and multiply it by kappa
     T.computeDiff(tmpRHS);
     tmpRHS *= kappa;
 
     // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN tmpRHS
     T.computeNLin(V, tmpRHS);
 
-    // ADD SCALAR FORCING TO THE TEMPERATURE EQUATION
+    // Add the scalar forcing term
     T.tForcing->addForcing(tmpRHS);
 
-    // MULTIPLY WITH TIME-STEP AND ADD THE CALCULATED VALUE TO THE TEMPERATURE AT START OF TIME-STEP
+    // Multiply the entire RHS with dt and add the temperature of previous time-step to advance by explicit Euler method
     tmpRHS *= dt;
     tmpRHS += T;
 
-    // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
     tmpRHS.syncData();
 
-    // CALCULATE T IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
+    // Using the RHS term computed, compute the guessed temperature of CN method iteratively (and store it in T)
     solveT();
 
-    // IMPOSE BOUNDARY CONDITIONS ON V
+    // Impose boundary conditions on the updated velocity field, V
     V.imposeBCs();
 
-    // IMPOSE BOUNDARY CONDITIONS ON T
+    // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();
 }
 

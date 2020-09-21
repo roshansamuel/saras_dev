@@ -29,12 +29,12 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file uniformRandom.cc
+/*! \file sineRandom.cc
  *
  *  \brief Definitions for functions of class initial
  *  \sa initial.h
  *  \author Roshan Samuel
- *  \date Sep 2020
+ *  \date Nov 2019
  *  \copyright New BSD License
  *
  ********************************************************************************************************************************************
@@ -53,7 +53,7 @@
  * \param   mesh is a const reference to the global data contained in the grid class
  ********************************************************************************************************************************************
  */
-uniformRandom::uniformRandom(const grid &mesh): initial(mesh) { }
+sineRandom::sineRandom(const grid &mesh): initial(mesh) { }
 
 
 /**
@@ -61,13 +61,14 @@ uniformRandom::uniformRandom(const grid &mesh): initial(mesh) { }
  * \brief   Function to impose random initial condition for channel flow on the given input velocity field.
  *
  *          The function generates random values for the entire domain (with independent seeds for individual ranks).
- *          The random values chosen between -1.0 to 1.0 are first scaled by a factor.
- *          Then they are added to the computed uniform mean velocity field.
+ *          The random values chosen between 0.0 to 1.0 are first scaled by a factor. Then they are multiplied with a
+ *          sinusoidal profile so that the perturbations are not too strong near the wall, and added to the computed
+ *          uniform mean velocity field.
  *
  ********************************************************************************************************************************************
  */
-void uniformRandom::initializeField(vfield &uField) {
-    if (mesh.rankData.rank == 0) std::cout << "Imposing uniform random initial condition for channel flow" << std::endl << std::endl;
+void sineRandom::initializeField(vfield &uField) {
+    if (mesh.rankData.rank == 0) std::cout << "Imposing sinusoidal random initial condition for channel flow" << std::endl << std::endl;
 
     // Seed the random number generator with both time and rank to get different random numbers in different MPI sub-domains
     int randSeed = std::time(0) + mesh.rankData.rank;
@@ -79,11 +80,14 @@ void uniformRandom::initializeField(vfield &uField) {
     // Random velocity fluctuation to be computed point-wise
     real vRandom;
 
+    real normalZ, randNum;
 #ifdef PLANAR
     // X-VELOCITY
     for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
         for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-            vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
+            randNum = vScale*real(std::rand())/RAND_MAX;
+            normalZ = mesh.zStaggr(k)/mesh.zLen;
+            vRandom = randNum*(abs(sin(2.0*M_PI*normalZ)));
 
             uField.Vx.F(i, 0, k) = mesh.inputParams.meanVelocity + vRandom;
         }
@@ -92,7 +96,9 @@ void uniformRandom::initializeField(vfield &uField) {
     // Z-VELOCITY
     for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
         for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
-            vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
+            randNum = vScale*real(std::rand())/RAND_MAX;
+            normalZ = mesh.zColloc(k)/mesh.zLen;
+            vRandom = randNum*(abs(sin(2.0*M_PI*normalZ)));
 
             uField.Vz.F(i, 0, k) = vRandom;
         }
@@ -102,7 +108,9 @@ void uniformRandom::initializeField(vfield &uField) {
     for (int i=uField.Vx.F.lbound(0); i <= uField.Vx.F.ubound(0); i++) {
         for (int j=uField.Vx.F.lbound(1); j <= uField.Vx.F.ubound(1); j++) {
             for (int k=uField.Vx.F.lbound(2); k <= uField.Vx.F.ubound(2); k++) {
-                vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
+                randNum = vScale*real(std::rand())/RAND_MAX;
+                normalZ = mesh.zStaggr(k)/mesh.zLen;
+                vRandom = randNum*(abs(sin(2.0*M_PI*normalZ)));
 
                 uField.Vx.F(i, j, k) = mesh.inputParams.meanVelocity + vRandom;
             }
@@ -113,7 +121,9 @@ void uniformRandom::initializeField(vfield &uField) {
     for (int i=uField.Vy.F.lbound(0); i <= uField.Vy.F.ubound(0); i++) {
         for (int j=uField.Vy.F.lbound(1); j <= uField.Vy.F.ubound(1); j++) {
             for (int k=uField.Vy.F.lbound(2); k <= uField.Vy.F.ubound(2); k++) {
-                vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
+                randNum = vScale*real(std::rand())/RAND_MAX;
+                normalZ = mesh.zStaggr(k)/mesh.zLen;
+                vRandom = randNum*(abs(sin(2.0*M_PI*normalZ)));
 
                 uField.Vy.F(i, j, k) = vRandom;
             }
@@ -124,7 +134,9 @@ void uniformRandom::initializeField(vfield &uField) {
     for (int i=uField.Vz.F.lbound(0); i <= uField.Vz.F.ubound(0); i++) {
         for (int j=uField.Vz.F.lbound(1); j <= uField.Vz.F.ubound(1); j++) {
             for (int k=uField.Vz.F.lbound(2); k <= uField.Vz.F.ubound(2); k++) {
-                vRandom = vScale*(real(std::rand())/RAND_MAX - 0.5);
+                randNum = vScale*real(std::rand())/RAND_MAX;
+                normalZ = mesh.zColloc(k)/mesh.zLen;
+                vRandom = randNum*(abs(sin(2.0*M_PI*normalZ)));
 
                 uField.Vz.F(i, j, k) = vRandom;
             }

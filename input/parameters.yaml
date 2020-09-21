@@ -16,7 +16,13 @@
     # 2 = Sinusoidal Perturbation (for Channel Flow)
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
+    # 5 = Sinusoidal Random Perturbation (for Channel Flow)
     "Initial Condition": 0
+
+    # Mean flow velocity (for Channel Flow)
+    # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
+    # This mean background velocity can be specified in non-dimensional units corresponding to Re
+    "Mean Flow Velocity": 15
 
     # Intensity of random perturbation (for Channel Flow)
     # If option 3 or 4 is selected above, the intensity of perturbation can be set below.

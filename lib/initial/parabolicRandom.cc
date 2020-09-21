@@ -73,19 +73,8 @@ void parabolicRandom::initializeField(vfield &uField) {
     int randSeed = std::time(0) + mesh.rankData.rank;
     std::srand(randSeed);
 
-    // Compute the uniform velocity field
-    // Von Karman constant for log law
-    real vkConst = 0.41;
-
-    // Second constant of the log law
-    real cPlus = 5.0;
-
-    // Assuming that the Re specified is in terms of wall shear stress, the y_plus at centreline will be Re_tau.
-    // Substituting this value in the log law will give centreline velocity non-dimensionalized by u_tau.
-    real vCentre = log(mesh.inputParams.Re)/vkConst + cPlus;
-
     // Scaling factor for random velocity fluctuations
-    real vScale = vCentre*mesh.inputParams.rfIntensity/100.0;
+    real vScale = mesh.inputParams.meanVelocity*mesh.inputParams.rfIntensity/100.0;
 
     // Random velocity fluctuation to be computed point-wise
     real vRandom;
@@ -99,7 +88,7 @@ void parabolicRandom::initializeField(vfield &uField) {
             normalZ = mesh.zStaggr(k)/mesh.zLen;
             vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
 
-            uField.Vx.F(i, 0, k) = vCentre + vRandom;
+            uField.Vx.F(i, 0, k) = mesh.inputParams.meanVelocity + vRandom;
         }
     }
 
@@ -122,7 +111,7 @@ void parabolicRandom::initializeField(vfield &uField) {
                 normalZ = mesh.zStaggr(k)/mesh.zLen;
                 vRandom = randNum*(4.0*normalZ*(normalZ - 1.0) + 1);
 
-                uField.Vx.F(i, j, k) = vCentre + vRandom;
+                uField.Vx.F(i, j, k) = mesh.inputParams.meanVelocity + vRandom;
             }
         }
     }

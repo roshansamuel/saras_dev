@@ -16,7 +16,13 @@
     # 2 = Sinusoidal Perturbation (for Channel Flow)
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
-    "Initial Condition": 3
+    # 5 = Sinusoidal Random Perturbation (for Channel Flow)
+    "Initial Condition": 5
+
+    # Mean flow velocity (for Channel Flow)
+    # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
+    # This mean background velocity can be specified in non-dimensional units corresponding to Re
+    "Mean Flow Velocity": 3
 
     # Intensity of random perturbation (for Channel Flow)
     # If option 3 or 4 is selected above, the intensity of perturbation can be set below.
@@ -125,7 +131,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 30.0
+    "Final Time": 20.0
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 100
@@ -137,10 +143,10 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 5.0
+    "Solution Write Interval": 10.0
 
     # Time interval at which restart file must be written
-    "Restart Write Interval": 20.0
+    "Restart Write Interval": 50.0
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false

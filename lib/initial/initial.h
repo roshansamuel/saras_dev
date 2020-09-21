@@ -126,6 +126,21 @@ class parabolicRandom: public initial {
  ********************************************************************************************************************************************
  */
 
+class sineRandom: public initial {
+    public:
+        sineRandom(const grid &mesh);
+
+        void initializeField(vfield &uField);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class sineRandom initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose sinusoidal random initial condition for channel flow.
+ *
+ ********************************************************************************************************************************************
+ */
+
 class zeroInitial: public initial {
     public:
         zeroInitial(const grid &mesh): initial(mesh) { };
