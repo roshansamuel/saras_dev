@@ -83,6 +83,14 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
 
         time = dataReader.readData();
 
+        // Abort if this time is greater than the final time specified by the user
+        if (time >= inputParams.tMax) {
+            if (mesh.rankData.rank == 0) {
+                std::cout << "ERROR: Restart file is starting from a point beyond the final time specified. Aborting" << std::endl;
+            }
+            MPI_Finalize();
+            exit(0);
+        }
     } else {
         P = 1.0;
         T = 0.0;
@@ -116,7 +124,8 @@ void scalar_d3::solvePDE() {
 
 #else
     real fwTime, prTime, rsTime;
-    //set dt equal to input time step
+
+    // Set dt equal to input time step
     dt = inputParams.tStp;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
@@ -156,32 +165,44 @@ void scalar_d3::solvePDE() {
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     tsWriter.writeTSData(T, nu, kappa);
 
-    // WRITE DATA AT t = 0
-    if (not inputParams.restartFlag) {
-        switch (inputParams.solnFormat) {
-            case 1: dataWriter.writeSolution(time);
-                break;
-            case 2: dataWriter.writeTarang(time);
-                break;
-            default: dataWriter.writeSolution(time);
-        }
+    // WRITE DATA AT t = 0 OR INCREMENT INTERVAL IF RESTARTING
+    if (inputParams.restartFlag) {
+        int tCount, fCount;
 
-        if (inputParams.readProbes) {
-            dataProbe->probeData(time);
-        }
+        tCount = int(time/inputParams.tStp);
+
+        fCount = int(inputParams.fwInt/inputParams.tStp);
+        fwTime = roundNum(tCount, fCount)*inputParams.tStp;
+
+        fCount = int(inputParams.prInt/inputParams.tStp);
+        prTime = roundNum(tCount, fCount)*inputParams.tStp;
+
+        fCount = int(inputParams.rsInt/inputParams.tStp);
+        rsTime = roundNum(tCount, fCount)*inputParams.tStp;
     }
 
-    // FOR RESTART RUNS, THE NEXT TIME FOR WRITING OUTPUT IS OBTAINED BY INCREMENTING WITH THE MOD OF RESTART TIME AND OUTPUT WRITE INTERVAL.
-    // OTHERWISE THE WRITE INTERVAL IS ADDED DIRECTLY
-    fwTime += inputParams.fwInt - std::fmod(time, inputParams.fwInt);
-    prTime += inputParams.prInt - std::fmod(time, inputParams.prInt);
-    rsTime += inputParams.rsInt - std::fmod(time, inputParams.rsInt);
+    switch (inputParams.solnFormat) {
+        case 1: dataWriter.writeSolution(time);
+            break;
+        case 2: dataWriter.writeTarang(time);
+            break;
+        default: dataWriter.writeSolution(time);
+    }
+    fwTime += inputParams.fwInt;
+
+    if (inputParams.readProbes) {
+        dataProbe->probeData(time);
+        prTime += inputParams.prInt;
+    }
+
+    rsTime += inputParams.rsInt;
 #endif
 
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
         timeAdvance();
+
         if (inputParams.useCFL) {
             V.computeTStp(dt);
             if (dt > inputParams.tStp) {

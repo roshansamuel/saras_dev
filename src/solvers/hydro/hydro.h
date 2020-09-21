@@ -118,6 +118,14 @@ class hydro {
         void initVBCs();
         void initVForcing();
 
+        inline int roundNum(int numToRound, int multiple) {
+            int remainder = numToRound % multiple;
+            int halfNum = int(multiple/2);
+            if (remainder == 0) return numToRound;
+            if (remainder < halfNum) return numToRound - remainder;
+            return numToRound + multiple - remainder;
+        };
+
         virtual void solveVx();
         virtual void solveVy();
         virtual void solveVz();
