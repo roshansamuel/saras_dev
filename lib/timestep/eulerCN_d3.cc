@@ -53,7 +53,6 @@
  */
 eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
     timestep(mesh, dt, V, P),
-    guessedVelocity(mesh, V),
     mgSolver(mesh, mesh.inputParams)
 {
     setCoefficients();
@@ -72,6 +71,8 @@ eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
  ********************************************************************************************************************************************
  */
 void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
+    static plainvf nseRHS(mesh, V);
+
 #ifdef TIME_RUN
     struct timeval begin, end;
 #endif
@@ -126,9 +127,9 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 #ifdef TIME_RUN
     gettimeofday(&begin, NULL);
 #endif
-    solveVx(V);
-    solveVy(V);
-    solveVz(V);
+    solveVx(V, nseRHS);
+    solveVy(V, nseRHS);
+    solveVz(V, nseRHS);
 
 #ifdef TIME_RUN
     gettimeofday(&end, NULL);
@@ -186,33 +187,34 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 }
 
 
-void eulerCN_d3::solveVx(vfield &V) {
+void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
+    static blitz::Array<real, 3> tempVx(V.Vx.F.lbound(), V.Vx.F.shape());
 
     while (true) {
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V) shared(nseRHS) shared(tempVx)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iY = V.Vx.fBulk.lbound(1); iY <= V.Vx.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                    guessedVelocity.Vx(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
-                                                       hz2hx2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
-                                                       hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
+                    tempVx(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
+                                           hz2hx2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
+                                           hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
                             dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vx(iX, iY, iZ)) /
                      (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Colloc(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
                 }
             }
         }
 
-        V.Vx.F = guessedVelocity.Vx;
+        V.Vx.F = tempVx;
 
         V.imposeVxBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V) shared(tempVx)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iY = V.Vx.fBulk.lbound(1); iY <= V.Vx.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                    guessedVelocity.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
+                    tempVx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
                               mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
                               mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY-1, iZ)) / (hy2) +
                               mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2));
@@ -220,9 +222,9 @@ void eulerCN_d3::solveVx(vfield &V) {
             }
         }
 
-        guessedVelocity.Vx(V.Vx.fBulk) = abs(guessedVelocity.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
+        tempVx(V.Vx.fBulk) = abs(tempVx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
 
-        maxError = guessedVelocity.vxMax();
+        maxError = blitz::max(tempVx);
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -241,33 +243,34 @@ void eulerCN_d3::solveVx(vfield &V) {
 }
 
 
-void eulerCN_d3::solveVy(vfield &V) {
+void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
+    static blitz::Array<real, 3> tempVy(V.Vy.F.lbound(), V.Vy.F.shape());
 
     while (true) {
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V) shared(nseRHS) shared(tempVy)
         for (int iX = V.Vy.fBulk.lbound(0); iX <= V.Vy.fBulk.ubound(0); iX++) {
             for (int iY = V.Vy.fBulk.lbound(1); iY <= V.Vy.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vy.fBulk.lbound(2); iZ <= V.Vy.fBulk.ubound(2); iZ++) {
-                    guessedVelocity.Vy(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
-                                                       hz2hx2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
-                                                       hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1))) *
+                    tempVy(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
+                                           hz2hx2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
+                                           hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1))) *
                             dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vy(iX, iY, iZ)) /
                      (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Colloc(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
                 }
             }
         }
 
-        V.Vy.F = guessedVelocity.Vy;
+        V.Vy.F = tempVy;
 
         V.imposeVyBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V) shared(tempVy)
         for (int iX = V.Vy.fBulk.lbound(0); iX <= V.Vy.fBulk.ubound(0); iX++) {
             for (int iY = V.Vy.fBulk.lbound(1); iY <= V.Vy.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vy.fBulk.lbound(2); iZ <= V.Vy.fBulk.ubound(2); iZ++) {
-                    guessedVelocity.Vy(iX, iY, iZ) = V.Vy.F(iX, iY, iZ) - 0.5 * dt * nu * (
+                    tempVy(iX, iY, iZ) = V.Vy.F(iX, iY, iZ) - 0.5 * dt * nu * (
                               mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) / (hx2) +
                               mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY-1, iZ)) / (hy2) +
                               mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY, iZ-1)) / (hz2));
@@ -275,9 +278,9 @@ void eulerCN_d3::solveVy(vfield &V) {
             }
         }
 
-        guessedVelocity.Vy(V.Vy.fBulk) = abs(guessedVelocity.Vy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
+        tempVy(V.Vy.fBulk) = abs(tempVy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
 
-        maxError = guessedVelocity.vyMax();
+        maxError = blitz::max(tempVy);
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -296,33 +299,34 @@ void eulerCN_d3::solveVy(vfield &V) {
 }
 
 
-void eulerCN_d3::solveVz(vfield &V) {
+void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
+    static blitz::Array<real, 3> tempVz(V.Vz.F.lbound(), V.Vz.F.shape());
 
     while (true) {
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V) shared(nseRHS) shared(tempVz)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iY = V.Vz.fBulk.lbound(1); iY <= V.Vz.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                    guessedVelocity.Vz(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
-                                                       hz2hx2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
-                                                       hx2hy2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
+                    tempVz(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
+                                           hz2hx2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
+                                           hx2hy2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
                             dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vz(iX, iY, iZ)) /
                      (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Colloc(iZ)))/hx2hy2hz2);
                 }
             }
         }
 
-        V.Vz.F = guessedVelocity.Vz;
+        V.Vz.F = tempVz;
 
         V.imposeVzBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(V) shared(tempVz)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iY = V.Vz.fBulk.lbound(1); iY <= V.Vz.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                    guessedVelocity.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
+                    tempVz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
                               mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
                               mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY-1, iZ)) / (hy2) +
                               mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2));
@@ -330,9 +334,9 @@ void eulerCN_d3::solveVz(vfield &V) {
             }
         }
 
-        guessedVelocity.Vz(V.Vz.fBulk) = abs(guessedVelocity.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
+        tempVz(V.Vz.fBulk) = abs(tempVz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
 
-        maxError = guessedVelocity.vzMax();
+        maxError = blitz::max(tempVz);
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -343,6 +347,62 @@ void eulerCN_d3::solveVz(vfield &V) {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vz not converging. Aborting" << std::endl;
+            }
+            MPI_Finalize();
+            exit(0);
+        }
+    }
+}
+
+
+void eulerCN_d3::solveT(sfield &T, plainsf &tmpRHS) {
+    int iterCount = 0;
+    real maxError = 0.0;
+    static blitz::Array<real, 3> tempT(T.F.F.lbound(), T.F.F.shape());
+
+    while (true) {
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(T) shared(tmpRHS) shared(tempT)
+        for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
+            for (int iY = T.F.fBulk.lbound(1); iY <= T.F.fBulk.ubound(1); iY++) {
+                for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
+                    tempT(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
+                                          hz2hx2 * mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) + T.F.F(iX, iY-1, iZ)) +
+                                          hx2hy2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
+                        dt * kappa / ( hx2hy2hz2 * 2.0) + tmpRHS.F(iX, iY, iZ)) /
+                 (1.0 + dt * kappa * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Colloc(iZ)))/hx2hy2hz2);
+                }
+            }
+        }
+
+        T.F.F = tempT;
+
+        T.imposeBCs();
+
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(T) shared(tempT)
+        for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
+            for (int iY = T.F.fBulk.lbound(1); iY <= T.F.fBulk.ubound(1); iY++) {
+                for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
+                    tempT(iX, iY, iZ) = T.F.F(iX, iY, iZ) - 0.5 * dt * kappa * (
+                           mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx2) +
+                           mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY-1, iZ)) / (hy2) +
+                           mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz2));
+                }
+            }
+        }
+
+        tempT(T.F.fBulk) = abs(tempT(T.F.fBulk) - tmpRHS.F(T.F.fBulk));
+
+        maxError = blitz::max(tempT);
+
+        if (maxError < mesh.inputParams.cnTolerance) {
+            break;
+        }
+
+        iterCount += 1;
+
+        if (iterCount > maxIterations) {
+            if (mesh.rankData.rank == 0) {
+                std::cout << "ERROR: Jacobi iterations for solution of T not converging. Aborting" << std::endl;
             }
             MPI_Finalize();
             exit(0);

@@ -58,10 +58,58 @@ timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
     mesh(mesh),
     Pp(mesh, P),
     mgRHS(mesh, P),
-    nseRHS(mesh, V),
     pressureGradient(mesh, V)
 {
     nu = 1.0/mesh.inputParams.Re;
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded constructor of the timestep class
+ *
+ *          In addition to the variables for hydrodynamics simulations, variables for scalar simulations are also intialized
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class
+ ********************************************************************************************************************************************
+ */
+timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T):
+    dt(dt),
+    mesh(mesh),
+    Pp(mesh, P),
+    mgRHS(mesh, P),
+    pressureGradient(mesh, V)
+{
+    // Below flags may be turned on for debugging/dignostic runs only
+    bool viscSwitch = false;
+    bool diffSwitch = false;
+
+    if (mesh.inputParams.rbcType == 1) {
+        nu = mesh.inputParams.Pr;
+        kappa = 1.0;
+    } else if (mesh.inputParams.rbcType == 2) {
+        nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
+        kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
+    } else if (mesh.inputParams.rbcType == 3) {
+        nu = 1.0;
+        kappa = 1.0/mesh.inputParams.Pr;
+    } else if (mesh.inputParams.rbcType == 4) {
+        nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
+        kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
+    } else {
+        if (mesh.rankData.rank == 0) {
+            std::cout << "ERROR: Invalid RBC non-dimensionalization type. Aborting" << std::endl;
+        }
+        exit(0);
+    }
+
+    // Additional option of turning off diffusion for debugging/diagnostics only
+    if (viscSwitch) {
+        nu = 0.0;
+    }
+
+    if (diffSwitch) {
+        kappa = 0.0;
+    }
 }
 
 /**

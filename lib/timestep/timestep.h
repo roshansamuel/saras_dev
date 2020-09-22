@@ -53,6 +53,7 @@ class timestep {
         real nu, kappa;
 
         timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
+        timestep(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T);
 
         virtual void timeAdvance(vfield &V, sfield &P);
 
@@ -66,8 +67,6 @@ class timestep {
         /** Plain scalar field into which the RHS for pressure Poisson equation is written and passed to the Poisson solver */
         plainsf mgRHS;
 
-        /** Plain vector field into which the RHS of the Navier-Stokes equation is written and stored */
-        plainvf nseRHS;
         /** Plain vector field which stores the pressure gradient term. */
         plainvf pressureGradient;
 };
@@ -83,6 +82,7 @@ class timestep {
 class eulerCN_d2: public timestep {
     public:
         eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P);
+        eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T);
 
         void timeAdvance(vfield &V, sfield &P);
 
@@ -92,13 +92,12 @@ class eulerCN_d2: public timestep {
 
         real hx2, hz2, hz2hx2;
 
-        /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
-        plainvf guessedVelocity;
-
         multigrid_d2 mgSolver;
 
-        void solveVx(vfield &V);
-        void solveVz(vfield &V);
+        void solveVx(vfield &V, plainvf &nseRHS);
+        void solveVz(vfield &V, plainvf &nseRHS);
+
+        void solveT(sfield &T, plainsf &tmpRHS);
 
         void setCoefficients();
 };
@@ -128,14 +127,13 @@ class eulerCN_d3: public timestep {
         real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
 
-        /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
-        plainvf guessedVelocity;
-
         multigrid_d3 mgSolver;
 
-        void solveVx(vfield &V);
-        void solveVy(vfield &V);
-        void solveVz(vfield &V);
+        void solveVx(vfield &V, plainvf &nseRHS);
+        void solveVy(vfield &V, plainvf &nseRHS);
+        void solveVz(vfield &V, plainvf &nseRHS);
+
+        void solveT(sfield &T, plainsf &tmpRHS);
 
         void setCoefficients();
 };

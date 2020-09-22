@@ -53,7 +53,24 @@
  */
 eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
     timestep(mesh, dt, V, P),
-    guessedVelocity(mesh, V),
+    mgSolver(mesh, mesh.inputParams)
+{
+    setCoefficients();
+
+    maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+}
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Overloaded constructor of the timestep class
+ *
+ *          In addition to the variables for hydrodynamics simulations, variables for scalar simulations are also intialized
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class.
+ ********************************************************************************************************************************************
+ */
+eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T):
+    timestep(mesh, dt, V, P, T),
     mgSolver(mesh, mesh.inputParams)
 {
     setCoefficients();
@@ -72,6 +89,8 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
  ********************************************************************************************************************************************
  */
 void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
+    static plainvf nseRHS(mesh, V);
+
     nseRHS = 0.0;
 
     // First compute the explicit part of the semi-implicit viscous term and divide it by Re
@@ -97,8 +116,8 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
     nseRHS.syncData();
 
     // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
-    solveVx(V);
-    solveVz(V);
+    solveVx(V, nseRHS);
+    solveVz(V, nseRHS);
 
     // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
     V.divergence(mgRHS, P);
@@ -136,38 +155,39 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
 }
 
 
-void eulerCN_d2::solveVx(vfield &V) {
+void eulerCN_d2::solveVx(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
+    static blitz::Array<real, 3> tempVx(V.Vx.F.lbound(), V.Vx.F.shape());
 
     while (true) {
         int iY = 0;
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V) shared(nseRHS) shared(tempVx)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
-                                                   hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                                 dt / ( hz2hx2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vx(iX, iY, iZ)) /
-                             (1.0 + dt * ((hz2 * mesh.xix2Colloc(iX) + hx2 * mesh.ztz2Staggr(iZ)))/(mesh.inputParams.Re * hz2hx2));
+                tempVx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
+                                       hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
+                        dt * nu / ( hz2hx2 * 2.0) + nseRHS.Vx(iX, iY, iZ)) /
+                 (1.0 + dt * nu * ((hz2 * mesh.xix2Colloc(iX) + hx2 * mesh.ztz2Staggr(iZ)))/hz2hx2);
             }
         }
 
-        V.Vx.F = guessedVelocity.Vx;
+        V.Vx.F = tempVx;
 
         V.imposeVxBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V) shared(tempVx)
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
+                tempVx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
                           mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
                           mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2));
             }
         }
 
-        guessedVelocity.Vx(V.Vx.fBulk) = abs(guessedVelocity.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
+        tempVx(V.Vx.fBulk) = abs(tempVx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
 
-        maxError = guessedVelocity.vxMax();
+        maxError = blitz::max(tempVx);
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -186,38 +206,39 @@ void eulerCN_d2::solveVx(vfield &V) {
 }
 
 
-void eulerCN_d2::solveVz(vfield &V) {
+void eulerCN_d2::solveVz(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
+    static blitz::Array<real, 3> tempVz(V.Vz.F.lbound(), V.Vz.F.shape());
 
     while (true) {
         int iY = 0;
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V) shared(nseRHS) shared(tempVz)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
-                                                   hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                                    dt / ( hz2hx2 * 2.0 * mesh.inputParams.Re) + nseRHS.Vz(iX, iY, iZ)) /
-                             (1.0 + dt * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/(mesh.inputParams.Re * hz2hx2));
+                tempVz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
+                                       hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
+                        dt * nu / ( hz2hx2 * 2.0) + nseRHS.Vz(iX, iY, iZ)) /
+                 (1.0 + dt * nu * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
             }
         }
 
-        V.Vz.F = guessedVelocity.Vz;
+        V.Vz.F = tempVz;
 
         V.imposeVzBC();
 
-#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V)
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(V) shared(tempVz)
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
+                tempVz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
                           mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
                           mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2));
             }
         }
 
-        guessedVelocity.Vz(V.Vz.fBulk) = abs(guessedVelocity.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
+        tempVz(V.Vz.fBulk) = abs(tempVz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
 
-        maxError = guessedVelocity.vzMax();
+        maxError = blitz::max(tempVz);
 
         if (maxError < mesh.inputParams.cnTolerance) {
             break;
@@ -228,6 +249,57 @@ void eulerCN_d2::solveVz(vfield &V) {
         if (iterCount > maxIterations) {
             if (mesh.rankData.rank == 0) {
                 std::cout << "ERROR: Jacobi iterations for solution of Vz not converging. Aborting" << std::endl;
+            }
+            MPI_Finalize();
+            exit(0);
+        }
+    }
+}
+
+
+void eulerCN_d2::solveT(sfield &T, plainsf &tmpRHS) {
+    int iterCount = 0;
+    real maxError = 0.0;
+    static blitz::Array<real, 3> tempT(T.F.F.lbound(), T.F.F.shape());
+
+    while (true) {
+        int iY = 0;
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(T) shared(tmpRHS) shared(tempT)
+        for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
+            for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
+                tempT(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
+                                      hx2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
+                    dt * kappa / ( hz2hx2 * 2.0) + tmpRHS.F(iX, iY, iZ)) /
+             (1.0 + dt * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
+            }
+        }
+
+        T.F.F = tempT;
+
+        T.imposeBCs();
+
+#pragma omp parallel for num_threads(mesh.inputParams.nThreads) default(none) shared(iY) shared(T) shared(tempT)
+        for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
+            for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
+                tempT(iX, iY, iZ) = T.F.F(iX, iY, iZ) - 0.5 * dt * kappa * (
+                       mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx2) +
+                       mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz2));
+            }
+        }
+
+        tempT(T.F.fBulk) = abs(tempT(T.F.fBulk) - tmpRHS.F(T.F.fBulk));
+
+        maxError = blitz::max(tempT);
+
+        if (maxError < mesh.inputParams.cnTolerance) {
+            break;
+        }
+
+        iterCount += 1;
+
+        if (iterCount > maxIterations) {
+            if (mesh.rankData.rank == 0) {
+                std::cout << "ERROR: Jacobi iterations for solution of T not converging. Aborting" << std::endl;
             }
             MPI_Finalize();
             exit(0);
