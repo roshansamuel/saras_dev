@@ -51,28 +51,12 @@
  *          The empty constructer merely initializes the local reference to the global mesh variable.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
+ * \param   dt is a const reference to the variable dt used by invoking solver
+ * \param   V is a reference to the velocity field and is used merely to initialize local objects
+ * \param   P is a reference to the pressure field and is used merely to initialize local objects
  ********************************************************************************************************************************************
  */
 timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
-    dt(dt),
-    mesh(mesh),
-    Pp(mesh, P),
-    mgRHS(mesh, P),
-    pressureGradient(mesh, V)
-{
-    nu = 1.0/mesh.inputParams.Re;
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Overloaded constructor of the timestep class
- *
- *          In addition to the variables for hydrodynamics simulations, variables for scalar simulations are also intialized
- *
- * \param   mesh is a const reference to the global data contained in the grid class
- ********************************************************************************************************************************************
- */
-timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T):
     dt(dt),
     mesh(mesh),
     Pp(mesh, P),
@@ -83,26 +67,33 @@ timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P, sfiel
     bool viscSwitch = false;
     bool diffSwitch = false;
 
-    if (mesh.inputParams.rbcType == 1) {
-        nu = mesh.inputParams.Pr;
-        kappa = 1.0;
-    } else if (mesh.inputParams.rbcType == 2) {
-        nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
-        kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
-    } else if (mesh.inputParams.rbcType == 3) {
-        nu = 1.0;
-        kappa = 1.0/mesh.inputParams.Pr;
-    } else if (mesh.inputParams.rbcType == 4) {
-        nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
-        kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
-    } else {
-        if (mesh.rankData.rank == 0) {
-            std::cout << "ERROR: Invalid RBC non-dimensionalization type. Aborting" << std::endl;
+    if (mesh.inputParams.probType <= 4) {
+        // For hydrodynamics simulation, set value of kinematic viscosity only
+        nu = 1.0/mesh.inputParams.Re;
+
+    } else if (mesh.inputParams.probType <= 7) {
+        // For scalar simulation, set values of kinematic viscosity and thermal diffusion
+        if (mesh.inputParams.rbcType == 1) {
+            nu = mesh.inputParams.Pr;
+            kappa = 1.0;
+        } else if (mesh.inputParams.rbcType == 2) {
+            nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
+            kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
+        } else if (mesh.inputParams.rbcType == 3) {
+            nu = 1.0;
+            kappa = 1.0/mesh.inputParams.Pr;
+        } else if (mesh.inputParams.rbcType == 4) {
+            nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
+            kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
+        } else {
+            if (mesh.rankData.rank == 0) {
+                std::cout << "ERROR: Invalid RBC non-dimensionalization type. Aborting" << std::endl;
+            }
+            exit(0);
         }
-        exit(0);
     }
 
-    // Additional option of turning off diffusion for debugging/diagnostics only
+    // Additional options to turn off diffusion for debugging/diagnostics only
     if (viscSwitch) {
         nu = 0.0;
     }
@@ -112,11 +103,25 @@ timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P, sfiel
     }
 }
 
+
 /**
  ********************************************************************************************************************************************
- * \brief   Prototype function to time-advance the solution by one time-step
+ * \brief   Prototype overloaded function to time-advance the solution by one time-step
  *
- * \param   uField is a reference to the solution velocity vector field to be advanced
+ * \param   V is a reference to the velocity vector field to be advanced
+ * \param   P is a reference to the pressure scalar field to be advanced
  ********************************************************************************************************************************************
  */
 void timestep::timeAdvance(vfield &V, sfield &P) { };
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Prototype overloaded function to time-advance the solution by one time-step
+ *
+ * \param   V is a reference to the velocity vector field to be advanced
+ * \param   P is a reference to the pressure scalar field to be advanced
+ * \param   T is a reference to the temperature scalar field to be advanced
+ ********************************************************************************************************************************************
+ */
+void timestep::timeAdvance(vfield &V, sfield &P, sfield &T) { };

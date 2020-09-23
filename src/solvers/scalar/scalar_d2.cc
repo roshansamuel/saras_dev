@@ -48,7 +48,6 @@
  *
  *          The constructor passes its arguments to the base scalar class and then initializes all the scalar and
  *          vector fields necessary for solving the NS equations.
- *          The various coefficients for solving the equations are also set by a call to the \ref setCoefficients function.
  *          Based on the problem type specified by the user in the parameters file, and stored by the \ref parser class as
  *          \ref parser#probType "probType", the appropriate boundary conditions are specified.
  *
@@ -57,12 +56,8 @@
  ********************************************************************************************************************************************
  */
 scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam):
-            scalar(mesh, solParam, mpiParam),
-            mgSolver(mesh, inputParams)
+            scalar(mesh, solParam, mpiParam)
 {
-    // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
-    setCoefficients();
-
     // INITIALIZE PRESSURE AND SCALAR
     if (inputParams.restartFlag) {
         // Fields to be read from HDF5 file are passed to reader class as a vector
@@ -98,13 +93,16 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
     // Impose boundary conditions on velocity and temperature fields
     V.imposeBCs();
     T.imposeBCs();
+
+    // Initialize semi-implicit Euler-CN time-stepping method
+    ivpSolver = new eulerCN_d2(mesh, dt, V, P);
 }
 
 
 void scalar_d2::solvePDE() {
-
     real fwTime, prTime, rsTime;
-    //set dt equal to input time step
+
+    // Set dt equal to input time step
     dt = inputParams.tStp;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
@@ -165,7 +163,7 @@ void scalar_d2::solvePDE() {
     // TIME-INTEGRATION LOOP
     while (true) {
         // MAIN FUNCTION CALLED IN EACH LOOP TO UPDATE THE FIELDS AT EACH TIME-STEP
-        timeAdvance();
+        ivpSolver->timeAdvance(V, P, T);
 
         if (inputParams.useCFL) {
             V.computeTStp(dt);
@@ -209,265 +207,12 @@ void scalar_d2::solvePDE() {
 }
 
 
-void scalar_d2::timeAdvance() {
-    // BELOW FLAG MAY BE TURNED OFF FOR DEBUGGING/DIGNOSTIC RUNS ONLY
-    // IT IS USED TO TURN OFF COMPUTATION OF NON-LINEAR TERMS
-    // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D SCALAR SOLVER
-    bool nlinSwitch = true;
-
-    nseRHS = 0.0;
-    tmpRHS = 0.0;
-
-    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
-    V.computeDiff(nseRHS);
-    nseRHS *= nu;
-
-    // Compute the non-linear term and subtract it from the RHS
-    V.computeNLin(V, nseRHS);
-
-    // Add the velocity forcing term
-    V.vForcing->addForcing(nseRHS);
-
-    // Subtract the pressure gradient term
-    pressureGradient = 0.0;
-    P.gradient(pressureGradient, V);
-    nseRHS -= pressureGradient;
-
-    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
-    nseRHS *= dt;
-    nseRHS += V;
-
-    // Synchronize the RHS term across all processors by updating its sub-domain pads
-    nseRHS.syncData();
-
-    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
-    solveVx();
-    solveVz();
-
-    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
-    V.divergence(mgRHS, P);
-    mgRHS *= 1.0/dt;
-
-    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
-    mgSolver.mgSolve(Pp, mgRHS);
-
-    // Synchronise the pressure correction term across processors
-    Pp.syncData();
-
-    // Add the pressure correction term to the pressure field of previous time-step, P
-    P += Pp;
-
-    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
-    Pp.gradient(pressureGradient, V);
-    pressureGradient *= dt;
-    V -= pressureGradient;
-
-    // COMPUTE DIFFUSION AND NON-LINEAR TERMS FOR THE SCALAR EQUATION
-    T.computeDiff(tmpRHS);
-    tmpRHS *= kappa;
-
-    if (nlinSwitch) {
-        // COMPUTE THE CONVECTIVE DERIVATIVE AND SUBTRACT IT FROM THE CALCULATED DIFFUSION TERMS OF RHS IN tmpRHS
-        T.computeNLin(V, tmpRHS);
-
-    // EVEN WHEN NON-LINEAR TERM IS TURNED OFF, THE MEAN FLOW EFFECTS STILL REMAIN
-    // HENCE THE CONTRIBUTION OF VELOCITY TO SCALAR EQUATION MUST BE ADDED
-    // THIS CONTRIBUTION IS Uz FOR RBC AND SST, BUT Ux FOR VERTICAL CONVECTION
-    } else {
-        if (inputParams.probType == 5 || inputParams.probType == 6) {
-            T.interTempF = 0.0;
-            for (unsigned int i=0; i < T.F.VzIntSlices.size(); i++) {
-                T.interTempF(T.F.fCore) += V.Vz.F(T.F.VzIntSlices(i));
-            }
-
-            tmpRHS.F += T.interTempF/T.F.VzIntSlices.size();
-
-        } else if (inputParams.probType == 7) {
-            T.interTempF = 0.0;
-            for (unsigned int i=0; i < T.F.VxIntSlices.size(); i++) {
-                T.interTempF(T.F.fCore) += V.Vx.F(T.F.VxIntSlices(i));
-            }
-
-            tmpRHS.F += T.interTempF/T.F.VxIntSlices.size();
-        }
-    }
-
-    // ADD SCALAR FORCING TO THE TEMPERATURE EQUATION
-    T.tForcing->addForcing(tmpRHS);
-
-    // MULTIPLY WITH TIME-STEP AND ADD THE CALCULATED VALUE TO THE TEMPERATURE AT START OF TIME-STEP
-    tmpRHS *= dt;
-    tmpRHS += T;
-
-    // SYNCHRONISE THE RHS OF TIME INTEGRATION STEP THUS OBTAINED ACROSS ALL PROCESSORS
-    tmpRHS.syncData();
-
-    // CALCULATE T IMPLICITLY USING THE JACOBI ITERATIVE SOLVER
-    solveT();
-
-    // Impose boundary conditions on the updated velocity field, V
-    V.imposeBCs();
-
-    // IMPOSE BOUNDARY CONDITIONS ON T
-    T.imposeBCs();
-}
-
-
-void scalar_d2::solveVx() {
-    int iterCount = 0;
-    real maxError = 0.0;
-
-    while (true) {
-        int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vx(iX, iY, iZ) = ((hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
-                                                   hx2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                        dt * nu / ( hz2hx2 * 2.0) + nseRHS.Vx(iX, iY, iZ)) /
-                 (1.0 + dt * nu * ((hz2 * mesh.xix2Colloc(iX) + hx2 * mesh.ztz2Staggr(iZ)))/hz2hx2);
-            }
-        }
-
-        V.Vx.F = guessedVelocity.Vx;
-
-        V.imposeVxBC();
-
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                velocityLaplacian.Vx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
-                          mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
-                          mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2));
-            }
-        }
-
-        velocityLaplacian.Vx(V.Vx.fBulk) = abs(velocityLaplacian.Vx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
-
-        maxError = velocityLaplacian.vxMax();
-
-        if (maxError < inputParams.cnTolerance) {
-            break;
-        }
-
-        iterCount += 1;
-
-        if (iterCount > maxIterations) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << "ERROR: Jacobi iterations for solution of Vx not converging. Aborting" << std::endl;
-            }
-            MPI_Finalize();
-            exit(0);
-        }
-    }
-}
-
-
-void scalar_d2::solveVz() {
-    int iterCount = 0;
-    real maxError = 0.0;
-
-    while (true) {
-        int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                guessedVelocity.Vz(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
-                                                   hx2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                        dt * nu / ( hz2hx2 * 2.0) + nseRHS.Vz(iX, iY, iZ)) /
-                 (1.0 + dt * nu * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
-            }
-        }
-
-        V.Vz.F = guessedVelocity.Vz;
-
-        V.imposeVzBC();
-
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
-            for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                velocityLaplacian.Vz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
-                          mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
-                          mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2));
-            }
-        }
-
-        velocityLaplacian.Vz(V.Vz.fBulk) = abs(velocityLaplacian.Vz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
-
-        maxError = velocityLaplacian.vzMax();
-
-        if (maxError < inputParams.cnTolerance) {
-            break;
-        }
-
-        iterCount += 1;
-
-        if (iterCount > maxIterations) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << "ERROR: Jacobi iterations for solution of Vz not converging. Aborting" << std::endl;
-            }
-            MPI_Finalize();
-            exit(0);
-        }
-    }
-}
-
-
-void scalar_d2::solveT() {
-    int iterCount = 0;
-    real maxError = 0.0;
-
-    while (true) {
-        int iY = 0;
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
-            for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                guessedScalar.F(iX, iY, iZ) = ((hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
-                                                hx2 * mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
-                                          dt * kappa / ( hz2hx2 * 2.0) + tmpRHS.F(iX, iY, iZ)) /
-                                   (1.0 + dt * kappa * ((hz2 * mesh.xix2Staggr(iX) + hx2 * mesh.ztz2Colloc(iZ)))/hz2hx2);
-            }
-        }
-
-        T = guessedScalar;
-
-        T.imposeBCs();
-
-#pragma omp parallel for num_threads(inputParams.nThreads) default(none) shared(iY)
-        for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
-            for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                scalarLaplacian.F(iX, iY, iZ) = T.F.F(iX, iY, iZ) - 0.5 * dt * kappa * (
-                       mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx2) +
-                       mesh.ztz2Colloc(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz2));
-            }
-        }
-
-        scalarLaplacian.F(T.F.fBulk) = abs(scalarLaplacian.F(T.F.fBulk) - tmpRHS.F(T.F.fBulk));
-
-        maxError = scalarLaplacian.fxMax();
-
-        if (maxError < inputParams.cnTolerance) {
-            break;
-        }
-
-        iterCount += 1;
-
-        if (iterCount > maxIterations) {
-            if (mesh.rankData.rank == 0) {
-                std::cout << "ERROR: Jacobi iterations for solution of T not converging. Aborting" << std::endl;
-            }
-            MPI_Finalize();
-            exit(0);
-        }
-    }
-}
-
-
 real scalar_d2::testPeriodic() {
     int iY = 0;
     real xCoord = 0.0;
     real zCoord = 0.0;
 
+    plainvf nseRHS(mesh, V);
     nseRHS = 0.0;
     V = 0.0;
 

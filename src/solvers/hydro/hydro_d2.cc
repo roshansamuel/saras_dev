@@ -116,7 +116,8 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
 void hydro_d2::solvePDE() {
     real fwTime, prTime, rsTime;
-    //set dt equal to input time step
+
+    // Set dt equal to input time step
     dt = inputParams.tStp;
 
     // Fields to be written into HDF5 file are passed to writer class as a vector
@@ -225,6 +226,7 @@ real hydro_d2::testPeriodic() {
     real xCoord = 0.0;
     real zCoord = 0.0;
 
+    plainvf nseRHS(mesh, V);
     nseRHS = 0.0;
     V = 0.0;
 

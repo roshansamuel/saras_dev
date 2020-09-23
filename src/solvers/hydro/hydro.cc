@@ -62,13 +62,7 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             P(mesh, "P"),
             mesh(mesh),
             inputParams(solParam),
-            mpiData(mpiParam),
-            Pp(mesh, P),
-            mgRHS(mesh, P),
-            nseRHS(mesh, V),
-            velocityLaplacian(mesh, V),
-            pressureGradient(mesh, V),
-            guessedVelocity(mesh, V)
+            mpiData(mpiParam)
 {
     maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
 }
@@ -85,78 +79,6 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
  ********************************************************************************************************************************************
  */
 void hydro::solvePDE() { };
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   The subroutine to solve the NS equations using the implicit Crank-Nicholson method
- *
- *          This function uses the values of velocity vector field and pressure scalar field, along with a specifed time-step
- *          to update the values of both fields by one time-step.
- *          Hence this function has to be repeatedly called in a loop from within the \ref solvePDE function to solve the equations.
- ********************************************************************************************************************************************
- */
-void hydro::timeAdvance() { };
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to solve the implicit equation for x-velocity
- *
- *          The implicit equation for \f$ u_x' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
- *          iterative method here.
- *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainvf#vxMax "vxMax" function
- *          of scalar fields in sfield.h falls below the specified tolerance.
- *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
- *          aborts with an error message.
- *
- *          Note that this function uses the blitz index place holders firstIndex, secondIndex and thirdIndex.
- *          They are declared as i, j, and k respectively.
- *          Hence the variables i, j and k are not scalars in this function.
- ********************************************************************************************************************************************
- */
-void hydro::solveVx() { };
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to solve the implicit equation for y-velocity
- *
- *          The implicit equation for \f$ u_y' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
- *          iterative method here.
- *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainvf#vyMax "vyMax" function
- *          of scalar fields in sfield.h falls below the specified tolerance.
- *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
- *          aborts with an error message.
- *
- *          Note that this function uses the blitz index place holders firstIndex, secondIndex and thirdIndex.
- *          They are declared as i, j, and k respectively.
- *          Hence the variables i, j and k are not scalars in this function.
- ********************************************************************************************************************************************
- */
-void hydro::solveVy() { };
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to solve the implicit equation for z-velocity
- *
- *          The implicit equation for \f$ u_z' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
- *          iterative method here.
- *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainvf#vzMax "vzMax" function
- *          of scalar fields in sfield.h falls below the specified tolerance.
- *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
- *          aborts with an error message.
- *
- *          Note that this function uses the blitz index place holders firstIndex, secondIndex and thirdIndex.
- *          They are declared as i, j, and k respectively.
- *          Hence the variables i, j and k are not scalars in this function.
- ********************************************************************************************************************************************
- */
-void hydro::solveVz() { };
 
 
 /**
@@ -208,35 +130,6 @@ void hydro::checkPeriodic() {
             std::cout << std::endl;
         }
     }
-};
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to set the coefficients used for solving the implicit equations of U, V and W
- *
- *          The function assigns values to the variables \ref hx, \ref hy, etc.
- *          These coefficients are repeatedly used at many places in the Poisson solver for implicit calculation of velocities.
- ********************************************************************************************************************************************
- */
-void hydro::setCoefficients() {
-    hx = mesh.dXi;
-    hz = mesh.dZt;
-
-    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
-
-#ifdef PLANAR
-    hx2 = pow(mesh.dXi, 2.0);
-    hz2 = pow(mesh.dZt, 2.0);
-
-#else
-    hy = mesh.dEt;
-
-    hx2hy2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
-    hy2hz2 = pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-
-    hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
-#endif
 };
 
 

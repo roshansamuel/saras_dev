@@ -256,6 +256,7 @@ real hydro_d3::testPeriodic() {
     real yCoord = 0.0;
     real zCoord = 0.0;
 
+    plainvf nseRHS(mesh, V);
     nseRHS = 0.0;
     V = 0.0;
 

@@ -60,31 +60,14 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
     maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
 }
 
-/**
- ********************************************************************************************************************************************
- * \brief   Overloaded constructor of the timestep class
- *
- *          In addition to the variables for hydrodynamics simulations, variables for scalar simulations are also intialized
- *
- * \param   mesh is a const reference to the global data contained in the grid class.
- ********************************************************************************************************************************************
- */
-eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T):
-    timestep(mesh, dt, V, P, T),
-    mgSolver(mesh, mesh.inputParams)
-{
-    setCoefficients();
-
-    maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
-}
-
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose the solution using Euler method and Implicit Crank-Nicholson method
+ * \brief   Function to advance the solution using Euler method and Implicit Crank-Nicholson method
  *
  *          The non-linear terms are advanced using explicit Euler method, while the duffusion terms are
  *          advanced by semi-implicit Crank-Nicholson method.
+ *          This overloaded function advances velocity and pressure fields for hydrodynamics simulations.
  *
  ********************************************************************************************************************************************
  */
@@ -155,6 +138,136 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to advance the solution using Euler method and Implicit Crank-Nicholson method
+ *
+ *          The non-linear terms are advanced using explicit Euler method, while the duffusion terms are
+ *          advanced by semi-implicit Crank-Nicholson method.
+ *          This overloaded function advances velocity, temperature and pressure fields for scalar simulations.
+ *
+ ********************************************************************************************************************************************
+ */
+void eulerCN_d2::timeAdvance(vfield &V, sfield &P, sfield &T) {
+    static plainvf nseRHS(mesh, V);
+    static plainsf tmpRHS(mesh, T);
+
+    // BELOW FLAG MAY BE TURNED OFF FOR DEBUGGING/DIGNOSTIC RUNS ONLY
+    // IT IS USED TO TURN OFF COMPUTATION OF NON-LINEAR TERMS
+    // CURRENTLY IT IS AVAILABLE ONLY FOR THE 2D SCALAR SOLVER
+    bool nlinSwitch = true;
+
+    nseRHS = 0.0;
+    tmpRHS = 0.0;
+
+    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
+    V.computeDiff(nseRHS);
+    nseRHS *= nu;
+
+    // Compute the non-linear term and subtract it from the RHS
+    V.computeNLin(V, nseRHS);
+
+    // Add the velocity forcing term
+    V.vForcing->addForcing(nseRHS);
+
+    // Subtract the pressure gradient term
+    pressureGradient = 0.0;
+    P.gradient(pressureGradient, V);
+    nseRHS -= pressureGradient;
+
+    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
+    nseRHS *= dt;
+    nseRHS += V;
+
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
+    nseRHS.syncData();
+
+    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
+    solveVx(V, nseRHS);
+    solveVz(V, nseRHS);
+
+    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
+    V.divergence(mgRHS, P);
+    mgRHS *= 1.0/dt;
+
+    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
+    mgSolver.mgSolve(Pp, mgRHS);
+
+    // Synchronise the pressure correction term across processors
+    Pp.syncData();
+
+    // Add the pressure correction term to the pressure field of previous time-step, P
+    P += Pp;
+
+    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
+    Pp.gradient(pressureGradient, V);
+    pressureGradient *= dt;
+    V -= pressureGradient;
+
+    // Next, for temperature, again compute semi-implicit diffusion term first
+    T.computeDiff(tmpRHS);
+    tmpRHS *= kappa;
+
+    if (nlinSwitch) {
+        // Compute the non-linear term and subtract it from the RHS
+        T.computeNLin(V, tmpRHS);
+
+    } else {
+        // EVEN WHEN NON-LINEAR TERM IS TURNED OFF, THE MEAN FLOW EFFECTS STILL REMAIN
+        // HENCE THE CONTRIBUTION OF VELOCITY TO SCALAR EQUATION MUST BE ADDED
+        // THIS CONTRIBUTION IS Uz FOR RBC AND SST, BUT Ux FOR VERTICAL CONVECTION
+        if (mesh.inputParams.probType == 5 || mesh.inputParams.probType == 6) {
+            T.interTempF = 0.0;
+            for (unsigned int i=0; i < T.F.VzIntSlices.size(); i++) {
+                T.interTempF(T.F.fCore) += V.Vz.F(T.F.VzIntSlices(i));
+            }
+
+            tmpRHS.F += T.interTempF/T.F.VzIntSlices.size();
+
+        } else if (mesh.inputParams.probType == 7) {
+            T.interTempF = 0.0;
+            for (unsigned int i=0; i < T.F.VxIntSlices.size(); i++) {
+                T.interTempF(T.F.fCore) += V.Vx.F(T.F.VxIntSlices(i));
+            }
+
+            tmpRHS.F += T.interTempF/T.F.VxIntSlices.size();
+        }
+    }
+
+    // Add the scalar forcing term
+    T.tForcing->addForcing(tmpRHS);
+
+    // Multiply the entire RHS with dt and add the temperature of previous time-step to advance by explicit Euler method
+    tmpRHS *= dt;
+    tmpRHS += T;
+
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
+    tmpRHS.syncData();
+
+    // Using the RHS term computed, compute the guessed temperature of CN method iteratively (and store it in T)
+    solveT(T, tmpRHS);
+
+    // Impose boundary conditions on the updated velocity field, V
+    V.imposeBCs();
+
+    // Impose boundary conditions on the updated temperature field, T
+    T.imposeBCs();
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to solve the implicit equation for x-velocity
+ *
+ *          The implicit equation for \f$ u_x' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
+ *          iterative method here.
+ *
+ *          The loop exits when the global maximum of the error in computed solution falls below the specified tolerance.
+ *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
+ *          aborts with an error message.
+ *
+ ********************************************************************************************************************************************
+ */
 void eulerCN_d2::solveVx(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
@@ -206,6 +319,19 @@ void eulerCN_d2::solveVx(vfield &V, plainvf &nseRHS) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to solve the implicit equation for z-velocity
+ *
+ *          The implicit equation for \f$ u_z' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
+ *          iterative method here.
+ *
+ *          The loop exits when the global maximum of the error in computed solution falls below the specified tolerance.
+ *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
+ *          aborts with an error message.
+ *
+ ********************************************************************************************************************************************
+ */
 void eulerCN_d2::solveVz(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
@@ -257,6 +383,19 @@ void eulerCN_d2::solveVz(vfield &V, plainvf &nseRHS) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to solve the implicit equation for scalar field
+ *
+ *          The implicit equation for \f$ \theta' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
+ *          iterative method here.
+ *
+ *          The loop exits when the global maximum of the error in computed solution falls below the specified tolerance.
+ *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
+ *          aborts with an error message.
+ *
+ ********************************************************************************************************************************************
+ */
 void eulerCN_d2::solveT(sfield &T, plainsf &tmpRHS) {
     int iterCount = 0;
     real maxError = 0.0;

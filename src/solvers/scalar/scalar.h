@@ -60,16 +60,10 @@ class scalar: public hydro {
         virtual ~scalar() { };
 
     protected:
-        plainsf tmpRHS;
-        plainsf guessedScalar;
-        plainsf scalarLaplacian;
-
         void initTBCs();
 
         void initVForcing();
         void initTForcing();
-
-        virtual void solveT();
 };
 
 /**
@@ -93,16 +87,6 @@ class scalar_d2: public scalar {
         real testPeriodic();
 
         ~scalar_d2();
-
-    private:
-        multigrid_d2 mgSolver;
-
-        void solveVx();
-        void solveVz();
-
-        void solveT();
-
-        void timeAdvance();
 };
 
 /**
@@ -124,21 +108,6 @@ class scalar_d3: public scalar {
         real testPeriodic();
 
         ~scalar_d3();
-
-    private:
-        multigrid_d3 mgSolver;
-
-#ifdef TIME_RUN
-        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
-#endif
-
-        void solveVx();
-        void solveVy();
-        void solveVz();
-
-        void solveT();
-
-        void timeAdvance();
 };
 
 /**

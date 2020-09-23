@@ -67,6 +67,7 @@ eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
  *
  *          The non-linear terms are advanced using explicit Euler method, while the duffusion terms are
  *          advanced by semi-implicit Crank-Nicholson method.
+ *          This overloaded function advances velocity and pressure fields for hydrodynamics simulations.
  *
  ********************************************************************************************************************************************
  */
@@ -187,6 +188,158 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to advance the solution using Euler method and Implicit Crank-Nicholson method
+ *
+ *          The non-linear terms are advanced using explicit Euler method, while the duffusion terms are
+ *          advanced by semi-implicit Crank-Nicholson method.
+ *          This overloaded function advances velocity, temperature and pressure fields for scalar simulations.
+ *
+ ********************************************************************************************************************************************
+ */
+void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
+    static plainvf nseRHS(mesh, V);
+    static plainsf tmpRHS(mesh, T);
+
+#ifdef TIME_RUN
+    struct timeval begin, end;
+#endif
+
+    nseRHS = 0.0;
+    tmpRHS = 0.0;
+
+    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
+#ifdef TIME_RUN
+    gettimeofday(&begin, NULL);
+    V.computeDiff(nseRHS);
+    nseRHS *= nu;
+    gettimeofday(&end, NULL);
+    visc_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#else
+    V.computeDiff(nseRHS);
+    nseRHS *= nu;
+#endif
+
+    // Compute the non-linear term and subtract it from the RHS
+#ifndef TIME_RUN
+    V.computeNLin(V, nseRHS);
+#else
+    gettimeofday(&begin, NULL);
+    V.computeNLin(V, nseRHS);
+    gettimeofday(&end, NULL);
+    nlin_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+
+    gettimeofday(&begin, NULL);
+#endif
+
+    // Add the velocity forcing term
+    V.vForcing->addForcing(nseRHS);
+
+    // Subtract the pressure gradient term
+    pressureGradient = 0.0;
+    P.gradient(pressureGradient, V);
+    nseRHS -= pressureGradient;
+
+    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
+    nseRHS *= dt;
+    nseRHS += V;
+
+#ifdef TIME_RUN
+    gettimeofday(&end, NULL);
+    intr_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#endif
+
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
+    nseRHS.syncData();
+
+    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
+#ifdef TIME_RUN
+    gettimeofday(&begin, NULL);
+#endif
+    solveVx(V, nseRHS);
+    solveVy(V, nseRHS);
+    solveVz(V, nseRHS);
+
+#ifdef TIME_RUN
+    gettimeofday(&end, NULL);
+    impl_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#endif
+
+    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
+#ifdef TIME_RUN
+    gettimeofday(&begin, NULL);
+    V.divergence(mgRHS, P);
+    mgRHS *= 1.0/dt;
+    gettimeofday(&end, NULL);
+    prhs_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#else
+    V.divergence(mgRHS, P);
+    mgRHS *= 1.0/dt;
+#endif
+
+    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
+#ifdef TIME_RUN
+    gettimeofday(&begin, NULL);
+    mgSolver.mgSolve(Pp, mgRHS);
+    gettimeofday(&end, NULL);
+    pois_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
+#else
+    mgSolver.mgSolve(Pp, mgRHS);
+#endif
+
+    // Synchronise the pressure correction term across processors
+    Pp.syncData();
+
+    // Add the pressure correction term to the pressure field of previous time-step, P
+    P += Pp;
+
+    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
+    Pp.gradient(pressureGradient, V);
+    pressureGradient *= dt;
+    V -= pressureGradient;
+
+    // Next, for temperature, again compute semi-implicit diffusion term first
+    T.computeDiff(tmpRHS);
+    tmpRHS *= kappa;
+
+    // Compute the non-linear term and subtract it from the RHS
+    T.computeNLin(V, tmpRHS);
+
+    // Add the scalar forcing term
+    T.tForcing->addForcing(tmpRHS);
+
+    // Multiply the entire RHS with dt and add the temperature of previous time-step to advance by explicit Euler method
+    tmpRHS *= dt;
+    tmpRHS += T;
+
+    // Synchronize the RHS term across all processors by updating its sub-domain pads
+    tmpRHS.syncData();
+
+    // Using the RHS term computed, compute the guessed temperature of CN method iteratively (and store it in T)
+    solveT(T, tmpRHS);
+
+    // Impose boundary conditions on the updated velocity field, V
+    V.imposeBCs();
+
+    // Impose boundary conditions on the updated temperature field, T
+    T.imposeBCs();
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to solve the implicit equation for x-velocity
+ *
+ *          The implicit equation for \f$ u_x' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
+ *          iterative method here.
+ *
+ *          The loop exits when the global maximum of the error in computed solution falls below the specified tolerance.
+ *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
+ *          aborts with an error message.
+ *
+ ********************************************************************************************************************************************
+ */
 void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
@@ -243,6 +396,19 @@ void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to solve the implicit equation for y-velocity
+ *
+ *          The implicit equation for \f$ u_y' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
+ *          iterative method here.
+ *
+ *          The loop exits when the global maximum of the error in computed solution falls below the specified tolerance.
+ *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
+ *          aborts with an error message.
+ *
+ ********************************************************************************************************************************************
+ */
 void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;
@@ -299,6 +465,19 @@ void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to solve the implicit equation for z-velocity
+ *
+ *          The implicit equation for \f$ u_z' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
+ *          iterative method here.
+ *
+ *          The loop exits when the global maximum of the error in computed solution falls below the specified tolerance.
+ *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
+ *          aborts with an error message.
+ *
+ ********************************************************************************************************************************************
+ */
 void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
     real maxError = 0.0;

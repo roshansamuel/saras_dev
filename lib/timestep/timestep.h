@@ -53,9 +53,9 @@ class timestep {
         real nu, kappa;
 
         timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
-        timestep(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T);
 
         virtual void timeAdvance(vfield &V, sfield &P);
+        virtual void timeAdvance(vfield &V, sfield &P, sfield &T);
 
     protected:
         const real &dt;
@@ -82,9 +82,9 @@ class timestep {
 class eulerCN_d2: public timestep {
     public:
         eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P);
-        eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P, sfield &T);
 
         void timeAdvance(vfield &V, sfield &P);
+        void timeAdvance(vfield &V, sfield &P, sfield &T);
 
     private:
         /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
@@ -115,6 +115,7 @@ class eulerCN_d3: public timestep {
         eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
         void timeAdvance(vfield &V, sfield &P);
+        void timeAdvance(vfield &V, sfield &P, sfield &T);
 
     private:
         /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */

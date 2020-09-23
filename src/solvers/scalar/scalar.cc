@@ -60,10 +60,7 @@
  */
 scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
             hydro(mesh, solParam, mpiParam),
-            T(mesh, "T"),
-            tmpRHS(mesh, T),
-            guessedScalar(mesh, T),
-            scalarLaplacian(mesh, T)
+            T(mesh, "T")
 {
     // Below flags may be turned on for debugging/dignostic runs only
     bool viscSwitch = false;
@@ -97,26 +94,6 @@ scalar::scalar(const grid &mesh, const parser &solParam, parallel &mpiParam):
         kappa = 0.0;
     }
 }
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to solve the implicit equation for scalar field
- *
- *          The implicit equation for \f$ \theta' \f$ of the implicit Crank-Nicholson method is solved using the Jacobi
- *          iterative method here.
- *
- *          The loop exits when the global maximum of the error in computed solution obtained using the \ref plainsf#fxMax "fxMax" function
- *          of scalar fields in sfield.h falls below the specified tolerance.
- *          If the solution doesn't converge even after an internally assigned maximum number for iterations, the solver
- *          aborts with an error message.
- *
- *          Note that this function uses the blitz index place holders firstIndex, secondIndex and thirdIndex.
- *          They are declared as i, j, and k respectively.
- *          Hence the variables i, j and k are not scalars in this function.
- ********************************************************************************************************************************************
- */
-void scalar::solveT() { };
 
 
 /**
