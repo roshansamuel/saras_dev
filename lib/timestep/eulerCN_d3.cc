@@ -342,7 +342,8 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
  */
 void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
-    real maxError = 0.0;
+    real locMax = 0.0;
+    real gloMax = 0.0;
     static blitz::Array<real, 3> tempVx(V.Vx.F.lbound(), V.Vx.F.shape());
 
     while (true) {
@@ -377,9 +378,9 @@ void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
 
         tempVx(V.Vx.fBulk) = abs(tempVx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
 
-        maxError = blitz::max(tempVx);
-
-        if (maxError < mesh.inputParams.cnTolerance) {
+        locMax = blitz::max(tempVx);
+        MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+        if (gloMax < mesh.inputParams.cnTolerance) {
             break;
         }
 
@@ -411,7 +412,8 @@ void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
  */
 void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
-    real maxError = 0.0;
+    real locMax = 0.0;
+    real gloMax = 0.0;
     static blitz::Array<real, 3> tempVy(V.Vy.F.lbound(), V.Vy.F.shape());
 
     while (true) {
@@ -446,9 +448,9 @@ void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
 
         tempVy(V.Vy.fBulk) = abs(tempVy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
 
-        maxError = blitz::max(tempVy);
-
-        if (maxError < mesh.inputParams.cnTolerance) {
+        locMax = blitz::max(tempVy);
+        MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+        if (gloMax < mesh.inputParams.cnTolerance) {
             break;
         }
 
@@ -480,7 +482,8 @@ void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
  */
 void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
     int iterCount = 0;
-    real maxError = 0.0;
+    real locMax = 0.0;
+    real gloMax = 0.0;
     static blitz::Array<real, 3> tempVz(V.Vz.F.lbound(), V.Vz.F.shape());
 
     while (true) {
@@ -515,9 +518,9 @@ void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
 
         tempVz(V.Vz.fBulk) = abs(tempVz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
 
-        maxError = blitz::max(tempVz);
-
-        if (maxError < mesh.inputParams.cnTolerance) {
+        locMax = blitz::max(tempVz);
+        MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+        if (gloMax < mesh.inputParams.cnTolerance) {
             break;
         }
 
@@ -536,7 +539,8 @@ void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
 
 void eulerCN_d3::solveT(sfield &T, plainsf &tmpRHS) {
     int iterCount = 0;
-    real maxError = 0.0;
+    real locMax = 0.0;
+    real gloMax = 0.0;
     static blitz::Array<real, 3> tempT(T.F.F.lbound(), T.F.F.shape());
 
     while (true) {
@@ -571,9 +575,9 @@ void eulerCN_d3::solveT(sfield &T, plainsf &tmpRHS) {
 
         tempT(T.F.fBulk) = abs(tempT(T.F.fBulk) - tmpRHS.F(T.F.fBulk));
 
-        maxError = blitz::max(tempT);
-
-        if (maxError < mesh.inputParams.cnTolerance) {
+        locMax = blitz::max(tempT);
+        MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
+        if (gloMax < mesh.inputParams.cnTolerance) {
             break;
         }
 

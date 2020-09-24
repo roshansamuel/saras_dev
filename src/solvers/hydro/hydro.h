@@ -45,10 +45,8 @@
 
 #include <blitz/array.h>
 
-#include "boundary.h"
 #include "parallel.h"
 #include "timestep.h"
-#include "plainvf.h"
 #include "tseries.h"
 #include "writer.h"
 #include "reader.h"
@@ -56,7 +54,6 @@
 #include "sfield.h"
 #include "vfield.h"
 #include "parser.h"
-#include "force.h"
 #include "grid.h"
 
 class hydro {
