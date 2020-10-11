@@ -79,12 +79,13 @@ class spiral: public les {
             double *x, double *y, double *z, int n,
             double dudx[3][3], double e[3], double nu, double del,
             double *Txx, double *Tyy, double *Tzz,
-            double *Txy, double *Tyz, double *Tzx, double *prefac, double *lv);
+            double *Txy, double *Tyz, double *Tzx);
 
         void sgs_flux(
             double dsdx[3], double e[3], double del, double K,
             double *qx, double *qy, double *qz);
 
+    private:
         double ke_integral(double k);
 
         double sf_integral(double d);

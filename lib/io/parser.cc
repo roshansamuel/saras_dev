@@ -88,6 +88,8 @@ void parser::parseYAML() {
     yamlNode["Program"]["Domain Type"] >> domainType;
     yamlNode["Program"]["RBC Type"] >> rbcType;
 
+    yamlNode["Program"]["LES Model"] >> lesModel;
+
     yamlNode["Program"]["Reynolds Number"] >> Re;
     yamlNode["Program"]["Rossby Number"] >> Ro;
     yamlNode["Program"]["Rayleigh Number"] >> Ra;

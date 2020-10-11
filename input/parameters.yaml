@@ -42,6 +42,11 @@
     # 4 = large U, small Pr
     "RBC Type": 1
 
+    # Enable/Disable LES by choosing LES Model
+    # 0 = Disable LES
+    # 1 = Stretched Spiral Vortex LES
+    "LES Model": 1
+
     # Non-dimensional parameters
     "Reynolds Number": 1000
     "Rossby Number": 12
@@ -82,7 +87,7 @@
     # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
     # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
     # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
-    "Mesh Type": "DDD"
+    "Mesh Type": "UUU"
 
     # Stretching factor to be used for tangent-hyperbolic grids.
     # This option is considered only when tangent-hyperbolic stretching is specified in the Mesh Type

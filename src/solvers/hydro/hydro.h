@@ -58,6 +58,7 @@
 #include "parser.h"
 #include "force.h"
 #include "grid.h"
+#include "les.h"
 
 class hydro {
     public:
@@ -184,6 +185,8 @@ class hydro_d3: public hydro {
 
     private:
         multigrid_d3 mgSolver;
+
+        les *sgsLES;
 
 #ifdef TIME_RUN
         real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;

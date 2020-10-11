@@ -64,8 +64,8 @@ spiral::spiral(const grid &mesh): les(mesh) { }
 // to (u[n - 1], v[n - 1], w[n - 1]) at (x[n - 1], y[n - 1], z[n - 1]),
 // resolved velocity gradient tensor dudx[3][3], LES cutoff scale del,
 // and kinematic viscosity nu. If e[3] == { 0.0, 0.0, 0.0 }, overwrite e[3]
-// with default alignment. prefac is the group prefactor
-// \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3} and lv = Sqrt[2 nu / (3 Abs[a])],
+// with default alignment.
+// \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3},
 // where a = e_i^v e_j^v S_{ij} is the axial stretching.
 //
 void spiral::sgs_stress(
@@ -73,8 +73,10 @@ void spiral::sgs_stress(
     double *x, double *y, double *z, int n,
     double dudx[3][3], double e[3], double nu, double del,
     double *Txx, double *Tyy, double *Tzz,
-    double *Txy, double *Tyz, double *Tzx, double *prefac, double *lv)
+    double *Txy, double *Tyz, double *Tzx)
 {
+    // lv = Sqrt[2 nu / (3 Abs[a])]
+    double lv = 0.0;
     {
         // Strain-rate tensor
         double Sxx = 0.5 * (dudx[0][0] + dudx[0][0]);
@@ -101,14 +103,13 @@ void spiral::sgs_stress(
         double a = e[0] * e[0] * Sxx + e[0] * e[1] * Sxy + e[0] * e[2] * Szx
                  + e[1] * e[0] * Sxy + e[1] * e[1] * Syy + e[1] * e[2] * Syz
                  + e[2] * e[0] * Szx + e[2] * e[1] * Syz + e[2] * e[2] * Szz;
-        *lv = sqrt(2.0 * nu / (3.0 * (fabs(a) + EPS)));
+        lv = sqrt(2.0 * nu / (3.0 * (fabs(a) + EPS)));
     }
     double F2 = 0.0;
     double Qd = 0.0; 
     {    
         // Average over neighboring points
-        int i;
-        for (i = 1; i < n; i++) {
+        for (int i = 1; i < n; i++) {
             double du = u[i] - u[0];
             double dv = v[i] - v[0];
             double dw = w[i] - w[0];
@@ -124,9 +125,10 @@ void spiral::sgs_stress(
         F2 /= (double) (n - 1);
         Qd /= (double) (n - 1);
     }
-    *prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
+    // prefac is the group prefactor
+    double prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
     double kc = M_PI / del;
-    double K = (*prefac) * ke_integral(kc * (*lv));
+    double K = prefac * ke_integral(kc * lv);
 
     // T_{ij} = (\delta_{ij} - e_i^v e_j^v) K
     *Txx = (1.0 - e[0] * e[0]) * K;
@@ -166,7 +168,7 @@ void spiral::sgs_flux(
 // (1/2) k^(2/3) Gamma[-1/3, k^2]
 // with maximum relative error of 0.17% at k=2.42806.
 //
-double ke_integral(double k)
+double spiral::ke_integral(double k)
 {
     double k2 = k * k;
     if (k2 < 2.42806) {
@@ -189,7 +191,7 @@ double ke_integral(double k)
 // Integrate[4 x^(-5/3) (1 - BesselJ[0, x Pi d]), {x, 0, 1}]
 // with maximum relative error of 2.71% at d=0.873469.
 //
-double sf_integral(double d)
+double spiral::sf_integral(double d)
 {
     // Uncomment if spherical averaging and d=1.
     // if (d == 1.0) return 4.09047;

@@ -44,7 +44,6 @@
 #include "parallel.h"
 #include "scalar.h"
 #include "parser.h"
-#include "hydro.h"
 #include "grid.h"
 
 int main() {

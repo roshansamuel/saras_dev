@@ -75,6 +75,7 @@ class parser {
         int icType;
         int dScheme;
         int iScheme;
+        int lesModel;
         int probType;
         int xGrid, yGrid, zGrid;
 
