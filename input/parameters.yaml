@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 1
+    "Problem Type": 4
 
     # Choose from the following initial conditions
     # 0 = Zero-initial condition
@@ -17,7 +17,7 @@
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
     # 5 = Sinusoidal Random Perturbation (for Channel Flow)
-    "Initial Condition": 0
+    "Initial Condition": 4
 
     # Mean flow velocity (for Channel Flow)
     # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
@@ -27,13 +27,13 @@
     # Intensity of random perturbation (for Channel Flow)
     # If option 3 or 4 is selected above, the intensity of perturbation can be set below.
     # The intensity is expressed as a percentage of the uniform mean flow velocity
-    "Perturbation Intensity": 15
+    "Perturbation Intensity": 1
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
     # If periodic along all directions, Domain Type = PPP, and so on
     # For 2D runs, only X and Z direction values are considered
-    "Domain Type": "NNN"
+    "Domain Type": "PPN"
 
     # For RBC, specify the non-dimensionalization to be used:
     # 1 = small U, large Pr
@@ -48,16 +48,16 @@
     "LES Model": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 1000
+    "Reynolds Number": 500
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
     "Taylor Number": 0.0
 
     # Dimensions of the domain
-    "X Length": 1.0
-    "Y Length": 1.0
-    "Z Length": 1.0
+    "X Length": 12.5664
+    "Y Length": 6.2832
+    "Z Length": 2.0
 
     # For Problem Type 5, heating can be applied at bottom wall using a circular heating plate
     "Heating Plate": false
@@ -73,7 +73,7 @@
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
     # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
     # 5 = Constant pressure gradient (along X-direction: used mainly for periodic channel flows)
-    "Force": 0
+    "Force": 5
 
     # If constant pressure gradient is chosen as forcing, set the value of mean pressure gradient
     "Mean Pressure Gradient": 1.0
@@ -100,9 +100,9 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 6
+    "X Index": 7
     "Y Index": 6
-    "Z Index": 6
+    "Z Index": 5
 
 
 # Parellelization parameters
@@ -139,7 +139,7 @@
     "Final Time": 0.1
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 10
+    "I/O Count": 1
 
     # Select the format in which solution data must be written at each solution write interval
     # 1 = Write a single HDF5 file inside ./output/, containing all the variables - Vx, Vy, P, etc.

@@ -272,10 +272,17 @@ void hydro_d3::timeAdvance() {
 
     // Add sub-grid stress contribution from LES Model, if enabled
     MPI_Barrier(MPI_COMM_WORLD);
-    if (inputParams.lesModel) {
+    if (inputParams.lesModel and time > 10*inputParams.tStp) {
+        // Arrays for sub-grid stress tensors
         blitz::Array<double, 3> Txx, Tyy, Tzz, Txy, Tyz, Tzx;
-        double dudx[3][3];
-        double e[3] = {0.0, 0.0, 0.0};
+
+        // Kinematic viscosity
+        double nu = inverseRe;
+
+        // Number of velocity samples for structure function
+        int n = 2;
+
+        double v1, v2;
 
         Txx.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
         Txx.reindexSelf(P.F.fBulk.lbound());
@@ -295,24 +302,111 @@ void hydro_d3::timeAdvance() {
         Tzx.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
         Tzx.reindexSelf(P.F.fBulk.lbound());
 
+        //if (mesh.rankData.rank == 3) {
+        //    std::cout << Txx.lbound() << "\t" << Txx.ubound() << std::endl;
+        //    std::cout << Tyy.lbound() << "\t" << Tyy.ubound() << std::endl;
+        //    std::cout << Tzz.lbound() << "\t" << Tzz.ubound() << std::endl;
+        //    std::cout << Txy.lbound() << "\t" << Txy.ubound() << std::endl;
+        //    std::cout << Tyz.lbound() << "\t" << Tyz.ubound() << std::endl;
+        //    std::cout << Tzx.lbound() << "\t" << Tzx.ubound() << std::endl;
+        //    std::cout << P.F.fBulk.lbound(0) << std::endl;
+        //    std::cout << P.F.fBulk.ubound(0) << std::endl;
+        //    std::cout << P.F.fBulk.lbound(1) << std::endl;
+        //    std::cout << P.F.fBulk.ubound(1) << std::endl;
+        //    std::cout << P.F.fBulk.lbound(2) << std::endl;
+        //    std::cout << P.F.fBulk.ubound(2) << std::endl;
+        //}
+        //MPI_Finalize();
+        //exit(0);
         for (int iX = P.F.fBulk.lbound(0); iX <= P.F.fBulk.ubound(0); iX++) {
             double dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
             for (int iY = P.F.fBulk.lbound(1); iY <= P.F.fBulk.ubound(1); iY++) {
                 double dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
                 for (int iZ = P.F.fBulk.lbound(2); iZ <= P.F.fBulk.ubound(2); iZ++) {
                     double dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
+            //if (mesh.rankData.rank == 0) std::cout << dz << std::endl;
+             //std::cout << dz << std::endl;
 
                     // Cutoff wavelength
                     double del = std::cbrt(dx*dy*dz);
 
-                    // Kinematic viscosity
-                    double nu = inverseRe;
+                    // Vector of alignment of subgrid vortex
+                    double e[3] = {0.0, 0.0, 0.0};
 
-                    // Number of velocity samples for structure function
-                    int n = 2;
+                    v1 = (V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))*0.5;
+                    v2 = (V.Vx.F(iX, iY+1, iZ+1) + V.Vx.F(iX+1, iY+1, iZ+1))*0.5;
+                    double u[2] = {v1, v2};
 
-                    //sgsLES->sgs_stress(u, v, w, x, y, z, n, dudx, e, nu, del, Txx, Tyy, Tzz, Txy, Tyz, Tzx);
+                    v1 = (V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))*0.5;
+                    v2 = (V.Vy.F(iX+1, iY, iZ+1) + V.Vy.F(iX+1, iY+1, iZ+1))*0.5;
+                    double v[2] = {v1, v2};
+
+                    v1 = (V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))*0.5;
+                    v2 = (V.Vz.F(iX+1, iY+1, iZ) + V.Vz.F(iX+1, iY+1, iZ+1))*0.5;
+                    double w[2] = {v1, v2};
+
+                    double ux = (V.Vx.F(iX, iY, iZ) - V.Vx.F(iX-1, iY, iZ))/(mesh.xColloc(iX) - mesh.xColloc(iX-1));
+                    double vy = (V.Vy.F(iX, iY, iZ) - V.Vy.F(iX, iY-1, iZ))/(mesh.yColloc(iY) - mesh.yColloc(iY-1));
+                    double wz = (V.Vz.F(iX, iY, iZ) - V.Vz.F(iX, iY, iZ-1))/(mesh.zColloc(iZ) - mesh.zColloc(iZ-1));
+
+                    v1 = (V.Vx.F(iX-1, iY-1, iZ) + V.Vx.F(iX, iY-1, iZ))*0.5;
+                    v2 = (V.Vx.F(iX-1, iY+1, iZ) + V.Vx.F(iX, iY+1, iZ))*0.5;
+                    double uy = (v2 - v1)/(mesh.yStaggr(iY+1) - mesh.yStaggr(iY-1));
+
+                    v1 = (V.Vx.F(iX-1, iY, iZ-1) + V.Vx.F(iX, iY, iZ-1))*0.5;
+                    v2 = (V.Vx.F(iX-1, iY, iZ+1) + V.Vx.F(iX, iY, iZ+1))*0.5;
+                    double uz = (v2 - v1)/(mesh.zStaggr(iZ+1) - mesh.zStaggr(iZ-1));
+
+                    v1 = (V.Vy.F(iX-1, iY-1, iZ) + V.Vy.F(iX-1, iY, iZ))*0.5;
+                    v2 = (V.Vy.F(iX+1, iY-1, iZ) + V.Vy.F(iX+1, iY, iZ))*0.5;
+                    double vx = (v2 - v1)/(mesh.xStaggr(iX+1) - mesh.xStaggr(iX-1));
+
+                    v1 = (V.Vy.F(iX, iY-1, iZ-1) + V.Vy.F(iX, iY, iZ-1))*0.5;
+                    v2 = (V.Vy.F(iX, iY-1, iZ+1) + V.Vy.F(iX, iY, iZ+1))*0.5;
+                    double vz = (v2 - v1)/(mesh.zStaggr(iZ+1) - mesh.zStaggr(iZ-1));
+
+                    v1 = (V.Vz.F(iX-1, iY, iZ-1) + V.Vz.F(iX-1, iY, iZ))*0.5;
+                    v2 = (V.Vz.F(iX+1, iY, iZ-1) + V.Vz.F(iX+1, iY, iZ))*0.5;
+                    double wx = (v2 - v1)/(mesh.xStaggr(iX+1) - mesh.xStaggr(iX-1));
+
+                    v1 = (V.Vz.F(iX, iY-1, iZ-1) + V.Vz.F(iX, iY-1, iZ))*0.5;
+                    v2 = (V.Vz.F(iX, iY+1, iZ-1) + V.Vz.F(iX, iY+1, iZ))*0.5;
+                    double wy = (v2 - v1)/(mesh.yStaggr(iY+1) - mesh.yStaggr(iY-1));
+
+                    // A 3 x 3 matrix of velocity gradient
+                    double dudx[3][3] = {{ux, uy, uz}, {vx, vy, vz}, {wx, wy, wz}};
+
+                    double x[2] = {mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
+                    double y[2] = {mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
+                    double z[2] = {mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+
+                    double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
+
+                    sgsLES->sgs_stress(u, v, w, x, y, z, n, dudx, e, nu, del,
+                                    &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
+
+                    //MPI_Barrier(MPI_COMM_WORLD);
+                    //if (mesh.rankData.rank == 1) {
+                    //    std::cout << sTxx << std::endl;
+                    //    std::cout << sTyy << std::endl;
+                    //    std::cout << sTzz << std::endl;
+                    //    std::cout << sTxy << std::endl;
+                    //    std::cout << sTyz << std::endl;
+                    //    std::cout << sTzx << std::endl;
+                    //}
+                    //MPI_Finalize();
+                    //exit(0);
+
+                    //Txx(iX, iY, iZ) = sTxx;
+                    //Tyy(iX, iY, iZ) = sTyy;
+                    //Tzz(iX, iY, iZ) = sTzz;
+                    //Txy(iX, iY, iZ) = sTxy;
+                    //Tyz(iX, iY, iZ) = sTyz;
+                    //Tzx(iX, iY, iZ) = sTzx;
+
+                    //std::cout << mesh.rankData.rank << "\t" << uy << "\t" << vx << std::endl;
                 }
+                //MPI_Finalize();exit(0);
             }
         }
         //std::cout << mesh.rankData.rank << "\t" << "Vx" << V.Vx.fBulk.lbound() << std::endl;
@@ -326,8 +420,8 @@ void hydro_d3::timeAdvance() {
             double *Txy, double *Tyz, double *Tzx);
         */
     }
-    MPI_Finalize();
-    exit(0);
+    //MPI_Finalize();
+    //exit(0);
 
     // Subtract the pressure gradient term
     pressureGradient = 0.0;

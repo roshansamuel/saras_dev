@@ -228,9 +228,9 @@ void spiral::eigenvalue_symm(
     if (q >= 0.0) {
         if (mesh.rankData.rank == 0) {
             std::cout << "The value of q is greater than or equal to 0 in Spiral Eigenvalue calculation. Aborting" << std::endl;
-            MPI_Finalize();
-            exit(0);
         }
+        MPI_Finalize();
+        exit(0);
     }
 
     double costheta = r / sqrt(-q * q * q);
@@ -272,12 +272,12 @@ void spiral::eigenvector_symm(
     // A better one would be to check the zero against the det(S), for instance.
     if (fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
             + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
-            + Szx * (Sxy * Syz - (Syy - eigval) * Szx)) > EPS) {
+            + Szx * (Sxy * Syz - (Syy - eigval) * Szx)) < EPS) {
         if (mesh.rankData.rank == 0) {
             std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;
-            MPI_Finalize();
-            exit(0);
         }
+        MPI_Finalize();
+        exit(0);
     }
 
     double det[3] = { (Syy - eigval) * (Szz - eigval) - Syz * Syz,
@@ -304,8 +304,8 @@ void spiral::eigenvector_symm(
     else {
         if (mesh.rankData.rank == 0) {
             std::cout << "Eigenvalues are not distinct in Spiral Eigenvector calculation. Aborting" << std::endl;
-            MPI_Finalize();
-            exit(0);
         }
+        MPI_Finalize();
+        exit(0);
     }
 }
