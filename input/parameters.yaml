@@ -17,7 +17,7 @@
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
     # 5 = Sinusoidal Random Perturbation (for Channel Flow)
-    "Initial Condition": 4
+    "Initial Condition": 3
 
     # Mean flow velocity (for Channel Flow)
     # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
@@ -48,7 +48,7 @@
     "LES Model": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 500
+    "Reynolds Number": 5000
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
@@ -108,8 +108,8 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 1
-    "X Number of Procs": 2
-    "Y Number of Procs": 2
+    "X Number of Procs": 1
+    "Y Number of Procs": 1
 
 
 # Solver parameters
@@ -136,7 +136,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.1
+    "Final Time": 0.5
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1

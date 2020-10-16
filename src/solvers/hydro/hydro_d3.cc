@@ -134,6 +134,13 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
             std::cout << "LES Switch is ON. Using stretched spiral vortex LES Model\n" << std::endl;
         }
         sgsLES = new spiral(mesh);
+
+        Txx = new sfield(mesh, "Txx");
+        Tyy = new sfield(mesh, "Tyy");
+        Tzz = new sfield(mesh, "Tzz");
+        Txy = new sfield(mesh, "Txy");
+        Tyz = new sfield(mesh, "Tyz");
+        Tzx = new sfield(mesh, "Tzx");
     }
 }
 
@@ -273,9 +280,6 @@ void hydro_d3::timeAdvance() {
     // Add sub-grid stress contribution from LES Model, if enabled
     MPI_Barrier(MPI_COMM_WORLD);
     if (inputParams.lesModel and time > 10*inputParams.tStp) {
-        // Arrays for sub-grid stress tensors
-        blitz::Array<double, 3> Txx, Tyy, Tzz, Txy, Tyz, Tzx;
-
         // Kinematic viscosity
         double nu = inverseRe;
 
@@ -284,48 +288,20 @@ void hydro_d3::timeAdvance() {
 
         double v1, v2;
 
-        Txx.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
-        Txx.reindexSelf(P.F.fBulk.lbound());
-
-        Tyy.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
-        Tyy.reindexSelf(P.F.fBulk.lbound());
-
-        Tzz.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
-        Tzz.reindexSelf(P.F.fBulk.lbound());
-
-        Txy.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
-        Txy.reindexSelf(P.F.fBulk.lbound());
-
-        Tyz.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
-        Tyz.reindexSelf(P.F.fBulk.lbound());
-
-        Tzx.resize(blitz::TinyVector<int, 3>(P.F.fBulk.ubound() - P.F.fBulk.lbound() + 1));
-        Tzx.reindexSelf(P.F.fBulk.lbound());
-
-        //if (mesh.rankData.rank == 3) {
-        //    std::cout << Txx.lbound() << "\t" << Txx.ubound() << std::endl;
-        //    std::cout << Tyy.lbound() << "\t" << Tyy.ubound() << std::endl;
-        //    std::cout << Tzz.lbound() << "\t" << Tzz.ubound() << std::endl;
-        //    std::cout << Txy.lbound() << "\t" << Txy.ubound() << std::endl;
-        //    std::cout << Tyz.lbound() << "\t" << Tyz.ubound() << std::endl;
-        //    std::cout << Tzx.lbound() << "\t" << Tzx.ubound() << std::endl;
-        //    std::cout << P.F.fBulk.lbound(0) << std::endl;
-        //    std::cout << P.F.fBulk.ubound(0) << std::endl;
-        //    std::cout << P.F.fBulk.lbound(1) << std::endl;
-        //    std::cout << P.F.fBulk.ubound(1) << std::endl;
-        //    std::cout << P.F.fBulk.lbound(2) << std::endl;
-        //    std::cout << P.F.fBulk.ubound(2) << std::endl;
+        //if (mesh.rankData.rank == 1) {
+        //    std::cout << P.F.fCore.ubound() << std::endl;
+        //    std::cout << V.Vx.F.ubound() << std::endl;
+        //    std::cout << V.Vy.F.ubound() << std::endl;
+        //    std::cout << V.Vz.F.ubound() << std::endl;
         //}
         //MPI_Finalize();
         //exit(0);
-        for (int iX = P.F.fBulk.lbound(0); iX <= P.F.fBulk.ubound(0); iX++) {
+        for (int iX = P.F.fCore.lbound(0); iX < P.F.fCore.ubound(0); iX++) {
             double dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
-            for (int iY = P.F.fBulk.lbound(1); iY <= P.F.fBulk.ubound(1); iY++) {
+            for (int iY = P.F.fCore.lbound(1); iY < P.F.fCore.ubound(1); iY++) {
                 double dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
-                for (int iZ = P.F.fBulk.lbound(2); iZ <= P.F.fBulk.ubound(2); iZ++) {
+                for (int iZ = P.F.fCore.lbound(2); iZ < P.F.fCore.ubound(2); iZ++) {
                     double dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
-            //if (mesh.rankData.rank == 0) std::cout << dz << std::endl;
-             //std::cout << dz << std::endl;
 
                     // Cutoff wavelength
                     double del = std::cbrt(dx*dy*dz);
@@ -385,43 +361,110 @@ void hydro_d3::timeAdvance() {
                     sgsLES->sgs_stress(u, v, w, x, y, z, n, dudx, e, nu, del,
                                     &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
 
-                    //MPI_Barrier(MPI_COMM_WORLD);
-                    //if (mesh.rankData.rank == 1) {
-                    //    std::cout << sTxx << std::endl;
-                    //    std::cout << sTyy << std::endl;
-                    //    std::cout << sTzz << std::endl;
-                    //    std::cout << sTxy << std::endl;
-                    //    std::cout << sTyz << std::endl;
-                    //    std::cout << sTzx << std::endl;
-                    //}
-                    //MPI_Finalize();
-                    //exit(0);
-
-                    //Txx(iX, iY, iZ) = sTxx;
-                    //Tyy(iX, iY, iZ) = sTyy;
-                    //Tzz(iX, iY, iZ) = sTzz;
-                    //Txy(iX, iY, iZ) = sTxy;
-                    //Tyz(iX, iY, iZ) = sTyz;
-                    //Tzx(iX, iY, iZ) = sTzx;
-
-                    //std::cout << mesh.rankData.rank << "\t" << uy << "\t" << vx << std::endl;
+                    Txx->F.F(iX, iY, iZ) = sTxx;
+                    Tyy->F.F(iX, iY, iZ) = sTyy;
+                    Tzz->F.F(iX, iY, iZ) = sTzz;
+                    Txy->F.F(iX, iY, iZ) = sTxy;
+                    Tyz->F.F(iX, iY, iZ) = sTyz;
+                    Tzx->F.F(iX, iY, iZ) = sTzx;
                 }
-                //MPI_Finalize();exit(0);
             }
         }
-        //std::cout << mesh.rankData.rank << "\t" << "Vx" << V.Vx.fBulk.lbound() << std::endl;
 
-        /*
-        void sgs_stress(
-            double *u, double *v, double *w,
-            double *x, double *y, double *z,
-            double dudx[3][3], double e[3],
-            double *Txx, double *Tyy, double *Tzz,
-            double *Txy, double *Tyz, double *Tzx);
-        */
+        Txx->syncData();
+        Tyy->syncData();
+        Tzz->syncData();
+        Txy->syncData();
+        Tyz->syncData();
+        Tzx->syncData();
+
+        blitz::Array<double, 3> dTxxDx;
+        dTxxDx.resize(Txx->F.fSize);
+        dTxxDx.reindexSelf(Txx->F.flBound);
+        Txx->derS.calcDerivative1_x(dTxxDx);
+
+        blitz::Array<double, 3> dTxyDx;
+        dTxyDx.resize(Txy->F.fSize);
+        dTxyDx.reindexSelf(Txy->F.flBound);
+        Txy->derS.calcDerivative1_x(dTxyDx);
+
+        blitz::Array<double, 3> dTzxDx;
+        dTzxDx.resize(Tzx->F.fSize);
+        dTzxDx.reindexSelf(Tzx->F.flBound);
+        Tzx->derS.calcDerivative1_x(dTzxDx);
+
+        blitz::Array<double, 3> dTxyDy;
+        dTxyDy.resize(Txy->F.fSize);
+        dTxyDy.reindexSelf(Txy->F.flBound);
+        Txy->derS.calcDerivative1_y(dTxyDy);
+
+        blitz::Array<double, 3> dTyyDy;
+        dTyyDy.resize(Tyy->F.fSize);
+        dTyyDy.reindexSelf(Tyy->F.flBound);
+        Tyy->derS.calcDerivative1_y(dTyyDy);
+
+        blitz::Array<double, 3> dTyzDy;
+        dTyzDy.resize(Tyz->F.fSize);
+        dTyzDy.reindexSelf(Tyz->F.flBound);
+        Tyz->derS.calcDerivative1_y(dTyzDy);
+
+        blitz::Array<double, 3> dTzxDz;
+        dTzxDz.resize(Tzx->F.fSize);
+        dTzxDz.reindexSelf(Tzx->F.flBound);
+        Tzx->derS.calcDerivative1_z(dTzxDz);
+
+        blitz::Array<double, 3> dTyzDz;
+        dTyzDz.resize(Tyz->F.fSize);
+        dTyzDz.reindexSelf(Tyz->F.flBound);
+        Tyz->derS.calcDerivative1_z(dTyzDz);
+
+        blitz::Array<double, 3> dTzzDz;
+        dTzzDz.resize(Tzz->F.fSize);
+        dTzzDz.reindexSelf(Tzz->F.flBound);
+        Tzz->derS.calcDerivative1_z(dTzzDz);
+
+        dTxxDx = dTxxDx + dTxyDy + dTzxDz;
+        dTyyDy = dTxyDx + dTyyDy + dTyzDz;
+        dTzzDz = dTzxDx + dTyzDy + dTzzDz;
+
+        int xS, xE, yS, yE, zS, zE;
+
+        xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
+        yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
+        zS = V.Vx.fCore.lbound(2) + 2; zE = V.Vx.fCore.ubound(2) - 2;
+
+        for (int iX = xS; iX <= xE; iX++) {
+            for (int iY = yS; iY <= yE; iY++) {
+                for (int iZ = zS; iZ <= zE; iZ++) {
+                    nseRHS.Vx(iX, iY, iZ) += (dTxxDx(iX, iY, iZ) + dTxxDx(iX + 1, iY, iZ))*0.5;
+                }
+            }
+        }
+
+        xS = V.Vy.fCore.lbound(0) + 2; xE = V.Vy.fCore.ubound(0) - 2;
+        yS = V.Vy.fCore.lbound(1) + 2; yE = V.Vy.fCore.ubound(1) - 2;
+        zS = V.Vy.fCore.lbound(2) + 2; zE = V.Vy.fCore.ubound(2) - 2;
+
+        for (int iX = xS; iX <= xE; iX++) {
+            for (int iY = yS; iY <= yE; iY++) {
+                for (int iZ = zS; iZ <= zE; iZ++) {
+                    nseRHS.Vy(iX, iY, iZ) += (dTyyDy(iX, iY, iZ) + dTyyDy(iX, iY + 1, iZ))*0.5;
+                }
+            }
+        }
+
+        xS = V.Vz.fCore.lbound(0) + 2; xE = V.Vz.fCore.ubound(0) - 2;
+        yS = V.Vz.fCore.lbound(1) + 2; yE = V.Vz.fCore.ubound(1) - 2;
+        zS = V.Vz.fCore.lbound(2) + 2; zE = V.Vz.fCore.ubound(2) - 2;
+
+        for (int iX = xS; iX <= xE; iX++) {
+            for (int iY = yS; iY <= yE; iY++) {
+                for (int iZ = zS; iZ <= zE; iZ++) {
+                    nseRHS.Vz(iX, iY, iZ) += (dTzzDz(iX, iY, iZ) + dTzzDz(iX, iY, iZ + 1))*0.5;
+                }
+            }
+        }
     }
-    //MPI_Finalize();
-    //exit(0);
 
     // Subtract the pressure gradient term
     pressureGradient = 0.0;

@@ -270,15 +270,18 @@ void spiral::eigenvector_symm(
 {
     // There are problems with this unscaled check for zero.
     // A better one would be to check the zero against the det(S), for instance.
-    if (fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
-            + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
-            + Szx * (Sxy * Syz - (Syy - eigval) * Szx)) < EPS) {
-        if (mesh.rankData.rank == 0) {
-            std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;
-        }
-        MPI_Finalize();
-        exit(0);
-    }
+    //double compVal;
+    //compVal = fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
+    //        + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
+    //        + Szx * (Sxy * Syz - (Syy - eigval) * Szx));
+    //std::cout << std::setprecision(20) << compVal << "\t" << EPS << std::endl;
+    //if (compVal < EPS) {
+    //    if (mesh.rankData.rank == 0) {
+    //        std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;
+    //    }
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 
     double det[3] = { (Syy - eigval) * (Szz - eigval) - Syz * Syz,
                       (Szz - eigval) * (Sxx - eigval) - Szx * Szx,
