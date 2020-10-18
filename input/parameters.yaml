@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 4
+    "Problem Type": 2
 
     # Choose from the following initial conditions
     # 0 = Zero-initial condition
@@ -17,7 +17,7 @@
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
     # 5 = Sinusoidal Random Perturbation (for Channel Flow)
-    "Initial Condition": 3
+    "Initial Condition": 1
 
     # Mean flow velocity (for Channel Flow)
     # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
@@ -33,7 +33,7 @@
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
     # If periodic along all directions, Domain Type = PPP, and so on
     # For 2D runs, only X and Z direction values are considered
-    "Domain Type": "PPN"
+    "Domain Type": "PPP"
 
     # For RBC, specify the non-dimensionalization to be used:
     # 1 = small U, large Pr
@@ -48,16 +48,16 @@
     "LES Model": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 5000
+    "Reynolds Number": 10000
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
     "Taylor Number": 0.0
 
     # Dimensions of the domain
-    "X Length": 12.5664
-    "Y Length": 6.2832
-    "Z Length": 2.0
+    "X Length": 1.0
+    "Y Length": 1.0
+    "Z Length": 1.0
 
     # For Problem Type 5, heating can be applied at bottom wall using a circular heating plate
     "Heating Plate": false
@@ -73,7 +73,7 @@
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
     # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
     # 5 = Constant pressure gradient (along X-direction: used mainly for periodic channel flows)
-    "Force": 5
+    "Force": 0
 
     # If constant pressure gradient is chosen as forcing, set the value of mean pressure gradient
     "Mean Pressure Gradient": 1.0
@@ -101,8 +101,8 @@
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
     "X Index": 7
-    "Y Index": 6
-    "Z Index": 5
+    "Y Index": 7
+    "Z Index": 7
 
 
 # Parellelization parameters
@@ -135,8 +135,8 @@
     "Use CFL Condition": false
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
-    "Time-Step": 0.001
-    "Final Time": 0.5
+    "Time-Step": 0.0001
+    "Final Time": 0.003
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1
@@ -148,7 +148,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 1.0
+    "Solution Write Interval": 0.1
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 20.0
@@ -166,7 +166,7 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 4
+    "V-Cycle Depth": 5
     # Number of V-Cycles to be performed
     "V-Cycle Count": 7
 
@@ -181,9 +181,9 @@
     "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed after restriction operations
-    "Pre-Smoothing Count": 3
+    "Pre-Smoothing Count": 4
     # Number of smoothing iterations to be performed after prolongation operations
-    "Post-Smoothing Count": 3
+    "Post-Smoothing Count": 4
 
     # Type of residual to be computed at end of each V-Cycle of the multigrid method
     # This value can be set as below:

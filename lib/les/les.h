@@ -77,26 +77,20 @@ class spiral: public les {
         void sgs_stress(
             double *u, double *v, double *w,
             double *x, double *y, double *z, int n,
-            double dudx[3][3], double e[3], double nu, double del,
+            double dudx[3][3], double nu, double del,
             double *Txx, double *Tyy, double *Tzz,
             double *Txy, double *Tyz, double *Tzx);
 
-        void sgs_flux(
-            double dsdx[3], double e[3], double del, double K,
-            double *qx, double *qy, double *qz);
-
     private:
+        double Sxx, Syy, Szz, Sxy, Syz, Szx;
+
         double ke_integral(double k);
 
         double sf_integral(double d);
 
-        void eigenvalue_symm(
-            double Sxx, double Syy, double Szz, double Sxy, double Syz, double Szx,
-            double eigval[3]);
+        double eigenvalue_symm();
 
-        void eigenvector_symm(
-            double Sxx, double Syy, double Szz, double Sxy, double Syz, double Szx,
-            double eigval, double eigvec[3]);
+        blitz::TinyVector<double, 3> eigenvector_symm(double eigval);
 };
 
 /**

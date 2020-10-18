@@ -288,14 +288,6 @@ void hydro_d3::timeAdvance() {
 
         double v1, v2;
 
-        //if (mesh.rankData.rank == 1) {
-        //    std::cout << P.F.fCore.ubound() << std::endl;
-        //    std::cout << V.Vx.F.ubound() << std::endl;
-        //    std::cout << V.Vy.F.ubound() << std::endl;
-        //    std::cout << V.Vz.F.ubound() << std::endl;
-        //}
-        //MPI_Finalize();
-        //exit(0);
         for (int iX = P.F.fCore.lbound(0); iX < P.F.fCore.ubound(0); iX++) {
             double dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
             for (int iY = P.F.fCore.lbound(1); iY < P.F.fCore.ubound(1); iY++) {
@@ -305,9 +297,6 @@ void hydro_d3::timeAdvance() {
 
                     // Cutoff wavelength
                     double del = std::cbrt(dx*dy*dz);
-
-                    // Vector of alignment of subgrid vortex
-                    double e[3] = {0.0, 0.0, 0.0};
 
                     v1 = (V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))*0.5;
                     v2 = (V.Vx.F(iX, iY+1, iZ+1) + V.Vx.F(iX+1, iY+1, iZ+1))*0.5;
@@ -358,7 +347,7 @@ void hydro_d3::timeAdvance() {
 
                     double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
 
-                    sgsLES->sgs_stress(u, v, w, x, y, z, n, dudx, e, nu, del,
+                    sgsLES->sgs_stress(u, v, w, x, y, z, n, dudx, nu, del,
                                     &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
 
                     Txx->F.F(iX, iY, iZ) = sTxx;

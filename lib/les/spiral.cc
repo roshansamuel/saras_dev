@@ -57,47 +57,48 @@
  */
 spiral::spiral(const grid &mesh): les(mesh) { }
 
-//
-// Calculate the SGS stresses (*Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx) at
-// (x[0], y[0], z[0]) given n (>=2) samples of the local resolved velocity
-// field, (u[0], v[0], w[0]) at (x[0], y[0], z[0])
-// to (u[n - 1], v[n - 1], w[n - 1]) at (x[n - 1], y[n - 1], z[n - 1]),
-// resolved velocity gradient tensor dudx[3][3], LES cutoff scale del,
-// and kinematic viscosity nu. If e[3] == { 0.0, 0.0, 0.0 }, overwrite e[3]
-// with default alignment.
-// \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3},
-// where a = e_i^v e_j^v S_{ij} is the axial stretching.
-//
+/**
+ ********************************************************************************************************************************************
+ * \brief   Main function to calculate the sub-grid stress tensor using stretched vortex model
+ *
+ *          The six components of the subgrid stress tensor - Txx, Tyy, Tzz, Txy, Tyz, Tzx are calculated at x[0], y[0], z[0].
+ *          It needs the resolved velocity gradient tensor dudx[3][3], LES cutoff scale del, and kinematic viscosity nu.
+ *          It first computes the alignment of the subgrid vortex, e, by calculating the eigenvectors of S_ij.
+ *          To compute the structure function, it needs n (>=2) samples of the local resolved velocity field,
+ *          (u[0], v[0], w[0]) at (x[0], y[0], z[0]) to (u[n - 1], v[n - 1], w[n - 1]) at (x[n - 1], y[n - 1], z[n - 1]).
+ *          Finally \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}, where a = e_i^v e_j^v S_{ij} is the axial stretching.
+ *
+ ********************************************************************************************************************************************
+ */
 void spiral::sgs_stress(
     double *u, double *v, double *w,
     double *x, double *y, double *z, int n,
-    double dudx[3][3], double e[3], double nu, double del,
+    double dudx[3][3], double nu, double del,
     double *Txx, double *Tyy, double *Tzz,
     double *Txy, double *Tyz, double *Tzx)
 {
     // lv = Sqrt[2 nu / (3 Abs[a])]
     double lv = 0.0;
+    blitz::TinyVector<double, 3> e;
+
     {
         // Strain-rate tensor
-        double Sxx = 0.5 * (dudx[0][0] + dudx[0][0]);
-        double Syy = 0.5 * (dudx[1][1] + dudx[1][1]);
-        double Szz = 0.5 * (dudx[2][2] + dudx[2][2]);
-        double Sxy = 0.5 * (dudx[0][1] + dudx[1][0]);
-        double Syz = 0.5 * (dudx[1][2] + dudx[2][1]);
-        double Szx = 0.5 * (dudx[2][0] + dudx[0][2]);
+        Sxx = 0.5 * (dudx[0][0] + dudx[0][0]);
+        Syy = 0.5 * (dudx[1][1] + dudx[1][1]);
+        Szz = 0.5 * (dudx[2][2] + dudx[2][2]);
+        Sxy = 0.5 * (dudx[0][1] + dudx[1][0]);
+        Syz = 0.5 * (dudx[1][2] + dudx[2][1]);
+        Szx = 0.5 * (dudx[2][0] + dudx[0][2]);
 
-        if (e[0] == 0.0 && e[1] == 0.0 && e[2] == 0.0) {
-            double eigval[3];
-            eigenvalue_symm(
-                Sxx, Syy, Szz, Sxy, Syz, Szx, eigval);
-            // Default alignment: most extensive eigenvector
-            eigenvector_symm(
-                Sxx, Syy, Szz, Sxy, Syz, Szx, eigval[2], e);
-        }
+        // By default, eigenvalue corresponding to most extensive eigenvector is returned
+        double eigval = eigenvalue_symm();
+
+        // Default alignment: most extensive eigenvector
+        e = eigenvector_symm(eigval);
 
         // Make e[3] a unit vector
         double length = sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
-        e[0] /= length; e[1] /= length; e[2] /= length;
+        e /= length;
 
         // Strain along vortex axis
         double a = e[0] * e[0] * Sxx + e[0] * e[1] * Sxy + e[0] * e[2] * Szx
@@ -105,6 +106,7 @@ void spiral::sgs_stress(
                  + e[2] * e[0] * Szx + e[2] * e[1] * Syz + e[2] * e[2] * Szz;
         lv = sqrt(2.0 * nu / (3.0 * (fabs(a) + EPS)));
     }
+
     double F2 = 0.0;
     double Qd = 0.0; 
     {    
@@ -137,30 +139,6 @@ void spiral::sgs_stress(
     *Txy = (    - e[0] * e[1]) * K;
     *Tyz = (    - e[1] * e[2]) * K;
     *Tzx = (    - e[2] * e[0]) * K;
-}
-
-//
-// Calculate the SGS scalar flux (*qx, *qy, *qz) given the resolved scalar
-// gradient dsdx[3], vortex alignment e[3] (a unit vector), LES cutoff
-// scale del and precalculated SGS kinetic energy K.
-//
-void spiral::sgs_flux(
-    double dsdx[3], double e[3], double del, double K,
-    double *qx, double *qy, double *qz)
-{
-    double gam = 1.0; // Universal model constant
-    double P = -0.5 * gam * del * sqrt(K);
-
-    // q_i = P (\delta_{ij} - e_i^v e_j^v) ds/dx_j
-    *qx = P * ((1.0 - e[0] * e[0]) * dsdx[0]
-             + (    - e[0] * e[1]) * dsdx[1]
-             + (    - e[0] * e[2]) * dsdx[2]);
-    *qy = P * ((    - e[1] * e[0]) * dsdx[0]
-             + (1.0 - e[1] * e[1]) * dsdx[1]
-             + (    - e[1] * e[2]) * dsdx[2]);
-    *qz = P * ((    - e[2] * e[0]) * dsdx[0]
-             + (    - e[2] * e[1]) * dsdx[1]
-             + (1.0 - e[2] * e[2]) * dsdx[2]);
 }
 
 //
@@ -210,10 +188,9 @@ double spiral::sf_integral(double d)
 // { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
 // assuming distinct eigenvalues.
 //
-void spiral::eigenvalue_symm(
-    double Sxx, double Syy, double Szz, double Sxy, double Syz, double Szx,
-    double eigval[3])
-{
+double spiral::eigenvalue_symm() {
+    double eigval[3];
+
     // x^3 + a * x^2 + b * x + c = 0, where x is the eigenvalue
     double a = - (Sxx + Syy + Szz);
     double b = Sxx * Syy - Sxy * Sxy + Syy * Szz
@@ -255,6 +232,8 @@ void spiral::eigenvalue_symm(
     if (eigval[0] > eigval[1]) {
         double tmp = eigval[0]; eigval[0] = eigval[1]; eigval[1] = tmp;
     }
+
+    return eigval[2];
 }
 
 //
@@ -264,10 +243,9 @@ void spiral::eigenvalue_symm(
 // { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
 // assuming distinct eigenvalues.
 //
-void spiral::eigenvector_symm(
-    double Sxx, double Syy, double Szz, double Sxy, double Syz, double Szx,
-    double eigval, double eigvec[3])
-{
+blitz::TinyVector<double, 3> spiral::eigenvector_symm(double eigval) {
+    blitz::TinyVector<double, 3> eigvec;
+
     // There are problems with this unscaled check for zero.
     // A better one would be to check the zero against the det(S), for instance.
     //double compVal;
@@ -290,19 +268,13 @@ void spiral::eigenvector_symm(
     double fabsdet[3] = { fabs(det[0]), fabs(det[1]), fabs(det[2]) };
 
     if (fabsdet[0] >= fabsdet[1] && fabsdet[0] >= fabsdet[2]) {
-        eigvec[0] = 1.0;
-        eigvec[1] = (-Sxy * (Szz - eigval) + Szx * Syz) / det[0];
-        eigvec[2] = (-Szx * (Syy - eigval) + Sxy * Syz) / det[0];
+        eigvec = 1.0, (-Sxy*(Szz - eigval) + Szx*Syz)/det[0], (-Szx*(Syy - eigval) + Sxy*Syz)/det[0];
     }
     else if (fabsdet[1] >= fabsdet[2] && fabsdet[1] >= fabsdet[0]) {
-        eigvec[0] = (-Sxy * (Szz - eigval) + Syz * Szx) / det[1];
-        eigvec[1] = 1.0;
-        eigvec[2] = (-Syz * (Sxx - eigval) + Sxy * Szx) / det[1];
+        eigvec = (-Sxy*(Szz - eigval) + Syz*Szx)/det[1], 1.0, (-Syz*(Sxx - eigval) + Sxy*Szx)/det[1];
     }
     else if (fabsdet[2] >= fabsdet[0] && fabsdet[2] >= fabsdet[1]) {
-        eigvec[0] = (-Szx * (Syy - eigval) + Syz * Sxy) / det[2];
-        eigvec[1] = (-Syz * (Sxx - eigval) + Szx * Sxy) / det[2];
-        eigvec[2] = 1.0;
+        eigvec = (-Szx*(Syy - eigval) + Syz*Sxy)/det[2], (-Syz*(Sxx - eigval) + Szx*Sxy)/det[2], 1.0;
     }
     else {
         if (mesh.rankData.rank == 0) {
@@ -311,4 +283,6 @@ void spiral::eigenvector_symm(
         MPI_Finalize();
         exit(0);
     }
+
+    return eigvec;
 }
