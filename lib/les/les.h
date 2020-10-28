@@ -75,9 +75,12 @@ class spiral: public les {
         spiral(const grid &mesh);
 
         void sgs_stress(
-            double *u, double *v, double *w,
-            double *x, double *y, double *z, int n,
-            double dudx[3][3], double nu, double del,
+            blitz::Array<double, 3> u,
+            blitz::Array<double, 3> v,
+            blitz::Array<double, 3> w,
+            blitz::Array<double, 2> dudx,
+            double *x, double *y, double *z,
+            double nu, double del,
             double *Txx, double *Tyy, double *Tzz,
             double *Txy, double *Tyz, double *Tzx);
 

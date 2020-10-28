@@ -189,7 +189,7 @@ class hydro_d3: public hydro {
         spiral *sgsLES;
 
         // Following scalar fields are allocated space only if LES Switch is ON
-        sfield *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx;
+        sfield *Vxcc, *Vycc, *Vzcc, *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx;
 
 #ifdef TIME_RUN
         real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;

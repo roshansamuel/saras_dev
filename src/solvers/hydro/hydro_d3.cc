@@ -141,6 +141,10 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
         Txy = new sfield(mesh, "Txy");
         Tyz = new sfield(mesh, "Tyz");
         Tzx = new sfield(mesh, "Tzx");
+
+        Vxcc = new sfield(mesh, "Ucc");
+        Vycc = new sfield(mesh, "Vcc");
+        Vzcc = new sfield(mesh, "Wcc");
     }
 }
 
@@ -283,71 +287,97 @@ void hydro_d3::timeAdvance() {
         // Kinematic viscosity
         double nu = inverseRe;
 
-        // Number of velocity samples for structure function
-        int n = 2;
+        // Array limits for loops
+        int xS, xE, yS, yE, zS, zE;
 
-        double v1, v2;
+        // These are three 3x3x3 arrays containing local interpolated velocities
+        // These are used to calculate the structure function within the spiral les routine
+        blitz::Array<double, 3> u(3, 3, 3), v(3, 3, 3), w(3, 3, 3);
 
-        for (int iX = P.F.fCore.lbound(0); iX < P.F.fCore.ubound(0); iX++) {
+        // The following 3x3 matrix stores the velocity gradient tensor
+        blitz::Array<double, 2> dudx(3, 3);
+
+        // These 9 arrays store components of the velocity gradient tensor intially
+        // Then they are used to store the derivatives of stress tensor to calculate its divergence
+        blitz::Array<double, 3> A11, A12, A13;
+        blitz::Array<double, 3> A21, A22, A23;
+        blitz::Array<double, 3> A31, A32, A33;
+
+        // The 9 arrays of tensor components have the same dimensions and limits as a cell centered variable
+        A11.resize(P.F.fSize);      A11.reindexSelf(P.F.flBound);
+        A12.resize(P.F.fSize);      A12.reindexSelf(P.F.flBound);
+        A13.resize(P.F.fSize);      A13.reindexSelf(P.F.flBound);
+        A21.resize(P.F.fSize);      A21.reindexSelf(P.F.flBound);
+        A22.resize(P.F.fSize);      A22.reindexSelf(P.F.flBound);
+        A23.resize(P.F.fSize);      A23.reindexSelf(P.F.flBound);
+        A31.resize(P.F.fSize);      A31.reindexSelf(P.F.flBound);
+        A32.resize(P.F.fSize);      A32.reindexSelf(P.F.flBound);
+        A33.resize(P.F.fSize);      A33.reindexSelf(P.F.flBound);
+
+        // First interpolate all velocities to cell centers
+        // Then U, V and W data are available at all cell centers except ghost points
+        P.interTempF = 0.0;
+        for (unsigned int i=0; i < P.F.VxIntSlices.size(); i++) {
+            P.interTempF(P.F.fCore) += V.Vx.F(P.F.VxIntSlices(i));
+        }
+        Vxcc->F.F = P.interTempF/P.F.VxIntSlices.size();
+
+        P.interTempF = 0.0;
+        for (unsigned int i=0; i < P.F.VyIntSlices.size(); i++) {
+            P.interTempF(P.F.fCore) += V.Vy.F(P.F.VyIntSlices(i));
+        }
+        Vycc->F.F = P.interTempF/P.F.VyIntSlices.size();
+
+        P.interTempF = 0.0;
+        for (unsigned int i=0; i < P.F.VzIntSlices.size(); i++) {
+            P.interTempF(P.F.fCore) += V.Vz.F(P.F.VzIntSlices(i));
+        }
+        Vzcc->F.F = P.interTempF/P.F.VzIntSlices.size();
+
+        Vxcc->derS.calcDerivative1_x(A11);
+        Vxcc->derS.calcDerivative1_x(A12);
+        Vxcc->derS.calcDerivative1_x(A13);
+        Vycc->derS.calcDerivative1_y(A21);
+        Vycc->derS.calcDerivative1_y(A22);
+        Vycc->derS.calcDerivative1_y(A23);
+        Vzcc->derS.calcDerivative1_z(A31);
+        Vzcc->derS.calcDerivative1_z(A32);
+        Vzcc->derS.calcDerivative1_z(A33);
+
+        // Use only cell centers like a collocated grid and compute T tensor
+        // Since U, V, and W data is available only in the core,
+        // Adjust the loop limits so that the boundary points are excluded
+        // to compute derivatives and structure functions correctly.
+        xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
+        yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
+        zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
+
+        for (int iX = xS; iX <= xE; iX++) {
             double dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
-            for (int iY = P.F.fCore.lbound(1); iY < P.F.fCore.ubound(1); iY++) {
+            for (int iY = yS; iY <= yE; iY++) {
                 double dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
-                for (int iZ = P.F.fCore.lbound(2); iZ < P.F.fCore.ubound(2); iZ++) {
+                for (int iZ = zS; iZ <= zE; iZ++) {
                     double dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
                     // Cutoff wavelength
                     double del = std::cbrt(dx*dy*dz);
 
-                    v1 = (V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))*0.5;
-                    v2 = (V.Vx.F(iX, iY+1, iZ+1) + V.Vx.F(iX+1, iY+1, iZ+1))*0.5;
-                    double u[2] = {v1, v2};
-
-                    v1 = (V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))*0.5;
-                    v2 = (V.Vy.F(iX+1, iY, iZ+1) + V.Vy.F(iX+1, iY+1, iZ+1))*0.5;
-                    double v[2] = {v1, v2};
-
-                    v1 = (V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))*0.5;
-                    v2 = (V.Vz.F(iX+1, iY+1, iZ) + V.Vz.F(iX+1, iY+1, iZ+1))*0.5;
-                    double w[2] = {v1, v2};
-
-                    double ux = (V.Vx.F(iX, iY, iZ) - V.Vx.F(iX-1, iY, iZ))/(mesh.xColloc(iX) - mesh.xColloc(iX-1));
-                    double vy = (V.Vy.F(iX, iY, iZ) - V.Vy.F(iX, iY-1, iZ))/(mesh.yColloc(iY) - mesh.yColloc(iY-1));
-                    double wz = (V.Vz.F(iX, iY, iZ) - V.Vz.F(iX, iY, iZ-1))/(mesh.zColloc(iZ) - mesh.zColloc(iZ-1));
-
-                    v1 = (V.Vx.F(iX-1, iY-1, iZ) + V.Vx.F(iX, iY-1, iZ))*0.5;
-                    v2 = (V.Vx.F(iX-1, iY+1, iZ) + V.Vx.F(iX, iY+1, iZ))*0.5;
-                    double uy = (v2 - v1)/(mesh.yStaggr(iY+1) - mesh.yStaggr(iY-1));
-
-                    v1 = (V.Vx.F(iX-1, iY, iZ-1) + V.Vx.F(iX, iY, iZ-1))*0.5;
-                    v2 = (V.Vx.F(iX-1, iY, iZ+1) + V.Vx.F(iX, iY, iZ+1))*0.5;
-                    double uz = (v2 - v1)/(mesh.zStaggr(iZ+1) - mesh.zStaggr(iZ-1));
-
-                    v1 = (V.Vy.F(iX-1, iY-1, iZ) + V.Vy.F(iX-1, iY, iZ))*0.5;
-                    v2 = (V.Vy.F(iX+1, iY-1, iZ) + V.Vy.F(iX+1, iY, iZ))*0.5;
-                    double vx = (v2 - v1)/(mesh.xStaggr(iX+1) - mesh.xStaggr(iX-1));
-
-                    v1 = (V.Vy.F(iX, iY-1, iZ-1) + V.Vy.F(iX, iY, iZ-1))*0.5;
-                    v2 = (V.Vy.F(iX, iY-1, iZ+1) + V.Vy.F(iX, iY, iZ+1))*0.5;
-                    double vz = (v2 - v1)/(mesh.zStaggr(iZ+1) - mesh.zStaggr(iZ-1));
-
-                    v1 = (V.Vz.F(iX-1, iY, iZ-1) + V.Vz.F(iX-1, iY, iZ))*0.5;
-                    v2 = (V.Vz.F(iX+1, iY, iZ-1) + V.Vz.F(iX+1, iY, iZ))*0.5;
-                    double wx = (v2 - v1)/(mesh.xStaggr(iX+1) - mesh.xStaggr(iX-1));
-
-                    v1 = (V.Vz.F(iX, iY-1, iZ-1) + V.Vz.F(iX, iY-1, iZ))*0.5;
-                    v2 = (V.Vz.F(iX, iY+1, iZ-1) + V.Vz.F(iX, iY+1, iZ))*0.5;
-                    double wy = (v2 - v1)/(mesh.yStaggr(iY+1) - mesh.yStaggr(iY-1));
+                    u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                    v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                    w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
 
                     // A 3 x 3 matrix of velocity gradient
-                    double dudx[3][3] = {{ux, uy, uz}, {vx, vy, vz}, {wx, wy, wz}};
+                    dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
+                           A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
+                           A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
 
-                    double x[2] = {mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
-                    double y[2] = {mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
-                    double z[2] = {mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+                    double x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
+                    double y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
+                    double z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
 
                     double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
 
-                    sgsLES->sgs_stress(u, v, w, x, y, z, n, dudx, nu, del,
+                    sgsLES->sgs_stress(u, v, w, dudx, x, y, z, nu, del,
                                     &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
 
                     Txx->F.F(iX, iY, iZ) = sTxx;
@@ -367,56 +397,19 @@ void hydro_d3::timeAdvance() {
         Tyz->syncData();
         Tzx->syncData();
 
-        blitz::Array<double, 3> dTxxDx;
-        dTxxDx.resize(Txx->F.fSize);
-        dTxxDx.reindexSelf(Txx->F.flBound);
-        Txx->derS.calcDerivative1_x(dTxxDx);
+        Txx->derS.calcDerivative1_x(A11);
+        Txy->derS.calcDerivative1_x(A12);
+        Tzx->derS.calcDerivative1_x(A13);
+        Txy->derS.calcDerivative1_y(A21);
+        Tyy->derS.calcDerivative1_y(A22);
+        Tyz->derS.calcDerivative1_y(A23);
+        Tzx->derS.calcDerivative1_z(A31);
+        Tyz->derS.calcDerivative1_z(A32);
+        Tzz->derS.calcDerivative1_z(A33);
 
-        blitz::Array<double, 3> dTxyDx;
-        dTxyDx.resize(Txy->F.fSize);
-        dTxyDx.reindexSelf(Txy->F.flBound);
-        Txy->derS.calcDerivative1_x(dTxyDx);
-
-        blitz::Array<double, 3> dTzxDx;
-        dTzxDx.resize(Tzx->F.fSize);
-        dTzxDx.reindexSelf(Tzx->F.flBound);
-        Tzx->derS.calcDerivative1_x(dTzxDx);
-
-        blitz::Array<double, 3> dTxyDy;
-        dTxyDy.resize(Txy->F.fSize);
-        dTxyDy.reindexSelf(Txy->F.flBound);
-        Txy->derS.calcDerivative1_y(dTxyDy);
-
-        blitz::Array<double, 3> dTyyDy;
-        dTyyDy.resize(Tyy->F.fSize);
-        dTyyDy.reindexSelf(Tyy->F.flBound);
-        Tyy->derS.calcDerivative1_y(dTyyDy);
-
-        blitz::Array<double, 3> dTyzDy;
-        dTyzDy.resize(Tyz->F.fSize);
-        dTyzDy.reindexSelf(Tyz->F.flBound);
-        Tyz->derS.calcDerivative1_y(dTyzDy);
-
-        blitz::Array<double, 3> dTzxDz;
-        dTzxDz.resize(Tzx->F.fSize);
-        dTzxDz.reindexSelf(Tzx->F.flBound);
-        Tzx->derS.calcDerivative1_z(dTzxDz);
-
-        blitz::Array<double, 3> dTyzDz;
-        dTyzDz.resize(Tyz->F.fSize);
-        dTyzDz.reindexSelf(Tyz->F.flBound);
-        Tyz->derS.calcDerivative1_z(dTyzDz);
-
-        blitz::Array<double, 3> dTzzDz;
-        dTzzDz.resize(Tzz->F.fSize);
-        dTzzDz.reindexSelf(Tzz->F.flBound);
-        Tzz->derS.calcDerivative1_z(dTzzDz);
-
-        dTxxDx = dTxxDx + dTxyDy + dTzxDz;
-        dTyyDy = dTxyDx + dTyyDy + dTyzDz;
-        dTzzDz = dTzxDx + dTyzDy + dTzzDz;
-
-        int xS, xE, yS, yE, zS, zE;
+        A11 = A11 + A21 + A31;
+        A22 = A12 + A22 + A32;
+        A33 = A13 + A23 + A33;
 
         xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
         yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
@@ -425,7 +418,7 @@ void hydro_d3::timeAdvance() {
         for (int iX = xS; iX <= xE; iX++) {
             for (int iY = yS; iY <= yE; iY++) {
                 for (int iZ = zS; iZ <= zE; iZ++) {
-                    nseRHS.Vx(iX, iY, iZ) += (dTxxDx(iX, iY, iZ) + dTxxDx(iX + 1, iY, iZ))*0.5;
+                    nseRHS.Vx(iX, iY, iZ) += (A11(iX, iY, iZ) + A11(iX + 1, iY, iZ))*0.5;
                 }
             }
         }
@@ -437,7 +430,7 @@ void hydro_d3::timeAdvance() {
         for (int iX = xS; iX <= xE; iX++) {
             for (int iY = yS; iY <= yE; iY++) {
                 for (int iZ = zS; iZ <= zE; iZ++) {
-                    nseRHS.Vy(iX, iY, iZ) += (dTyyDy(iX, iY, iZ) + dTyyDy(iX, iY + 1, iZ))*0.5;
+                    nseRHS.Vy(iX, iY, iZ) += (A22(iX, iY, iZ) + A22(iX, iY + 1, iZ))*0.5;
                 }
             }
         }
@@ -449,7 +442,7 @@ void hydro_d3::timeAdvance() {
         for (int iX = xS; iX <= xE; iX++) {
             for (int iY = yS; iY <= yE; iY++) {
                 for (int iZ = zS; iZ <= zE; iZ++) {
-                    nseRHS.Vz(iX, iY, iZ) += (dTzzDz(iX, iY, iZ) + dTzzDz(iX, iY, iZ + 1))*0.5;
+                    nseRHS.Vz(iX, iY, iZ) += (A33(iX, iY, iZ) + A33(iX, iY, iZ + 1))*0.5;
                 }
             }
         }

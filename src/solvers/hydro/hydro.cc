@@ -71,7 +71,7 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             pressureGradient(mesh, V),
             guessedVelocity(mesh, V)
 {
-    maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+    maxIterations = int(std::pow(std::log10(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 2));
 }
 
 

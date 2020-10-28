@@ -48,7 +48,7 @@
     "LES Model": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 10000
+    "Reynolds Number": 1000
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
@@ -100,9 +100,9 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 7
-    "Y Index": 7
-    "Z Index": 7
+    "X Index": 5
+    "Y Index": 5
+    "Z Index": 5
 
 
 # Parellelization parameters

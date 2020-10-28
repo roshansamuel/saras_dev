@@ -64,16 +64,19 @@ spiral::spiral(const grid &mesh): les(mesh) { }
  *          The six components of the subgrid stress tensor - Txx, Tyy, Tzz, Txy, Tyz, Tzx are calculated at x[0], y[0], z[0].
  *          It needs the resolved velocity gradient tensor dudx[3][3], LES cutoff scale del, and kinematic viscosity nu.
  *          It first computes the alignment of the subgrid vortex, e, by calculating the eigenvectors of S_ij.
- *          To compute the structure function, it needs n (>=2) samples of the local resolved velocity field,
- *          (u[0], v[0], w[0]) at (x[0], y[0], z[0]) to (u[n - 1], v[n - 1], w[n - 1]) at (x[n - 1], y[n - 1], z[n - 1]).
+ *          To compute the structure function, it needs 3x3x3 samples of the local resolved velocity field,
+ *          (u[0,0,0], v[0,0,0], w[0,0,0]) at (x[0], y[0], z[0]) to (u[2,2,2], v[2,2,2], w[2,2,2]) at (x[2], y[2], z[2]).
  *          Finally \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}, where a = e_i^v e_j^v S_{ij} is the axial stretching.
  *
  ********************************************************************************************************************************************
  */
 void spiral::sgs_stress(
-    double *u, double *v, double *w,
-    double *x, double *y, double *z, int n,
-    double dudx[3][3], double nu, double del,
+    blitz::Array<double, 3> u,
+    blitz::Array<double, 3> v,
+    blitz::Array<double, 3> w,
+    blitz::Array<double, 2> dudx,
+    double *x, double *y, double *z,
+    double nu, double del,
     double *Txx, double *Tyy, double *Tzz,
     double *Txy, double *Tyz, double *Tzx)
 {
@@ -83,12 +86,12 @@ void spiral::sgs_stress(
 
     {
         // Strain-rate tensor
-        Sxx = 0.5 * (dudx[0][0] + dudx[0][0]);
-        Syy = 0.5 * (dudx[1][1] + dudx[1][1]);
-        Szz = 0.5 * (dudx[2][2] + dudx[2][2]);
-        Sxy = 0.5 * (dudx[0][1] + dudx[1][0]);
-        Syz = 0.5 * (dudx[1][2] + dudx[2][1]);
-        Szx = 0.5 * (dudx[2][0] + dudx[0][2]);
+        Sxx = 0.5 * (dudx(0, 0) + dudx(0, 0));
+        Syy = 0.5 * (dudx(1, 1) + dudx(1, 1));
+        Szz = 0.5 * (dudx(2, 2) + dudx(2, 2));
+        Sxy = 0.5 * (dudx(0, 1) + dudx(1, 0));
+        Syz = 0.5 * (dudx(1, 2) + dudx(2, 1));
+        Szx = 0.5 * (dudx(2, 0) + dudx(0, 2));
 
         // By default, eigenvalue corresponding to most extensive eigenvector is returned
         double eigval = eigenvalue_symm();
@@ -111,6 +114,7 @@ void spiral::sgs_stress(
     double Qd = 0.0; 
     {    
         // Average over neighboring points
+        /*
         for (int i = 1; i < n; i++) {
             double du = u[i] - u[0];
             double dv = v[i] - v[0];
@@ -124,8 +128,47 @@ void spiral::sgs_stress(
             double d = sqrt(dx2 - dxe * dxe) / del;
             Qd += sf_integral(d);
         }
-        F2 /= (double) (n - 1);
-        Qd /= (double) (n - 1);
+        */
+
+        int sfCount = 0;
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                for (int k = -1; k <= 1; k++) {
+                    if (i or j or k) {
+                        double du = u(i+1, j+1, k+1) - u(1, 1, 1);
+                        double dv = v(i+1, j+1, k+1) - v(1, 1, 1);
+                        double dw = w(i+1, j+1, k+1) - w(1, 1, 1);
+                        F2 += du * du + dv * dv + dw * dw;
+                        double dx = x[i+1] - x[1];
+                        double dy = y[j+1] - y[1];
+                        double dz = z[k+1] - z[1];
+                        double dx2 = dx * dx   + dy * dy   + dz * dz;
+                        double dxe = dx * e[0] + dy * e[1] + dz * e[2];
+                        double d = sqrt(dx2 - dxe * dxe) / del;
+                        Qd += sf_integral(d);
+                        sfCount++;
+                    }
+                }
+            }
+        }
+        F2 /= (double) (sfCount);
+        Qd /= (double) (sfCount);
+
+        /*
+        for (int i = 1; i < 2; i++) {
+            double du = u(1+i, 1, 1) - u(1, 1, 1);
+            double dv = v(1, 1+i, 1) - v(1, 1, 1);
+            double dw = w(1, 1, 1+i) - w(1, 1, 1);
+            F2 += du * du + dv * dv + dw * dw;
+            double dx = x[1+i] - x[1];
+            double dy = y[1+i] - y[1];
+            double dz = z[1+i] - z[1];
+            double dx2 = dx * dx   + dy * dy   + dz * dz;
+            double dxe = dx * e[0] + dy * e[1] + dz * e[2];
+            double d = sqrt(dx2 - dxe * dxe) / del;
+            Qd += sf_integral(d);
+        }
+        */
     }
     // prefac is the group prefactor
     double prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
