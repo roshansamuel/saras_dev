@@ -282,13 +282,15 @@ void hydro_d3::timeAdvance() {
     V.vForcing->addForcing(nseRHS);
 
     // Add sub-grid stress contribution from LES Model, if enabled
-    MPI_Barrier(MPI_COMM_WORLD);
     if (inputParams.lesModel and time > 10*inputParams.tStp) {
         // Kinematic viscosity
         double nu = inverseRe;
 
         // Array limits for loops
         int xS, xE, yS, yE, zS, zE;
+
+        // Temporary variables to store output from spiral LES solver
+        double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
 
         // These are three 3x3x3 arrays containing local interpolated velocities
         // These are used to calculate the structure function within the spiral les routine
@@ -298,7 +300,7 @@ void hydro_d3::timeAdvance() {
         blitz::Array<double, 2> dudx(3, 3);
 
         // These 9 arrays store components of the velocity gradient tensor intially
-        // Then they are used to store the derivatives of stress tensor to calculate its divergence
+        // Then they are reused to store the derivatives of stress tensor to calculate its divergence
         blitz::Array<double, 3> A11, A12, A13;
         blitz::Array<double, 3> A21, A22, A23;
         blitz::Array<double, 3> A31, A32, A33;
@@ -374,8 +376,6 @@ void hydro_d3::timeAdvance() {
                     double x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
                     double y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
                     double z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
-
-                    double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
 
                     sgsLES->sgs_stress(u, v, w, dudx, x, y, z, nu, del,
                                     &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);

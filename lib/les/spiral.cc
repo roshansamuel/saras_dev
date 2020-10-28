@@ -114,22 +114,6 @@ void spiral::sgs_stress(
     double Qd = 0.0; 
     {    
         // Average over neighboring points
-        /*
-        for (int i = 1; i < n; i++) {
-            double du = u[i] - u[0];
-            double dv = v[i] - v[0];
-            double dw = w[i] - w[0];
-            F2 += du * du + dv * dv + dw * dw;
-            double dx = x[i] - x[0];
-            double dy = y[i] - y[0];
-            double dz = z[i] - z[0];
-            double dx2 = dx * dx   + dy * dy   + dz * dz;
-            double dxe = dx * e[0] + dy * e[1] + dz * e[2];
-            double d = sqrt(dx2 - dxe * dxe) / del;
-            Qd += sf_integral(d);
-        }
-        */
-
         int sfCount = 0;
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
@@ -153,22 +137,6 @@ void spiral::sgs_stress(
         }
         F2 /= (double) (sfCount);
         Qd /= (double) (sfCount);
-
-        /*
-        for (int i = 1; i < 2; i++) {
-            double du = u(1+i, 1, 1) - u(1, 1, 1);
-            double dv = v(1, 1+i, 1) - v(1, 1, 1);
-            double dw = w(1, 1, 1+i) - w(1, 1, 1);
-            F2 += du * du + dv * dv + dw * dw;
-            double dx = x[1+i] - x[1];
-            double dy = y[1+i] - y[1];
-            double dz = z[1+i] - z[1];
-            double dx2 = dx * dx   + dy * dy   + dz * dz;
-            double dxe = dx * e[0] + dy * e[1] + dz * e[2];
-            double d = sqrt(dx2 - dxe * dxe) / del;
-            Qd += sf_integral(d);
-        }
-        */
     }
     // prefac is the group prefactor
     double prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
@@ -295,7 +263,6 @@ blitz::TinyVector<double, 3> spiral::eigenvector_symm(double eigval) {
     //compVal = fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
     //        + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
     //        + Szx * (Sxy * Syz - (Syy - eigval) * Szx));
-    //std::cout << std::setprecision(20) << compVal << "\t" << EPS << std::endl;
     //if (compVal < EPS) {
     //    if (mesh.rankData.rank == 0) {
     //        std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;

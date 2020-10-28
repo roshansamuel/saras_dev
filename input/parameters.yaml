@@ -48,7 +48,7 @@
     "LES Model": 1
 
     # Non-dimensional parameters
-    "Reynolds Number": 1000
+    "Reynolds Number": 5000
     "Rossby Number": 12
     "Rayleigh Number": 10000
     "Prandtl Number": 0.71
@@ -136,7 +136,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.0001
-    "Final Time": 0.003
+    "Final Time": 0.1
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1
