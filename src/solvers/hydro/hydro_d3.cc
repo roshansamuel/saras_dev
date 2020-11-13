@@ -337,13 +337,13 @@ void hydro_d3::timeAdvance() {
         Vzcc->F.F = P.interTempF/P.F.VzIntSlices.size();
 
         Vxcc->derS.calcDerivative1_x(A11);
-        Vxcc->derS.calcDerivative1_x(A12);
-        Vxcc->derS.calcDerivative1_x(A13);
-        Vycc->derS.calcDerivative1_y(A21);
+        Vxcc->derS.calcDerivative1_y(A12);
+        Vxcc->derS.calcDerivative1_z(A13);
+        Vycc->derS.calcDerivative1_x(A21);
         Vycc->derS.calcDerivative1_y(A22);
-        Vycc->derS.calcDerivative1_y(A23);
-        Vzcc->derS.calcDerivative1_z(A31);
-        Vzcc->derS.calcDerivative1_z(A32);
+        Vycc->derS.calcDerivative1_z(A23);
+        Vzcc->derS.calcDerivative1_x(A31);
+        Vzcc->derS.calcDerivative1_y(A32);
         Vzcc->derS.calcDerivative1_z(A33);
 
         // Use only cell centers like a collocated grid and compute T tensor

@@ -128,6 +128,11 @@ class scalar_d3: public scalar {
     private:
         multigrid_d3 mgSolver;
 
+        spiral *sgsLES;
+
+        // Following scalar fields are allocated space only if LES Switch is ON
+        sfield *Vxcc, *Vycc, *Vzcc, *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx;
+
 #ifdef TIME_RUN
         real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
 #endif
