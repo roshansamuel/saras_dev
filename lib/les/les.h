@@ -84,7 +84,15 @@ class spiral: public les {
             double *Txx, double *Tyy, double *Tzz,
             double *Txy, double *Tyz, double *Tzx);
 
+        void sgs_flux(
+            blitz::TinyVector<double, 3> dsdx,
+            double del, double *qx, double *qy, double *qz);
+
     private:
+        double K;
+
+        blitz::TinyVector<double, 3> e;
+
         double Sxx, Syy, Szz, Sxy, Syz, Szx;
 
         double ke_integral(double k);

@@ -125,6 +125,10 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
         Tyz = new sfield(mesh, "Tyz");
         Tzx = new sfield(mesh, "Tzx");
 
+        qX = new sfield(mesh, "qX");
+        qY = new sfield(mesh, "qY");
+        qZ = new sfield(mesh, "qZ");
+
         Vxcc = new sfield(mesh, "Ucc");
         Vycc = new sfield(mesh, "Vcc");
         Vzcc = new sfield(mesh, "Wcc");
@@ -320,6 +324,7 @@ void scalar_d3::timeAdvance() {
 
         // Temporary variables to store output from spiral LES solver
         double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
+        double sQx, sQy, sQz;
 
         // These are three 3x3x3 arrays containing local interpolated velocities
         // These are used to calculate the structure function within the spiral les routine
@@ -327,6 +332,12 @@ void scalar_d3::timeAdvance() {
 
         // The following 3x3 matrix stores the velocity gradient tensor
         blitz::Array<double, 2> dudx(3, 3);
+
+        // The following TinyVector stores the temperature gradient vector
+        blitz::TinyVector<double, 3> dtdx;
+
+        // The following TinyVector stores the spiral vortex alignment vector
+        blitz::TinyVector<double, 3> e;
 
         // These 9 arrays store components of the velocity gradient tensor intially
         // Then they are reused to store the derivatives of stress tensor to calculate its divergence
@@ -382,6 +393,10 @@ void scalar_d3::timeAdvance() {
         Vzcc->derS.calcDerivative1_y(A32);
         Vzcc->derS.calcDerivative1_z(A33);
 
+        T.derS.calcDerivative1_x(B1);
+        T.derS.calcDerivative1_y(B2);
+        T.derS.calcDerivative1_z(B3);
+
         // Use only cell centers like a collocated grid and compute T tensor
         // Since U, V, and W data is available only in the core,
         // Adjust the loop limits so that the boundary points are excluded
@@ -422,6 +437,15 @@ void scalar_d3::timeAdvance() {
                     Txy->F.F(iX, iY, iZ) = sTxy;
                     Tyz->F.F(iX, iY, iZ) = sTyz;
                     Tzx->F.F(iX, iY, iZ) = sTzx;
+
+                    // A 3 x 1 vector of temperature gradient
+                    dtdx = B1(iX, iY, iZ), B2(iX, iY, iZ), B3(iX, iY, iZ);
+
+                    sgsLES->sgs_flux(dtdx, del, &sQx, &sQy, &sQz);
+
+                    qX->F.F(iX, iY, iZ) = sQx;
+                    qY->F.F(iX, iY, iZ) = sQy;
+                    qZ->F.F(iX, iY, iZ) = sQz;
                 }
             }
         }
@@ -483,19 +507,13 @@ void scalar_d3::timeAdvance() {
             }
         }
 
-        Vxcc->derS.calcDerivative2xx(A11);
-        Vxcc->derS.calcDerivative2yy(A12);
-        Vxcc->derS.calcDerivative2zz(A13);
-        Vycc->derS.calcDerivative2xx(A21);
-        Vycc->derS.calcDerivative2yy(A22);
-        Vycc->derS.calcDerivative2zz(A23);
-        Vzcc->derS.calcDerivative2xx(A31);
-        Vzcc->derS.calcDerivative2yy(A32);
-        Vzcc->derS.calcDerivative2zz(A33);
+        qX->syncData();
+        qY->syncData();
+        qZ->syncData();
 
-        A11 = A11 + A12 + A13;
-        A22 = A21 + A22 + A23;
-        A33 = A31 + A32 + A33;
+        qX->derS.calcDerivative1_x(B1);
+        qY->derS.calcDerivative1_y(B2);
+        qZ->derS.calcDerivative1_z(B3);
 
         xS = T.F.fCore.lbound(0) + 2; xE = T.F.fCore.ubound(0) - 2;
         yS = T.F.fCore.lbound(1) + 2; yE = T.F.fCore.ubound(1) - 2;
@@ -504,28 +522,10 @@ void scalar_d3::timeAdvance() {
         for (int iX = xS; iX <= xE; iX++) {
             for (int iY = yS; iY <= yE; iY++) {
                 for (int iZ = zS; iZ <= zE; iZ++) {
-                    double nu_x = B1(iX, iY, iZ) / A11(iX, iY, iZ);
-                    double nu_y = B2(iX, iY, iZ) / A22(iX, iY, iZ);
-                    double nu_z = B3(iX, iY, iZ) / A33(iX, iY, iZ);
-                    double nu_turb = (nu_x + nu_y + nu_z)/3.0;
-                    double kp_turb = nu_turb*inputParams.Pr;
-
-                    if (iY == 16 and iX == 16) {
-                        std::cout << B3(iX, iY, iZ) << std::endl;
-                    }
-
-                    double dTdXi = (T.F.F(iX+1, iY, iZ) - 2.0*T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ))/(2.0*hx*hx);
-                    double dTdEt = (T.F.F(iX, iY+1, iZ) - 2.0*T.F.F(iX, iY, iZ) + T.F.F(iX, iY-1, iZ))/(2.0*hy*hy);
-                    double dTdZt = (T.F.F(iX, iY, iZ+1) - 2.0*T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1))/(2.0*hz*hz);
-
-                    // WARNING: This is for UNIFORM GRID ONLY
-                    // This is to test the model. Extend it after tests
-                    tmpRHS.F(iX, iY, iZ) = kp_turb*(dTdXi + dTdEt + dTdZt);
+                    tmpRHS.F(iX, iY, iZ) = (B1(iX, iY, iX) + B2(iX, iY, iX) + B3(iX, iY, iX));
                 }
             }
         }
-        MPI_Finalize();
-        exit(0);
     }
 
     // Subtract the pressure gradient term

@@ -131,7 +131,7 @@ class scalar_d3: public scalar {
         spiral *sgsLES;
 
         // Following scalar fields are allocated space only if LES Switch is ON
-        sfield *Vxcc, *Vycc, *Vzcc, *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx;
+        sfield *Vxcc, *Vycc, *Vzcc, *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx, *qX, *qY, *qZ;
 
 #ifdef TIME_RUN
         real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;

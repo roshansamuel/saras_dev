@@ -82,7 +82,6 @@ void spiral::sgs_stress(
 {
     // lv = Sqrt[2 nu / (3 Abs[a])]
     double lv = 0.0;
-    blitz::TinyVector<double, 3> e;
 
     {
         // Strain-rate tensor
@@ -141,7 +140,8 @@ void spiral::sgs_stress(
     // prefac is the group prefactor
     double prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
     double kc = M_PI / del;
-    double K = prefac * ke_integral(kc * lv);
+
+    K = prefac * ke_integral(kc * lv);
 
     // T_{ij} = (\delta_{ij} - e_i^v e_j^v) K
     *Txx = (1.0 - e[0] * e[0]) * K;
@@ -150,6 +150,32 @@ void spiral::sgs_stress(
     *Txy = (    - e[0] * e[1]) * K;
     *Tyz = (    - e[1] * e[2]) * K;
     *Tzx = (    - e[2] * e[0]) * K;
+}
+
+//
+// Calculate the SGS scalar flux (*qx, *qy, *qz) given the resolved scalar
+// gradient dsdx[3], vortex alignment e[3] (a unit vector), LES cutoff
+// scale del and precalculated SGS kinetic energy K.
+// WARNING: For this function to work, the values of member variables e and K
+// must be pre-caclculated through a call to the function sgs_stress.
+//
+void spiral::sgs_flux(
+        blitz::TinyVector<double, 3> dsdx,
+        double del, double *qx, double *qy, double *qz)
+{
+    double gam = 1.0; // Universal model constant
+    double P = -0.5 * gam * del * sqrt(K);
+
+    // q_i = P (\delta_{ij} - e_i^v e_j^v) ds/dx_j
+    *qx = P * ((1.0 - e[0] * e[0]) * dsdx[0]
+             + (    - e[0] * e[1]) * dsdx[1]
+             + (    - e[0] * e[2]) * dsdx[2]);
+    *qy = P * ((    - e[1] * e[0]) * dsdx[0]
+             + (1.0 - e[1] * e[1]) * dsdx[1]
+             + (    - e[1] * e[2]) * dsdx[2]);
+    *qz = P * ((    - e[2] * e[0]) * dsdx[0]
+             + (    - e[2] * e[1]) * dsdx[1]
+             + (1.0 - e[2] * e[2]) * dsdx[2]);
 }
 
 //
