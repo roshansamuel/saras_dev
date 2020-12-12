@@ -66,8 +66,9 @@ class tseries {
 
         real totalVol;
         real maxDivergence;
-        real totalEnergy, localEnergy;
-        real totalUzT, localUzT, NusseltNo;
+        real totalKineticEnergy, localKineticEnergy;
+        real totalThermalEnergy, localThermalEnergy;
+        real totalUzT, localUzT, NusseltNo, ReynoldsNo;
 
         const real &time, &tStp;
 

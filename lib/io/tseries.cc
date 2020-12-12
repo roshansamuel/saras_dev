@@ -115,15 +115,18 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
     // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
     if (mesh.rankData.rank == 0) {
         if (mesh.inputParams.probType <= 4) {
-            std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
-                                    std::setw(16) << "Total energy" << "\t" << "Divergence" << std::endl;
+            std::cout << std::fixed << std::setw(6)  << "Time" << "\t" << std::setw(16) <<
+                                                        "Total KE" << "\t" <<
+                                                        "Divergence" << std::endl;
 
-            ofFile << "#VARIABLES = Time, Energy, Divergence, dt\n";
+            ofFile << "#VARIABLES = Time, Total KE, U_rms, Divergence, dt\n";
         } else {
-            std::cout << std::fixed << std::setw(6)  << "Time" << "\t" <<
-                                    std::setw(16) << "Re (Urms)" << "\t" << "Nusselt No" << "\t" << "Divergence" << std::endl;
+            std::cout << std::fixed << std::setw(6)  << "Time" << "\t" << std::setw(16) << 
+                                                        "Re (Urms)" << "\t" <<
+                                                        "Nusselt No" << "\t" <<
+                                                        "Divergence" << std::endl;
 
-            ofFile << "#VARIABLES = Time, Energy, NusseltNo, Divergence, dt\n";
+            ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, dt\n";
         }
     }
 }
@@ -149,36 +152,40 @@ void tseries::writeTSData() {
         exit(0);
     }
 
-    localEnergy = 0.0;
-    totalEnergy = 0.0;
+    localKineticEnergy = 0.0;
+    totalKineticEnergy = 0.0;
 #ifdef PLANAR
     int iY = 0;
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
-            localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
+                                   pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iY = yLow; iY <= yTop; iY++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
-                localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
+                                       pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
+                                       pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
 #endif
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    totalEnergy /= totalVol;
+    MPI_Allreduce(&localKineticEnergy, &totalKineticEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    totalKineticEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                    std::setw(16) << std::setprecision(8) << totalEnergy << "\t" << maxDivergence << std::endl;
+                                   std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
+                                                                            maxDivergence << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << totalEnergy << "\t" << maxDivergence << "\t" << tStp << std::endl;
+                                std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
+                                                                         sqrt(2.0*totalKineticEnergy) << "\t" <<
+                                                                         maxDivergence << "\t" <<
+                                                                         tStp << std::endl;
     }
 }
 
@@ -198,6 +205,8 @@ void tseries::writeTSData() {
  ********************************************************************************************************************************************
  */
 void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
+    real theta = 0.0;
+
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     V.divergence(divV, P);
     maxDivergence = divV.fxMax();
@@ -208,16 +217,24 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
         exit(0);
     }
 
-    localEnergy = 0.0;
-    totalEnergy = 0.0;
+    localKineticEnergy = 0.0;
+    totalKineticEnergy = 0.0;
+
+    localThermalEnergy = 0.0;
+    totalThermalEnergy = 0.0;
+
     localUzT = 0.0;
 
 #ifdef PLANAR
     int iY = 0;
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
-            localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                            pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
+
+            localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
+                                   pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+
+            localThermalEnergy += (pow(theta, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
             localUzT += ((V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1))/2.0)*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
@@ -226,9 +243,13 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iY = yLow; iY <= yTop; iY++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
-                localEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
+
+                localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
+                                       pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
+                                       pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+
+                localThermalEnergy += (pow(theta, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
                 localUzT += ((V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1))/2.0)*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
@@ -236,17 +257,27 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     }
 #endif
 
-    MPI_Allreduce(&localEnergy, &totalEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localKineticEnergy, &totalKineticEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&localThermalEnergy, &totalThermalEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&localUzT, &totalUzT, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    totalEnergy /= totalVol;
+    totalKineticEnergy /= totalVol;
+    totalThermalEnergy /= totalVol;
     NusseltNo = 1.0 + (totalUzT/totalVol)/kappa;
+    ReynoldsNo = sqrt(2.0*totalKineticEnergy)/nu;
 
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                    std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << std::endl;
+                                   std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
+                                                                            NusseltNo << "\t" <<
+                                                                            maxDivergence << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << sqrt(totalEnergy)/nu << "\t" << NusseltNo << "\t" << maxDivergence << "\t" << tStp << std::endl;
+                                std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
+                                                                         NusseltNo << "\t" <<
+                                                                         totalKineticEnergy << "\t" <<
+                                                                         totalThermalEnergy << "\t" <<
+                                                                         maxDivergence << "\t" <<
+                                                                         tStp << std::endl;
     }
 }
 

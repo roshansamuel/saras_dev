@@ -71,7 +71,11 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             pressureGradient(mesh, V),
             guessedVelocity(mesh, V)
 {
-    maxIterations = int(std::pow(std::log10(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 2));
+    // This upper limit on max iterations is an arbitrarily chosen function.
+    // Using Nx x Ny x Nz as the upper limit may cause the run to freeze for very long time.
+    // This can eat away a lot of core hours unnecessarily.
+    // It remains to be seen if this upper limit is safe.
+    maxIterations = int(std::pow(std::log(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 3));
 }
 
 
