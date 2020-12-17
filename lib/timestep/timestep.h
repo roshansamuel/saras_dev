@@ -124,10 +124,6 @@ class eulerCN_d3: public timestep {
         real hx2, hy2, hz2;
         real hx2hy2, hz2hx2, hy2hz2, hx2hy2hz2;
 
-#ifdef TIME_RUN
-        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
-#endif
-
         multigrid_d3 mgSolver;
 
         void solveVx(vfield &V, plainvf &nseRHS);

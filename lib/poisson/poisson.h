@@ -58,11 +58,6 @@ class poisson {
 
         bool zeroBC;
 
-#ifdef TIME_RUN
-        real smothTimeComp;
-        real smothTimeTran;
-#endif
-
         const grid &mesh;
         const parser &inputParams;
 

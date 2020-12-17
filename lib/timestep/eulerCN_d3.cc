@@ -63,7 +63,7 @@ eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose the solution using Euler method and Implicit Crank-Nicholson method
+ * \brief   Function to advance the solution using Euler method and Implicit Crank-Nicholson method
  *
  *          The non-linear terms are advanced using explicit Euler method, while the duffusion terms are
  *          advanced by semi-implicit Crank-Nicholson method.
@@ -74,35 +74,14 @@ eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
 void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     static plainvf nseRHS(mesh, V);
 
-#ifdef TIME_RUN
-    struct timeval begin, end;
-#endif
-
     nseRHS = 0.0;
 
     // First compute the explicit part of the semi-implicit viscous term and divide it by Re
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
     V.computeDiff(nseRHS);
     nseRHS *= nu;
-    gettimeofday(&end, NULL);
-    visc_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#else
-    V.computeDiff(nseRHS);
-    nseRHS *= nu;
-#endif
 
     // Compute the non-linear term and subtract it from the RHS
-#ifndef TIME_RUN
     V.computeNLin(V, nseRHS);
-#else
-    gettimeofday(&begin, NULL);
-    V.computeNLin(V, nseRHS);
-    gettimeofday(&end, NULL);
-    nlin_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-
-    gettimeofday(&begin, NULL);
-#endif
 
     // Add the velocity forcing term
     V.vForcing->addForcing(nseRHS);
@@ -116,38 +95,17 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     nseRHS *= dt;
     nseRHS += V;
 
-#ifdef TIME_RUN
-    gettimeofday(&end, NULL);
-    intr_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
-
     // Synchronize the RHS term across all processors by updating its sub-domain pads
     nseRHS.syncData();
 
     // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
-#endif
     solveVx(V, nseRHS);
     solveVy(V, nseRHS);
     solveVz(V, nseRHS);
 
-#ifdef TIME_RUN
-    gettimeofday(&end, NULL);
-    impl_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
-
     // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
     V.divergence(mgRHS, P);
     mgRHS *= 1.0/dt;
-    gettimeofday(&end, NULL);
-    prhs_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#else
-    V.divergence(mgRHS, P);
-    mgRHS *= 1.0/dt;
-#endif
 
     // IF THE POISSON SOLVER IS BEING TESTED, THE RHS IS SET TO ONE.
     // THIS IS FOR TESTING ONLY AND A SINGLE TIME ADVANCE IS PERFORMED IN THIS TEST
@@ -156,14 +114,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 #endif
 
     // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
     mgSolver.mgSolve(Pp, mgRHS);
-    gettimeofday(&end, NULL);
-    pois_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#else
-    mgSolver.mgSolve(Pp, mgRHS);
-#endif
 
     // Synchronise the pressure correction term across processors
     Pp.syncData();
@@ -202,36 +153,15 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     static plainvf nseRHS(mesh, V);
     static plainsf tmpRHS(mesh, T);
 
-#ifdef TIME_RUN
-    struct timeval begin, end;
-#endif
-
     nseRHS = 0.0;
     tmpRHS = 0.0;
 
     // First compute the explicit part of the semi-implicit viscous term and divide it by Re
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
     V.computeDiff(nseRHS);
     nseRHS *= nu;
-    gettimeofday(&end, NULL);
-    visc_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#else
-    V.computeDiff(nseRHS);
-    nseRHS *= nu;
-#endif
 
     // Compute the non-linear term and subtract it from the RHS
-#ifndef TIME_RUN
     V.computeNLin(V, nseRHS);
-#else
-    gettimeofday(&begin, NULL);
-    V.computeNLin(V, nseRHS);
-    gettimeofday(&end, NULL);
-    nlin_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-
-    gettimeofday(&begin, NULL);
-#endif
 
     // Add the velocity forcing term
     V.vForcing->addForcing(nseRHS);
@@ -245,48 +175,20 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     nseRHS *= dt;
     nseRHS += V;
 
-#ifdef TIME_RUN
-    gettimeofday(&end, NULL);
-    intr_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
-
     // Synchronize the RHS term across all processors by updating its sub-domain pads
     nseRHS.syncData();
 
     // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
-#endif
     solveVx(V, nseRHS);
     solveVy(V, nseRHS);
     solveVz(V, nseRHS);
 
-#ifdef TIME_RUN
-    gettimeofday(&end, NULL);
-    impl_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
-
     // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
     V.divergence(mgRHS, P);
     mgRHS *= 1.0/dt;
-    gettimeofday(&end, NULL);
-    prhs_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#else
-    V.divergence(mgRHS, P);
-    mgRHS *= 1.0/dt;
-#endif
 
     // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
     mgSolver.mgSolve(Pp, mgRHS);
-    gettimeofday(&end, NULL);
-    pois_time += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#else
-    mgSolver.mgSolve(Pp, mgRHS);
-#endif
 
     // Synchronise the pressure correction term across processors
     Pp.syncData();

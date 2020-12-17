@@ -104,15 +104,6 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
 
 
 void scalar_d3::solvePDE() {
-#ifdef TIME_RUN
-    visc_time = 0.0;
-    nlin_time = 0.0;
-    intr_time = 0.0;
-    impl_time = 0.0;
-    prhs_time = 0.0;
-    pois_time = 0.0;
-
-#else
     real fwTime, prTime, rsTime;
     //set dt equal to input time step
     dt = inputParams.tStp;
@@ -146,11 +137,9 @@ void scalar_d3::solvePDE() {
 
     // RESTART FILE WRITING TIME
     rsTime = time;
-#endif
 
     timeStepCount = 0;
 
-#ifndef TIME_RUN
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     tsWriter.writeTSData(T, nu, kappa);
 
@@ -174,7 +163,6 @@ void scalar_d3::solvePDE() {
     fwTime += inputParams.fwInt - std::fmod(time, inputParams.fwInt);
     prTime += inputParams.prInt - std::fmod(time, inputParams.prInt);
     rsTime += inputParams.rsInt - std::fmod(time, inputParams.rsInt);
-#endif
 
     // TIME-INTEGRATION LOOP
     while (true) {
@@ -191,7 +179,6 @@ void scalar_d3::solvePDE() {
         timeStepCount += 1;
         time += dt;
 
-#ifndef TIME_RUN
         if (timeStepCount % inputParams.ioCnt == 0) {
             tsWriter.writeTSData(T, nu, kappa);
         }
@@ -216,24 +203,11 @@ void scalar_d3::solvePDE() {
             dataWriter.writeRestart(time);
             rsTime += inputParams.rsInt;
         }
-#endif
 
         if (std::abs(inputParams.tMax - time) < 0.5*dt) {
             break;
         }
     }
-
-    // WRITE THE OUTPUT OF THE TIMING RUN
-#ifdef TIME_RUN
-    if (mesh.rankData.rank == 0) {
-        std::cout << std::left << std::setw(50) << "Time taken in computing viscous terms: "            << std::fixed << std::setprecision(6) << visc_time << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken in computing non-linear terms: "         << std::fixed << std::setprecision(6) << nlin_time << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken in computing intermediate steps: "       << std::fixed << std::setprecision(6) << intr_time << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken in computing velocities implicitly: "    << std::fixed << std::setprecision(6) << impl_time << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken in computing RHS for poisson solver: "   << std::fixed << std::setprecision(6) << prhs_time << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken by poisson solver: "                     << std::fixed << std::setprecision(6) << pois_time << std::endl;
-    }
-#endif
 }
 
 
