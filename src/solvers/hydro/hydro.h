@@ -45,10 +45,8 @@
 
 #include <blitz/array.h>
 
-#include "boundary.h"
 #include "parallel.h"
-#include "poisson.h"
-#include "plainvf.h"
+#include "timestep.h"
 #include "tseries.h"
 #include "writer.h"
 #include "reader.h"
@@ -56,7 +54,6 @@
 #include "sfield.h"
 #include "vfield.h"
 #include "parser.h"
-#include "force.h"
 #include "grid.h"
 
 class hydro {
@@ -83,14 +80,11 @@ class hydro {
 
         real time, dt;
 
-        real hx, hy, hz;
-        real hx2, hz2, hz2hx2;
-        real hx2hy2, hy2hz2, hx2hy2hz2;
-
         const grid &mesh;
         const parser &inputParams;
 
-        const real inverseRe;
+        /** Instance of the \ref timestep class to perform time-integration. */
+        timestep *ivpSolver;
 
         /** Instance of the \ref probe class to collect data from probes in the domain. */
         probes *dataProbe;
@@ -98,22 +92,7 @@ class hydro {
         /** Instance of the \ref parallel class that holds the MPI-related data like rank, xRank, etc. */
         parallel &mpiData;
 
-        /** Plain scalar field into which the pressure correction is calculated and written by the Poisson solver */
-        plainsf Pp;
-        /** Plain scalar field into which the RHS for pressure Poisson equation is written and passed to the Poisson solver */
-        plainsf mgRHS;
-
-        /** Plain vector field into which the RHS of the Navier-Stokes equation is written and stored */
-        plainvf nseRHS;
-        /** Plain vector field into which the RHS of the implicit equation for velocities are calculated during iterative solving. */
-        plainvf velocityLaplacian;
-        /** Plain vector field which stores the pressure gradient term. */
-        plainvf pressureGradient;
-        /** Plain vector field which serves as a temporary array during iterative solution procedure for velocity terms. */
-        plainvf guessedVelocity;
-
         void checkPeriodic();
-        void setCoefficients();
 
         void initVBCs();
         void initVForcing();
@@ -125,12 +104,6 @@ class hydro {
             if (remainder < halfNum) return numToRound - remainder;
             return numToRound + multiple - remainder;
         };
-
-        virtual void solveVx();
-        virtual void solveVy();
-        virtual void solveVz();
-
-        virtual void timeAdvance();
 };
 
 /**
@@ -153,14 +126,6 @@ class hydro_d2: public hydro {
         real testPeriodic();
 
         ~hydro_d2();
-
-    private:
-        multigrid_d2 mgSolver;
-
-        void solveVx();
-        void solveVz();
-
-        void timeAdvance();
 };
 
 /**
@@ -181,19 +146,6 @@ class hydro_d3: public hydro {
         real testPeriodic();
 
         ~hydro_d3();
-
-    private:
-        multigrid_d3 mgSolver;
-
-#ifdef TIME_RUN
-        real visc_time, nlin_time, intr_time, impl_time, prhs_time, pois_time;
-#endif
-
-        void solveVx();
-        void solveVy();
-        void solveVz();
-
-        void timeAdvance();
 };
 
 /**

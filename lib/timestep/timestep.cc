@@ -29,95 +29,99 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file scalar.h
+/*! \file timestep.cc
  *
- *  \brief Class declaration of the scalar solver for both 2D and 3D cases.
- *
- *  \author Roshan Samuel, Shashwat Bhattacharya
+ *  \brief Definitions for functions of class timestep
+ *  \sa timestep.h
+ *  \author Roshan Samuel
  *  \date Nov 2019
  *  \copyright New BSD License
  *
  ********************************************************************************************************************************************
  */
 
-#ifndef SCALAR_H
-#define SCALAR_H
-
-#include <blitz/array.h>
-
-#include "hydro.h"
-#include <math.h>
-
-class scalar: public hydro {
-    public:
-        /** The scalar field that stores the temperature field */
-        sfield T;
-
-        real nu, kappa; 
-
-        scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        virtual ~scalar() { };
-
-    protected:
-        void initTBCs();
-
-        void initVForcing();
-        void initTForcing();
-};
+#include <ctime>
+#include <cstdlib>
+#include "timestep.h"
 
 /**
  ********************************************************************************************************************************************
- *  \class scalar scalar.h "lib/scalar.h"
- *  \brief The base class scalar to solve the incompressible Navier-Stokes equations with energy equation
+ * \brief   Constructor of the timestep class
  *
- *  The class initializes and stores the velocity vector field and the pressure scalar field along with a few auxilliary
- *  fields to solve the PDE.
- *  In addition to the fields in hydro class, the scalar equation is also solved here.
- *  It solves the NSE using the \ref solvePDE function from within which the implicit Crank-Nicholson method is used
- *  to solve the PDE.
+ *          The empty constructer merely initializes the local reference to the global mesh variable.
+ *
+ * \param   mesh is a const reference to the global data contained in the grid class
+ * \param   dt is a const reference to the variable dt used by invoking solver
+ * \param   V is a reference to the velocity field and is used merely to initialize local objects
+ * \param   P is a reference to the pressure field and is used merely to initialize local objects
  ********************************************************************************************************************************************
  */
+timestep::timestep(const grid &mesh, const real &dt, vfield &V, sfield &P):
+    dt(dt),
+    mesh(mesh),
+    Pp(mesh, P),
+    mgRHS(mesh, P),
+    pressureGradient(mesh, V)
+{
+    // Below flags may be turned on for debugging/dignostic runs only
+    bool viscSwitch = false;
+    bool diffSwitch = false;
 
-class scalar_d2: public scalar {
-    public:
-        scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
+    if (mesh.inputParams.probType <= 4) {
+        // For hydrodynamics simulation, set value of kinematic viscosity only
+        nu = 1.0/mesh.inputParams.Re;
 
-        void solvePDE();
-        real testPeriodic();
+    } else if (mesh.inputParams.probType <= 7) {
+        // For scalar simulation, set values of kinematic viscosity and thermal diffusion
+        if (mesh.inputParams.rbcType == 1) {
+            nu = mesh.inputParams.Pr;
+            kappa = 1.0;
+        } else if (mesh.inputParams.rbcType == 2) {
+            nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
+            kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
+        } else if (mesh.inputParams.rbcType == 3) {
+            nu = 1.0;
+            kappa = 1.0/mesh.inputParams.Pr;
+        } else if (mesh.inputParams.rbcType == 4) {
+            nu = sqrt(mesh.inputParams.Pr/mesh.inputParams.Ra);
+            kappa = 1.0/sqrt(mesh.inputParams.Pr*mesh.inputParams.Ra);
+        } else {
+            if (mesh.rankData.rank == 0) {
+                std::cout << "ERROR: Invalid RBC non-dimensionalization type. Aborting" << std::endl;
+            }
+            exit(0);
+        }
+    }
 
-        ~scalar_d2();
-};
+    // Additional options to turn off diffusion for debugging/diagnostics only
+    if (viscSwitch) {
+        nu = 0.0;
+    }
+
+    if (diffSwitch) {
+        kappa = 0.0;
+    }
+}
+
 
 /**
  ********************************************************************************************************************************************
- *  \class scalar_d2 scalar.h "lib/scalar.h"
- *  \brief The derived class from the scalar base class to solve the incompressible NSE in 2D with energy equation
+ * \brief   Prototype overloaded function to time-advance the solution by one time-step
  *
- *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Since the class is instantiated when solving the NSE in 2D, the y-direction component of the grid is supressed.
- *  Consequently, the boundary conditions are imposed only on 4 sides of the domain.
+ * \param   V is a reference to the velocity vector field to be advanced
+ * \param   P is a reference to the pressure scalar field to be advanced
  ********************************************************************************************************************************************
  */
+void timestep::timeAdvance(vfield &V, sfield &P) { };
 
-class scalar_d3: public scalar {
-    public:
-        scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        void solvePDE();
-        real testPeriodic();
-
-        ~scalar_d3();
-};
 
 /**
  ********************************************************************************************************************************************
- *  \class scalar_d3 scalar.h "lib/scalar.h"
- *  \brief The derived class from the scalar base class to solve the incompressible NSE in 3D with energy equation
+ * \brief   Prototype overloaded function to time-advance the solution by one time-step
  *
- *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Moreover, it imposes boundary conditions on all the three faces of the computational domain.
+ * \param   V is a reference to the velocity vector field to be advanced
+ * \param   P is a reference to the pressure scalar field to be advanced
+ * \param   T is a reference to the temperature scalar field to be advanced
  ********************************************************************************************************************************************
  */
-
-#endif
+void timestep::timeAdvance(vfield &V, sfield &P, sfield &T) { };

@@ -215,6 +215,12 @@ void parser::checkData() {
         exit(0);
     }
 
+    // CHECK IF THE I/O COUNT IS VALID
+    if (ioCnt < 1) {
+        std::cout << "WARNING: I/O Count parameter must be a positive integer. Setting it default value of 1" << std::endl;
+        ioCnt = 1;
+    }
+
     // CHECK IF THE TIME-STEP SET BY USER IS LESS THAN THE MAXIMUM TIME SPECIFIED FOR SIMULATION.
     if (tStp > tMax) {
         std::cout << "ERROR: Time step is larger than the maximum duration assigned for simulation. Aborting" << std::endl;

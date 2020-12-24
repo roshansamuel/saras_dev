@@ -31,29 +31,17 @@
  ##
  ##! \file CMakeLists.txt
  #
- #   \brief CMakeLists file where the executable is linked for the Saras solver.
+ #   \brief CMakeLists file to add the force class library.
  #
- #   \author Roshan Samuel
+ #   \author Shashwat Bhattacharya, Roshan Samuel
  #   \date Nov 2019
  #   \copyright New BSD License
  #
  ############################################################################################################################################
  ##
 
-include_directories (
-    ${PARENT_DIR}/src/solvers/hydro
-    ${PARENT_DIR}/src/solvers/scalar
+add_library (timestep
+             timestep.cc
+             eulerCN_d2.cc
+             eulerCN_d3.cc
 )
-
-set (EXECUTABLE_OUTPUT_PATH ${PARENT_DIR})
-
-set (HYDRO_SOURCE hydro/hydro.cc hydro/hydro_d2.cc hydro/hydro_d3.cc)
-
-set (SCALAR_SOURCE scalar/scalar.cc scalar/scalar_d2.cc scalar/scalar_d3.cc)
-
-set (SOURCES main.cc ${HYDRO_SOURCE} ${SCALAR_SOURCE})
-
-add_executable (saras ${SOURCES})
-
-#target_link_libraries(saras field grid parser probes initial reader writer tseries boundary parallel poisson force yaml-cpp hdf5 debug /usr/local/lib/libblitz.a)
-target_link_libraries(saras field grid parser probes initial reader writer tseries boundary parallel timestep poisson force yaml-cpp hdf5)

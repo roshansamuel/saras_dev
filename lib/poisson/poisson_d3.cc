@@ -113,23 +113,10 @@ void multigrid_d3::computeResidual() {
 
 
 void multigrid_d3::smooth(const int smoothCount) {
-#ifdef TIME_RUN
-    struct timeval begin, end;
-#endif
     tmpDataArray(vLevel) = 0.0;
 
     for(int n=0; n<smoothCount; ++n) {
-#ifdef TIME_RUN
-        gettimeofday(&begin, NULL);
-#endif
         imposeBC();
-
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        smothTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-
-        gettimeofday(&begin, NULL);
-#endif
 
         // WARNING: When using the gauss-seidel smoothing as written below, the edges of interior sub-domains after MPI decomposition will not have the updated values
         // As a result, the serial and parallel results will not match when using gauss-seidel smoothing
@@ -169,23 +156,9 @@ void multigrid_d3::smooth(const int smoothCount) {
 
             swap(tmpDataArray, pressureData);
         }
-
-#ifdef TIME_RUN
-        gettimeofday(&end, NULL);
-        smothTimeComp += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
     }
 
-#ifdef TIME_RUN
-    gettimeofday(&begin, NULL);
-#endif
-
     imposeBC();
-
-#ifdef TIME_RUN
-    gettimeofday(&end, NULL);
-    smothTimeTran += ((end.tv_sec - begin.tv_sec)*1000000u + end.tv_usec - begin.tv_usec)/1.e6;
-#endif
 }
 
 

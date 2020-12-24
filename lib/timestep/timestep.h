@@ -29,94 +29,117 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file scalar.h
+/*! \file timestep.h
  *
- *  \brief Class declaration of the scalar solver for both 2D and 3D cases.
+ *  \brief Class declaration of timestep
  *
- *  \author Roshan Samuel, Shashwat Bhattacharya
+ *  \author Roshan Samuel
  *  \date Nov 2019
  *  \copyright New BSD License
  *
  ********************************************************************************************************************************************
  */
 
-#ifndef SCALAR_H
-#define SCALAR_H
+#ifndef TIMESTEP_H
+#define TIMESTEP_H
 
 #include <blitz/array.h>
 
-#include "hydro.h"
-#include <math.h>
+#include "force.h"
+#include "poisson.h"
 
-class scalar: public hydro {
+class timestep {
     public:
-        /** The scalar field that stores the temperature field */
-        sfield T;
+        real nu, kappa;
 
-        real nu, kappa; 
+        timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
-        scalar(const grid &mesh, const parser &solParam, parallel &mpiParam);
-
-        virtual ~scalar() { };
+        virtual void timeAdvance(vfield &V, sfield &P);
+        virtual void timeAdvance(vfield &V, sfield &P, sfield &T);
 
     protected:
-        void initTBCs();
+        const real &dt;
 
-        void initVForcing();
-        void initTForcing();
+        const grid &mesh;
+
+        /** Plain scalar field into which the pressure correction is calculated and written by the Poisson solver */
+        plainsf Pp;
+        /** Plain scalar field into which the RHS for pressure Poisson equation is written and passed to the Poisson solver */
+        plainsf mgRHS;
+
+        /** Plain vector field which stores the pressure gradient term. */
+        plainvf pressureGradient;
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class scalar scalar.h "lib/scalar.h"
- *  \brief The base class scalar to solve the incompressible Navier-Stokes equations with energy equation
+ *  \class timestep timestep.h "lib/timestep/timestep.h"
+ *  \brief Contains all the global variables related to time-advancing the solution by one time-step
  *
- *  The class initializes and stores the velocity vector field and the pressure scalar field along with a few auxilliary
- *  fields to solve the PDE.
- *  In addition to the fields in hydro class, the scalar equation is also solved here.
- *  It solves the NSE using the \ref solvePDE function from within which the implicit Crank-Nicholson method is used
- *  to solve the PDE.
  ********************************************************************************************************************************************
  */
 
-class scalar_d2: public scalar {
+class eulerCN_d2: public timestep {
     public:
-        scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiParam);
+        eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
-        void solvePDE();
-        real testPeriodic();
+        void timeAdvance(vfield &V, sfield &P);
+        void timeAdvance(vfield &V, sfield &P, sfield &T);
 
-        ~scalar_d2();
+    private:
+        /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
+        int maxIterations;
+
+        real hx2, hz2, hz2hx2;
+
+        multigrid_d2 mgSolver;
+
+        void solveVx(vfield &V, plainvf &nseRHS);
+        void solveVz(vfield &V, plainvf &nseRHS);
+
+        void solveT(sfield &T, plainsf &tmpRHS);
+
+        void setCoefficients();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class scalar_d2 scalar.h "lib/scalar.h"
- *  \brief The derived class from the scalar base class to solve the incompressible NSE in 2D with energy equation
+ *  \class eulerCN_d2 timestep.h "lib/timestep/timestep.h"
+ *  \brief The derived class from timestep to advance the 2D solution using explicit Euler and implicit Crank-Nicholson methods
  *
- *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Since the class is instantiated when solving the NSE in 2D, the y-direction component of the grid is supressed.
- *  Consequently, the boundary conditions are imposed only on 4 sides of the domain.
  ********************************************************************************************************************************************
  */
 
-class scalar_d3: public scalar {
+class eulerCN_d3: public timestep {
     public:
-        scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiParam);
+        eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P);
 
-        void solvePDE();
-        real testPeriodic();
+        void timeAdvance(vfield &V, sfield &P);
+        void timeAdvance(vfield &V, sfield &P, sfield &T);
 
-        ~scalar_d3();
+    private:
+        /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
+        int maxIterations;
+
+        real hx2, hy2, hz2;
+        real hx2hy2, hz2hx2, hy2hz2, hx2hy2hz2;
+
+        multigrid_d3 mgSolver;
+
+        void solveVx(vfield &V, plainvf &nseRHS);
+        void solveVy(vfield &V, plainvf &nseRHS);
+        void solveVz(vfield &V, plainvf &nseRHS);
+
+        void solveT(sfield &T, plainsf &tmpRHS);
+
+        void setCoefficients();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class scalar_d3 scalar.h "lib/scalar.h"
- *  \brief The derived class from the scalar base class to solve the incompressible NSE in 3D with energy equation
+ *  \class eulerCN_d3 timestep.h "lib/timestep/timestep.h"
+ *  \brief The derived class from timestep to advance the 3D solution using explicit Euler and implicit Crank-Nicholson methods
  *
- *  Certain paramters to be used in the implicit calculation of velocity are defined separately from within the class.
- *  Moreover, it imposes boundary conditions on all the three faces of the computational domain.
  ********************************************************************************************************************************************
  */
 

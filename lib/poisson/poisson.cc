@@ -75,11 +75,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
     for (int i=0; i<=inputParams.vcDepth; i++) {
         strideValues(i) = int(pow(2, i));
     }
-
-#ifdef TIME_RUN
-    smothTimeComp = 0.0;
-    smothTimeTran = 0.0;
-#endif
 }
 
 
@@ -642,11 +637,4 @@ real poisson::testProlong() { return 0; };
  */
 real poisson::testPeriodic() { return 0; };
 
-poisson::~poisson() {
-#ifdef TIME_RUN
-    if (mesh.rankData.rank == 0) {
-        std::cout << std::left << std::setw(50) << "Time taken in computation within smooth: "           << std::fixed << std::setprecision(6) << smothTimeComp << std::endl;
-        std::cout << std::left << std::setw(50) << "Time taken in data-transfer within smooth: "         << std::fixed << std::setprecision(6) << smothTimeTran << std::endl;
-    }
-#endif
-};
+poisson::~poisson() { };
