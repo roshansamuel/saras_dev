@@ -46,7 +46,11 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the timestep class
  *
- *          The empty constructer merely initializes the local reference to the global mesh variable.
+ *          The empty constructor merely initializes the local reference to the global mesh variable.
+ *          Also, the maximum allowable number of iterations for the Jacobi iterative solver being used to solve for the
+ *          velocities implicitly is set as \f$ N_{max} = N_x \times N_y \times N_z \f$, where \f$N_x\f$, \f$N_y\f$ and \f$N_z\f$
+ *          are the number of grid points in the collocated grid at the local sub-domains along x, y and z directions
+ *          respectively.
  *
  * \param   mesh is a const reference to the global data contained in the grid class.
  ********************************************************************************************************************************************
@@ -57,7 +61,12 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
 {
     setCoefficients();
 
-    maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+    // This upper limit on max iterations is an arbitrarily chosen function.
+    // Using Nx x Ny x Nz as the upper limit may cause the run to freeze for very long time.
+    // This can eat away a lot of core hours unnecessarily.
+    // It remains to be seen if this upper limit is safe.
+    maxIterations = int(std::pow(std::log(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 3));
+    //maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
 }
 
 

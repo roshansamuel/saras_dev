@@ -57,6 +57,7 @@ include_directories (${HEADER_DIR}/parallel
                      ${HEADER_DIR}/force
                      ${HEADER_DIR}/field
                      ${HEADER_DIR}/grid
+                     ${HEADER_DIR}/les
                      ${HEADER_DIR}/io)
 
 message (STATUS "The parent directory is ${PARENT_DIR}")

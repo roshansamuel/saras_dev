@@ -75,9 +75,6 @@ class hydro {
         /** Integer value for the number of time-steps elapsed - it is incremented by 1 in each time-step. */
         int timeStepCount;
 
-        /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
-        int maxIterations;
-
         real time, dt;
 
         const grid &mesh;

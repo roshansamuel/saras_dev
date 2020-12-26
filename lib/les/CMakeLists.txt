@@ -31,22 +31,16 @@
  ##
  ##! \file CMakeLists.txt
  #
- #   \brief CMakeLists file to include all library sub-directories.
+ #   \brief CMakeLists file to add the les library.
  #
  #   \author Roshan Samuel
- #   \date Nov 2019
+ #   \date Sep 2020
  #   \copyright New BSD License
  #
  ############################################################################################################################################
  ##
 
-add_subdirectory (parallel)
-add_subdirectory (grid)
-add_subdirectory (field)
-add_subdirectory (poisson)
-add_subdirectory (io)
-add_subdirectory (boundary)
-add_subdirectory (initial)
-add_subdirectory (force)
-add_subdirectory (les)
-add_subdirectory (timestep)
+add_library (les
+             les.cc
+             spiral.cc
+)

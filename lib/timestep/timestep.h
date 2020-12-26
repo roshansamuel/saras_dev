@@ -45,8 +45,9 @@
 
 #include <blitz/array.h>
 
-#include "force.h"
 #include "poisson.h"
+#include "force.h"
+#include "les.h"
 
 class timestep {
     public:
@@ -125,6 +126,11 @@ class eulerCN_d3: public timestep {
         real hx2hy2, hz2hx2, hy2hz2, hx2hy2hz2;
 
         multigrid_d3 mgSolver;
+
+        spiral *sgsLES;
+
+        // Following scalar fields are allocated space only if LES Switch is ON
+        sfield *Vxcc, *Vycc, *Vzcc, *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx, *qX, *qY, *qZ;
 
         void solveVx(vfield &V, plainvf &nseRHS);
         void solveVy(vfield &V, plainvf &nseRHS);

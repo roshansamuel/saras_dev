@@ -48,10 +48,6 @@
  *
  *          The short base constructor of the hydro class merely assigns the const references to the grid and parser
  *          class instances being used in the solver.
- *          Also, the maximum allowable number of iterations for the Jacobi iterative solver being used to solve for the
- *          velocities implicitly is set as \f$ N_{max} = N_x \times N_y \times N_z \f$, where \f$N_x\f$, \f$N_y\f$ and \f$N_z\f$
- *          are the number of grid points in the collocated grid at the local sub-domains along x, y and z directions
- *          respectively.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   solParam is a const reference to the user-set parameters contained in the parser class
@@ -62,10 +58,7 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
             P(mesh, "P"),
             mesh(mesh),
             inputParams(solParam),
-            mpiData(mpiParam)
-{
-    maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
-}
+            mpiData(mpiParam) { }
 
 
 /**

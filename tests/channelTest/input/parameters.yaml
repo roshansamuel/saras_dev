@@ -42,6 +42,11 @@
     # 4 = large U, small Pr
     "RBC Type": 1
 
+    # Enable/Disable LES by choosing LES Model
+    # 0 = Disable LES
+    # 1 = Stretched Spiral Vortex LES
+    "LES Model": 0
+
     # Non-dimensional parameters
     "Reynolds Number": 10
     "Rossby Number": 12

@@ -29,112 +29,86 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file parser.h
+/*! \file les.h
  *
- *  \brief Class declaration of parser
+ *  \brief Class declaration of LES Modules
  *
- *  \author Roshan Samuel, Shashwat Bhattacharya
- *  \date Nov 2019
+ *  \author Roshan Samuel
+ *  \date Sep 2020
  *  \copyright New BSD License
  *
  ********************************************************************************************************************************************
  */
 
-#ifndef PARSER_H
-#define PARSER_H
+/********************************************************************************************************************************************
+ *
+ * The stretched-vortex LES model defined by the derived class, spiral, is adapted
+ * from the code provided by Dale I Pullin at Caltech.
+ * A detailed description of the module can be found in doc/spiral.pdf
+ *
+ ********************************************************************************************************************************************
+ */
 
-#include <math.h>
-#include <string>
-#include <sstream>
-#include <fstream>
-#include <blitz/array.h>
-#include <yaml-cpp/yaml.h>
+#ifndef LES_H
+#define LES_H
 
-#ifdef REAL_DOUBLE
-#define H5T_NATIVE_REAL H5T_NATIVE_DOUBLE
-#define MPI_FP_REAL MPI_DOUBLE
-#define real double
-#else
-#define H5T_NATIVE_REAL H5T_NATIVE_FLOAT
-#define MPI_FP_REAL MPI_FLOAT
-#define real float
-#endif
+#include "grid.h"
 
-class parser {
+class les {
     public:
-        int ioCnt;
-        int rbcType;
-        int nThreads;
-        int npY, npX;
-        int forceType;
-        int solnFormat;
-        int xInd, yInd, zInd;
-        int resType, vcDepth, vcCount;
-        int gsSmooth, preSmooth, postSmooth;
+        les(const grid &mesh);
 
-        int icType;
-        int dScheme;
-        int iScheme;
-        int lesModel;
-        int probType;
-        int xGrid, yGrid, zGrid;
-
-        bool useCFL;
-        bool nonHgBC;
-        bool solveFlag;
-        bool readProbes;
-        bool restartFlag;
-        bool printResidual;
-        bool xPer, yPer, zPer;
-
-        real Re;
-        real Ra;
-        real Pr;
-        real Ta;
-        real Ro;
-
-        real fwInt;
-        real rsInt;
-        real prInt;
-        real meanPGrad;
-        real Lx, Ly, Lz;
-        real tStp, tMax;
-        real patchRadius;
-        real rfIntensity;
-        real meanVelocity;
-        real courantNumber;
-        real betaX, betaY, betaZ;
-        real cnTolerance, mgTolerance;
-
-        std::vector<blitz::TinyVector<int, 3> > probesList;
-
-        parser();
-
-        void writeParams();
-
-    private:
-        std::string meshType;
-        std::string domainType;
-        std::string probeCoords;
-
-        void parseYAML();
-        void checkData();
-
-        void testProbes();
-        void parseProbes();
-
-        void setGrids();
-        void setPeriodicity();
+    protected:
+        const grid &mesh;
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class parser parser.h "lib/io/parser.h"
- *  \brief  Contains all the global variables set by the user through the yaml file
+ *  \class les les.h "lib/les/les.h"
+ *  \brief Contains all the global variables related to the LES models used by SARAS
  *
- *  The class parses the paramters.yaml file and stores all the simulation paramters in publicly accessible constants.
- *  The class also has a function to check the consistency of the user set paramters and throw exceptions.
- *  The class is best initialized as a constant to prevent inadvertent tampering of the global variables it contains.
+ ********************************************************************************************************************************************
+ */
+
+class spiral: public les {
+    public:
+        spiral(const grid &mesh);
+
+        void sgs_stress(
+            blitz::Array<double, 3> u,
+            blitz::Array<double, 3> v,
+            blitz::Array<double, 3> w,
+            blitz::Array<double, 2> dudx,
+            double *x, double *y, double *z,
+            double nu, double del,
+            double *Txx, double *Tyy, double *Tzz,
+            double *Txy, double *Tyz, double *Tzx);
+
+        void sgs_flux(
+            blitz::TinyVector<double, 3> dsdx,
+            double del, double *qx, double *qy, double *qz);
+
+    private:
+        double K;
+
+        blitz::TinyVector<double, 3> e;
+
+        double Sxx, Syy, Szz, Sxy, Syz, Szx;
+
+        double ke_integral(double k);
+
+        double sf_integral(double d);
+
+        double eigenvalue_symm();
+
+        blitz::TinyVector<double, 3> eigenvector_symm(double eigval);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class spiral les.h "lib/les/les.h"
+ *  \brief The derived class from les to implement the stretched spiral vortex LES model
+ *
  ********************************************************************************************************************************************
  */
 
