@@ -55,7 +55,356 @@
  * \param   mesh is a const reference to the global data contained in the grid class.
  ********************************************************************************************************************************************
  */
-spiral::spiral(const grid &mesh): les(mesh) { }
+spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, const real &kDiff):
+    les(mesh, solverV, solverP),
+    nu(kDiff)
+{
+    Txx = new sfield(mesh, "Txx");
+    Tyy = new sfield(mesh, "Tyy");
+    Tzz = new sfield(mesh, "Tzz");
+    Txy = new sfield(mesh, "Txy");
+    Tyz = new sfield(mesh, "Tyz");
+    Tzx = new sfield(mesh, "Tzx");
+
+    qX = new sfield(mesh, "qX");
+    qY = new sfield(mesh, "qY");
+    qZ = new sfield(mesh, "qZ");
+
+    Vxcc = new sfield(mesh, "Ucc");
+    Vycc = new sfield(mesh, "Vcc");
+    Vzcc = new sfield(mesh, "Wcc");
+
+    u.resize(3, 3, 3);
+    v.resize(3, 3, 3);
+    w.resize(3, 3, 3);
+
+    dudx.resize(3, 3);
+
+    // The 9 arrays of tensor components have the same dimensions and limits as a cell centered variable
+    A11.resize(solverP.F.fSize);      A11.reindexSelf(solverP.F.flBound);
+    A12.resize(solverP.F.fSize);      A12.reindexSelf(solverP.F.flBound);
+    A13.resize(solverP.F.fSize);      A13.reindexSelf(solverP.F.flBound);
+    A21.resize(solverP.F.fSize);      A21.reindexSelf(solverP.F.flBound);
+    A22.resize(solverP.F.fSize);      A22.reindexSelf(solverP.F.flBound);
+    A23.resize(solverP.F.fSize);      A23.reindexSelf(solverP.F.flBound);
+    A31.resize(solverP.F.fSize);      A31.reindexSelf(solverP.F.flBound);
+    A32.resize(solverP.F.fSize);      A32.reindexSelf(solverP.F.flBound);
+    A33.resize(solverP.F.fSize);      A33.reindexSelf(solverP.F.flBound);
+}
+
+
+void spiral::computeSG(plainvf &nseRHS) {
+    // First interpolate all velocities to cell centers
+    // Then U, V and W data are available at all cell centers except ghost points
+    Vxcc->F.F = 0.0;
+    for (unsigned int i=0; i < P.F.VxIntSlices.size(); i++) {
+        Vxcc->F.F(P.F.fCore) += V.Vx.F(P.F.VxIntSlices(i));
+    }
+    Vxcc->F.F /= P.F.VxIntSlices.size();
+
+    Vycc->F.F = 0.0;
+    for (unsigned int i=0; i < P.F.VyIntSlices.size(); i++) {
+        Vycc->F.F(P.F.fCore) += V.Vy.F(P.F.VyIntSlices(i));
+    }
+    Vycc->F.F /= P.F.VyIntSlices.size();
+
+    Vzcc->F.F = 0.0;
+    for (unsigned int i=0; i < P.F.VzIntSlices.size(); i++) {
+        Vzcc->F.F(P.F.fCore) += V.Vz.F(P.F.VzIntSlices(i));
+    }
+    Vzcc->F.F /= P.F.VzIntSlices.size();
+
+    Vxcc->derS.calcDerivative1_x(A11);
+    Vxcc->derS.calcDerivative1_y(A12);
+    Vxcc->derS.calcDerivative1_z(A13);
+    Vycc->derS.calcDerivative1_x(A21);
+    Vycc->derS.calcDerivative1_y(A22);
+    Vycc->derS.calcDerivative1_z(A23);
+    Vzcc->derS.calcDerivative1_x(A31);
+    Vzcc->derS.calcDerivative1_y(A32);
+    Vzcc->derS.calcDerivative1_z(A33);
+
+    // Use only cell centers like a collocated grid and compute T tensor
+    // Since U, V, and W data is available only in the core,
+    // Adjust the loop limits so that the boundary points are excluded
+    // to compute derivatives and structure functions correctly.
+    xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
+    yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
+    zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        real dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
+        for (int iY = yS; iY <= yE; iY++) {
+            real dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
+
+                // Cutoff wavelength
+                del = std::cbrt(dx*dy*dz);
+
+                u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+
+                // A 3 x 3 matrix of velocity gradient
+                dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
+                       A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
+                       A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
+
+                real x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
+                real y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
+                real z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+
+                sgsStress(u, v, w, dudx, x, y, z,
+                         &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
+
+                Txx->F.F(iX, iY, iZ) = sTxx;
+                Tyy->F.F(iX, iY, iZ) = sTyy;
+                Tzz->F.F(iX, iY, iZ) = sTzz;
+                Txy->F.F(iX, iY, iZ) = sTxy;
+                Tyz->F.F(iX, iY, iZ) = sTyz;
+                Tzx->F.F(iX, iY, iZ) = sTzx;
+            }
+        }
+    }
+
+    Txx->syncData();
+    Tyy->syncData();
+    Tzz->syncData();
+    Txy->syncData();
+    Tyz->syncData();
+    Tzx->syncData();
+
+    Txx->derS.calcDerivative1_x(A11);
+    Txy->derS.calcDerivative1_x(A12);
+    Tzx->derS.calcDerivative1_x(A13);
+    Txy->derS.calcDerivative1_y(A21);
+    Tyy->derS.calcDerivative1_y(A22);
+    Tyz->derS.calcDerivative1_y(A23);
+    Tzx->derS.calcDerivative1_z(A31);
+    Tyz->derS.calcDerivative1_z(A32);
+    Tzz->derS.calcDerivative1_z(A33);
+
+    A11 = A11 + A21 + A31;
+    A22 = A12 + A22 + A32;
+    A33 = A13 + A23 + A33;
+
+    xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
+    yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
+    zS = V.Vx.fCore.lbound(2) + 2; zE = V.Vx.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                nseRHS.Vx(iX, iY, iZ) += (A11(iX, iY, iZ) + A11(iX + 1, iY, iZ))*0.5;
+            }
+        }
+    }
+
+    xS = V.Vy.fCore.lbound(0) + 2; xE = V.Vy.fCore.ubound(0) - 2;
+    yS = V.Vy.fCore.lbound(1) + 2; yE = V.Vy.fCore.ubound(1) - 2;
+    zS = V.Vy.fCore.lbound(2) + 2; zE = V.Vy.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                nseRHS.Vy(iX, iY, iZ) += (A22(iX, iY, iZ) + A22(iX, iY + 1, iZ))*0.5;
+            }
+        }
+    }
+
+    xS = V.Vz.fCore.lbound(0) + 2; xE = V.Vz.fCore.ubound(0) - 2;
+    yS = V.Vz.fCore.lbound(1) + 2; yE = V.Vz.fCore.ubound(1) - 2;
+    zS = V.Vz.fCore.lbound(2) + 2; zE = V.Vz.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                nseRHS.Vz(iX, iY, iZ) += (A33(iX, iY, iZ) + A33(iX, iY, iZ + 1))*0.5;
+            }
+        }
+    }
+}
+
+
+void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
+    real sQx, sQy, sQz;
+
+    // The following TinyVector stores the temperature gradient vector
+    blitz::TinyVector<real, 3> dtdx;
+
+    // These 3 additional arrays are necessary for computing scalar turbulent SGS diffusion
+    blitz::Array<real, 3> B1, B2, B3;
+
+    B1.resize(P.F.fSize);       B1.reindexSelf(P.F.flBound);
+    B2.resize(P.F.fSize);       B2.reindexSelf(P.F.flBound);
+    B3.resize(P.F.fSize);       B3.reindexSelf(P.F.flBound);
+
+    // First interpolate all velocities to cell centers
+    // Then U, V and W data are available at all cell centers except ghost points
+    Vxcc->F.F = 0.0;
+    for (unsigned int i=0; i < P.F.VxIntSlices.size(); i++) {
+        Vxcc->F.F(P.F.fCore) += V.Vx.F(P.F.VxIntSlices(i));
+    }
+    Vxcc->F.F /= P.F.VxIntSlices.size();
+
+    Vycc->F.F = 0.0;
+    for (unsigned int i=0; i < P.F.VyIntSlices.size(); i++) {
+        Vycc->F.F(P.F.fCore) += V.Vy.F(P.F.VyIntSlices(i));
+    }
+    Vycc->F.F /= P.F.VyIntSlices.size();
+
+    Vzcc->F.F = 0.0;
+    for (unsigned int i=0; i < P.F.VzIntSlices.size(); i++) {
+        Vzcc->F.F(P.F.fCore) += V.Vz.F(P.F.VzIntSlices(i));
+    }
+    Vzcc->F.F /= P.F.VzIntSlices.size();
+
+    Vxcc->derS.calcDerivative1_x(A11);
+    Vxcc->derS.calcDerivative1_y(A12);
+    Vxcc->derS.calcDerivative1_z(A13);
+    Vycc->derS.calcDerivative1_x(A21);
+    Vycc->derS.calcDerivative1_y(A22);
+    Vycc->derS.calcDerivative1_z(A23);
+    Vzcc->derS.calcDerivative1_x(A31);
+    Vzcc->derS.calcDerivative1_y(A32);
+    Vzcc->derS.calcDerivative1_z(A33);
+
+    T.derS.calcDerivative1_x(B1);
+    T.derS.calcDerivative1_y(B2);
+    T.derS.calcDerivative1_z(B3);
+
+    // Use only cell centers like a collocated grid and compute T tensor
+    // Since U, V, and W data is available only in the core,
+    // Adjust the loop limits so that the boundary points are excluded
+    // to compute derivatives and structure functions correctly.
+    xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
+    yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
+    zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        real dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
+        for (int iY = yS; iY <= yE; iY++) {
+            real dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
+
+                // Cutoff wavelength
+                del = std::cbrt(dx*dy*dz);
+
+                u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+
+                // A 3 x 3 matrix of velocity gradient
+                dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
+                       A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
+                       A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
+
+                real x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
+                real y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
+                real z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+
+                sgsStress(u, v, w, dudx, x, y, z,
+                         &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
+
+                Txx->F.F(iX, iY, iZ) = sTxx;
+                Tyy->F.F(iX, iY, iZ) = sTyy;
+                Tzz->F.F(iX, iY, iZ) = sTzz;
+                Txy->F.F(iX, iY, iZ) = sTxy;
+                Tyz->F.F(iX, iY, iZ) = sTyz;
+                Tzx->F.F(iX, iY, iZ) = sTzx;
+
+                // A 3 x 1 vector of temperature gradient
+                dtdx = B1(iX, iY, iZ), B2(iX, iY, iZ), B3(iX, iY, iZ);
+
+                sgsFlux(dtdx, &sQx, &sQy, &sQz);
+
+                qX->F.F(iX, iY, iZ) = sQx;
+                qY->F.F(iX, iY, iZ) = sQy;
+                qZ->F.F(iX, iY, iZ) = sQz;
+            }
+        }
+    }
+
+    Txx->syncData();
+    Tyy->syncData();
+    Tzz->syncData();
+    Txy->syncData();
+    Tyz->syncData();
+    Tzx->syncData();
+
+    Txx->derS.calcDerivative1_x(A11);
+    Txy->derS.calcDerivative1_x(A12);
+    Tzx->derS.calcDerivative1_x(A13);
+    Txy->derS.calcDerivative1_y(A21);
+    Tyy->derS.calcDerivative1_y(A22);
+    Tyz->derS.calcDerivative1_y(A23);
+    Tzx->derS.calcDerivative1_z(A31);
+    Tyz->derS.calcDerivative1_z(A32);
+    Tzz->derS.calcDerivative1_z(A33);
+
+    B1 = A11 + A21 + A31;
+    B2 = A12 + A22 + A32;
+    B3 = A13 + A23 + A33;
+
+    xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
+    yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
+    zS = V.Vx.fCore.lbound(2) + 2; zE = V.Vx.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                nseRHS.Vx(iX, iY, iZ) += (B1(iX, iY, iZ) + B1(iX + 1, iY, iZ))*0.5;
+            }
+        }
+    }
+
+    xS = V.Vy.fCore.lbound(0) + 2; xE = V.Vy.fCore.ubound(0) - 2;
+    yS = V.Vy.fCore.lbound(1) + 2; yE = V.Vy.fCore.ubound(1) - 2;
+    zS = V.Vy.fCore.lbound(2) + 2; zE = V.Vy.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                nseRHS.Vy(iX, iY, iZ) += (B2(iX, iY, iZ) + B2(iX, iY + 1, iZ))*0.5;
+            }
+        }
+    }
+
+    xS = V.Vz.fCore.lbound(0) + 2; xE = V.Vz.fCore.ubound(0) - 2;
+    yS = V.Vz.fCore.lbound(1) + 2; yE = V.Vz.fCore.ubound(1) - 2;
+    zS = V.Vz.fCore.lbound(2) + 2; zE = V.Vz.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                nseRHS.Vz(iX, iY, iZ) += (B3(iX, iY, iZ) + B3(iX, iY, iZ + 1))*0.5;
+            }
+        }
+    }
+
+    qX->syncData();
+    qY->syncData();
+    qZ->syncData();
+
+    qX->derS.calcDerivative1_x(B1);
+    qY->derS.calcDerivative1_y(B2);
+    qZ->derS.calcDerivative1_z(B3);
+
+    xS = T.F.fCore.lbound(0) + 2; xE = T.F.fCore.ubound(0) - 2;
+    yS = T.F.fCore.lbound(1) + 2; yE = T.F.fCore.ubound(1) - 2;
+    zS = T.F.fCore.lbound(2) + 2; zE = T.F.fCore.ubound(2) - 2;
+
+    for (int iX = xS; iX <= xE; iX++) {
+        for (int iY = yS; iY <= yE; iY++) {
+            for (int iZ = zS; iZ <= zE; iZ++) {
+                tmpRHS.F(iX, iY, iZ) = (B1(iX, iY, iX) + B2(iX, iY, iX) + B3(iX, iY, iX));
+            }
+        }
+    }
+}
+
 
 /**
  ********************************************************************************************************************************************
@@ -70,13 +419,12 @@ spiral::spiral(const grid &mesh): les(mesh) { }
  *
  ********************************************************************************************************************************************
  */
-void spiral::sgs_stress(
+void spiral::sgsStress(
     blitz::Array<real, 3> u,
     blitz::Array<real, 3> v,
     blitz::Array<real, 3> w,
     blitz::Array<real, 2> dudx,
     real *x, real *y, real *z,
-    real nu, real del,
     real *Txx, real *Tyy, real *Tzz,
     real *Txy, real *Tyz, real *Tzx)
 {
@@ -93,10 +441,10 @@ void spiral::sgs_stress(
         Szx = 0.5 * (dudx(2, 0) + dudx(0, 2));
 
         // By default, eigenvalue corresponding to most extensive eigenvector is returned
-        real eigval = eigenvalue_symm();
+        real eigval = eigenvalueSymm();
 
         // Default alignment: most extensive eigenvector
-        e = eigenvector_symm(eigval);
+        e = eigenvectorSymm(eigval);
 
         // Make e[3] a unit vector
         real length = sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
@@ -104,8 +452,8 @@ void spiral::sgs_stress(
 
         // Strain along vortex axis
         real a = e[0] * e[0] * Sxx + e[0] * e[1] * Sxy + e[0] * e[2] * Szx
-                 + e[1] * e[0] * Sxy + e[1] * e[1] * Syy + e[1] * e[2] * Syz
-                 + e[2] * e[0] * Szx + e[2] * e[1] * Syz + e[2] * e[2] * Szz;
+               + e[1] * e[0] * Sxy + e[1] * e[1] * Syy + e[1] * e[2] * Syz
+               + e[2] * e[0] * Szx + e[2] * e[1] * Syz + e[2] * e[2] * Szz;
         lv = sqrt(2.0 * nu / (3.0 * (fabs(a) + EPS)));
     }
 
@@ -128,7 +476,7 @@ void spiral::sgs_stress(
                         real dx2 = dx * dx   + dy * dy   + dz * dz;
                         real dxe = dx * e[0] + dy * e[1] + dz * e[2];
                         real d = sqrt(dx2 - dxe * dxe) / del;
-                        Qd += sf_integral(d);
+                        Qd += sfIntegral(d);
                         sfCount++;
                     }
                 }
@@ -141,7 +489,7 @@ void spiral::sgs_stress(
     real prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
     real kc = M_PI / del;
 
-    K = prefac * ke_integral(kc * lv);
+    K = prefac * keIntegral(kc * lv);
 
     // T_{ij} = (\delta_{ij} - e_i^v e_j^v) K
     *Txx = (1.0 - e[0] * e[0]) * K;
@@ -157,11 +505,11 @@ void spiral::sgs_stress(
 // gradient dsdx[3], vortex alignment e[3] (a unit vector), LES cutoff
 // scale del and precalculated SGS kinetic energy K.
 // WARNING: For this function to work, the values of member variables e and K
-// must be pre-caclculated through a call to the function sgs_stress.
+// must be pre-caclculated through a call to the function sgsStress.
 //
-void spiral::sgs_flux(
+void spiral::sgsFlux(
         blitz::TinyVector<real, 3> dsdx,
-        real del, real *qx, real *qy, real *qz)
+        real *qx, real *qy, real *qz)
 {
     real gam = 1.0; // Universal model constant
     real P = -0.5 * gam * del * sqrt(K);
@@ -183,7 +531,7 @@ void spiral::sgs_flux(
 // (1/2) k^(2/3) Gamma[-1/3, k^2]
 // with maximum relative error of 0.17% at k=2.42806.
 //
-real spiral::ke_integral(real k)
+real spiral::keIntegral(real k)
 {
     real k2 = k * k;
     if (k2 < 2.42806) {
@@ -206,7 +554,7 @@ real spiral::ke_integral(real k)
 // Integrate[4 x^(-5/3) (1 - BesselJ[0, x Pi d]), {x, 0, 1}]
 // with maximum relative error of 2.71% at d=0.873469.
 //
-real spiral::sf_integral(real d)
+real spiral::sfIntegral(real d)
 {
     // Uncomment if spherical averaging and d=1.
     // if (d == 1.0) return 4.09047;
@@ -225,7 +573,7 @@ real spiral::sf_integral(real d)
 // { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
 // assuming distinct eigenvalues.
 //
-real spiral::eigenvalue_symm() {
+real spiral::eigenvalueSymm() {
     real eigval[3];
 
     // x^3 + a * x^2 + b * x + c = 0, where x is the eigenvalue
@@ -280,7 +628,7 @@ real spiral::eigenvalue_symm() {
 // { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
 // assuming distinct eigenvalues.
 //
-blitz::TinyVector<real, 3> spiral::eigenvector_symm(real eigval) {
+blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     blitz::TinyVector<real, 3> eigvec;
 
     // There are problems with this unscaled check for zero.

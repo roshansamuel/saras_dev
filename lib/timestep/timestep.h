@@ -127,10 +127,7 @@ class eulerCN_d3: public timestep {
 
         multigrid_d3 mgSolver;
 
-        spiral *sgsLES;
-
-        // Following scalar fields are allocated space only if LES Switch is ON
-        sfield *Vxcc, *Vycc, *Vzcc, *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx, *qX, *qY, *qZ;
+        les *sgsLES;
 
         void solveVx(vfield &V, plainvf &nseRHS);
         void solveVy(vfield &V, plainvf &nseRHS);

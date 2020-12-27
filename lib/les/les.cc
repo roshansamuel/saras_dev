@@ -46,9 +46,35 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the les class
  *
- *          The empty constructer merely initializes the local reference to the global mesh variable.
+ *          The empty constructor merely initializes the local reference to the global mesh variable.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  ********************************************************************************************************************************************
  */
-les::les(const grid &mesh): mesh(mesh) { }
+les::les(const grid &mesh, const vfield &solverV, const sfield &solverP): mesh(mesh), P(solverP), V(solverV) { }
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Prototype overloaded function to compute sub-grid contribution from LES model
+ *
+ *          The function uses the chosen LES model to compute the sub-grid stress terms, and add their contribution
+ *          to the momentum equations of the Navier-Stokes equations.
+ *
+ * \param   nseRHS is a reference to the plain vector field which holds the RHS terms of the NSE
+ ********************************************************************************************************************************************
+ */
+void les::computeSG(plainvf &nseRHS) { };
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Prototype overloaded function to compute sub-grid contribution from LES model
+ *
+ *          The function uses the chosen LES model to compute the sub-grid stress terms, and add their contribution
+ *          to both the momentum equation, as well as the temperature equation.
+ *
+ * \param   nseRHS is a reference to the plain vector field which holds the RHS terms of the NSE
+ * \param   tmpRHS is a reference to the plain scalar field which holds the RHS terms of the temperature equation
+ * \param   T is a const reference to the temperature scalar field
+ ********************************************************************************************************************************************
+ */
+void les::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) { };

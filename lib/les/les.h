@@ -53,13 +53,23 @@
 #define LES_H
 
 #include "grid.h"
+#include "vfield.h"
+#include "sfield.h"
+#include "plainvf.h"
+#include "plainsf.h"
 
 class les {
     public:
-        les(const grid &mesh);
+        les(const grid &mesh, const vfield &solverV, const sfield &solverP);
+
+        virtual void computeSG(plainvf &nseRHS);
+        virtual void computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T);
 
     protected:
         const grid &mesh;
+
+        const sfield &P;
+        const vfield &V;
 };
 
 /**
@@ -72,36 +82,67 @@ class les {
 
 class spiral: public les {
     public:
-        spiral(const grid &mesh);
+        spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, const real &kDiff);
 
-        void sgs_stress(
-            blitz::Array<real, 3> u,
-            blitz::Array<real, 3> v,
-            blitz::Array<real, 3> w,
-            blitz::Array<real, 2> dudx,
-            real *x, real *y, real *z,
-            real nu, real del,
-            real *Txx, real *Tyy, real *Tzz,
-            real *Txy, real *Tyz, real *Tzx);
-
-        void sgs_flux(
-            blitz::TinyVector<real, 3> dsdx,
-            real del, real *qx, real *qy, real *qz);
+        void computeSG(plainvf &nseRHS);
+        void computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T);
 
     private:
+        // Kinematic viscosity
+        const real &nu;
+
+        // Array limits for loops
+        int xS, xE, yS, yE, zS, zE;
+
+        // Temporary variables to store output from spiral LES solver
+        real sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
+
+        // Cutoff wavelength
+        real del;
+
+        // These 9 arrays store components of the velocity gradient tensor intially
+        // Then they are reused to store the derivatives of stress tensor to calculate its divergence
+        blitz::Array<real, 3> A11, A12, A13;
+        blitz::Array<real, 3> A21, A22, A23;
+        blitz::Array<real, 3> A31, A32, A33;
+
+        // These are three 3x3x3 arrays containing local interpolated velocities
+        // These are used to calculate the structure function within the spiral les routine
+        blitz::Array<real, 3> u, v, w;
+
+        // The following 3x3 matrix stores the velocity gradient tensor
+        blitz::Array<real, 2> dudx;
+
         real K;
+
+        sfield *qX, *qY, *qZ;
+        sfield *Vxcc, *Vycc, *Vzcc;
+        sfield *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx;
 
         blitz::TinyVector<real, 3> e;
 
         real Sxx, Syy, Szz, Sxy, Syz, Szx;
 
-        real ke_integral(real k);
+        void sgsStress(
+            blitz::Array<real, 3> u,
+            blitz::Array<real, 3> v,
+            blitz::Array<real, 3> w,
+            blitz::Array<real, 2> dudx,
+            real *x, real *y, real *z,
+            real *Txx, real *Tyy, real *Tzz,
+            real *Txy, real *Tyz, real *Tzx);
 
-        real sf_integral(real d);
+        void sgsFlux(
+            blitz::TinyVector<real, 3> dsdx,
+            real *qx, real *qy, real *qz);
 
-        real eigenvalue_symm();
+        real keIntegral(real k);
 
-        blitz::TinyVector<real, 3> eigenvector_symm(real eigval);
+        real sfIntegral(real d);
+
+        real eigenvalueSymm();
+
+        blitz::TinyVector<real, 3> eigenvectorSymm(real eigval);
 };
 
 /**
