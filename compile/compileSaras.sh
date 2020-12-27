@@ -48,7 +48,6 @@ PROC=4
 REAL_TYPE="DOUBLE"
 #REAL_TYPE="SINGLE"
 #PLANAR="PLANAR"
-#TIME_RUN="TIME_RUN"
 #TEST_RUN="TEST_RUN"
 EXECUTE_AFTER_COMPILE="EXECUTE"
 
@@ -69,24 +68,20 @@ cd build
 # RUN Cmake WITH NECESSARY FLAGS AS SET BY USER
 if [ -z $PLANAR ]; then
     if [ -z $TEST_RUN ]; then
-        if [ -z $TIME_RUN ]; then
-            if [ "$REAL_TYPE" == "DOUBLE" ]; then
-                CC=mpicc CXX=mpicxx cmake ../../ -DREAL_DOUBLE=ON
-            else
-                CC=mpicc CXX=mpicxx cmake ../../ -DREAL_SINGLE=ON
-            fi
+        if [ "$REAL_TYPE" == "DOUBLE" ]; then
+            CC=mpicc CXX=mpicxx cmake ../../ -DREAL_DOUBLE=ON
         else
-            CC=mpicc CXX=mpicxx cmake ../../ -DTIME_RUN=ON
+            CC=mpicc CXX=mpicxx cmake ../../ -DREAL_SINGLE=ON
         fi
     else
         CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON
     fi
 else
     if [ -z $TEST_RUN ]; then
-        if [ -z $TIME_RUN ]; then
-            CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON
+        if [ "$REAL_TYPE" == "DOUBLE" ]; then
+            CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DREAL_DOUBLE=ON
         else
-            CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DTIME_RUN=ON
+            CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DREAL_SINGLE=ON
         fi
     else
         CC=mpicc CXX=mpicxx cmake ../../ -DTEST_RUN=ON -DPLANAR=ON

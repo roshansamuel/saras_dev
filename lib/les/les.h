@@ -75,33 +75,33 @@ class spiral: public les {
         spiral(const grid &mesh);
 
         void sgs_stress(
-            blitz::Array<double, 3> u,
-            blitz::Array<double, 3> v,
-            blitz::Array<double, 3> w,
-            blitz::Array<double, 2> dudx,
-            double *x, double *y, double *z,
-            double nu, double del,
-            double *Txx, double *Tyy, double *Tzz,
-            double *Txy, double *Tyz, double *Tzx);
+            blitz::Array<real, 3> u,
+            blitz::Array<real, 3> v,
+            blitz::Array<real, 3> w,
+            blitz::Array<real, 2> dudx,
+            real *x, real *y, real *z,
+            real nu, real del,
+            real *Txx, real *Tyy, real *Tzz,
+            real *Txy, real *Tyz, real *Tzx);
 
         void sgs_flux(
-            blitz::TinyVector<double, 3> dsdx,
-            double del, double *qx, double *qy, double *qz);
+            blitz::TinyVector<real, 3> dsdx,
+            real del, real *qx, real *qy, real *qz);
 
     private:
-        double K;
+        real K;
 
-        blitz::TinyVector<double, 3> e;
+        blitz::TinyVector<real, 3> e;
 
-        double Sxx, Syy, Szz, Sxy, Syz, Szx;
+        real Sxx, Syy, Szz, Sxy, Syz, Szx;
 
-        double ke_integral(double k);
+        real ke_integral(real k);
 
-        double sf_integral(double d);
+        real sf_integral(real d);
 
-        double eigenvalue_symm();
+        real eigenvalue_symm();
 
-        blitz::TinyVector<double, 3> eigenvector_symm(double eigval);
+        blitz::TinyVector<real, 3> eigenvector_symm(real eigval);
 };
 
 /**

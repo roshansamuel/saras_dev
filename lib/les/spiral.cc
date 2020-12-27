@@ -71,17 +71,17 @@ spiral::spiral(const grid &mesh): les(mesh) { }
  ********************************************************************************************************************************************
  */
 void spiral::sgs_stress(
-    blitz::Array<double, 3> u,
-    blitz::Array<double, 3> v,
-    blitz::Array<double, 3> w,
-    blitz::Array<double, 2> dudx,
-    double *x, double *y, double *z,
-    double nu, double del,
-    double *Txx, double *Tyy, double *Tzz,
-    double *Txy, double *Tyz, double *Tzx)
+    blitz::Array<real, 3> u,
+    blitz::Array<real, 3> v,
+    blitz::Array<real, 3> w,
+    blitz::Array<real, 2> dudx,
+    real *x, real *y, real *z,
+    real nu, real del,
+    real *Txx, real *Tyy, real *Tzz,
+    real *Txy, real *Tyz, real *Tzx)
 {
     // lv = Sqrt[2 nu / (3 Abs[a])]
-    double lv = 0.0;
+    real lv = 0.0;
 
     {
         // Strain-rate tensor
@@ -93,24 +93,24 @@ void spiral::sgs_stress(
         Szx = 0.5 * (dudx(2, 0) + dudx(0, 2));
 
         // By default, eigenvalue corresponding to most extensive eigenvector is returned
-        double eigval = eigenvalue_symm();
+        real eigval = eigenvalue_symm();
 
         // Default alignment: most extensive eigenvector
         e = eigenvector_symm(eigval);
 
         // Make e[3] a unit vector
-        double length = sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
+        real length = sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]);
         e /= length;
 
         // Strain along vortex axis
-        double a = e[0] * e[0] * Sxx + e[0] * e[1] * Sxy + e[0] * e[2] * Szx
+        real a = e[0] * e[0] * Sxx + e[0] * e[1] * Sxy + e[0] * e[2] * Szx
                  + e[1] * e[0] * Sxy + e[1] * e[1] * Syy + e[1] * e[2] * Syz
                  + e[2] * e[0] * Szx + e[2] * e[1] * Syz + e[2] * e[2] * Szz;
         lv = sqrt(2.0 * nu / (3.0 * (fabs(a) + EPS)));
     }
 
-    double F2 = 0.0;
-    double Qd = 0.0; 
+    real F2 = 0.0;
+    real Qd = 0.0; 
     {    
         // Average over neighboring points
         int sfCount = 0;
@@ -118,28 +118,28 @@ void spiral::sgs_stress(
             for (int j = -1; j <= 1; j++) {
                 for (int k = -1; k <= 1; k++) {
                     if (i or j or k) {
-                        double du = u(i+1, j+1, k+1) - u(1, 1, 1);
-                        double dv = v(i+1, j+1, k+1) - v(1, 1, 1);
-                        double dw = w(i+1, j+1, k+1) - w(1, 1, 1);
+                        real du = u(i+1, j+1, k+1) - u(1, 1, 1);
+                        real dv = v(i+1, j+1, k+1) - v(1, 1, 1);
+                        real dw = w(i+1, j+1, k+1) - w(1, 1, 1);
                         F2 += du * du + dv * dv + dw * dw;
-                        double dx = x[i+1] - x[1];
-                        double dy = y[j+1] - y[1];
-                        double dz = z[k+1] - z[1];
-                        double dx2 = dx * dx   + dy * dy   + dz * dz;
-                        double dxe = dx * e[0] + dy * e[1] + dz * e[2];
-                        double d = sqrt(dx2 - dxe * dxe) / del;
+                        real dx = x[i+1] - x[1];
+                        real dy = y[j+1] - y[1];
+                        real dz = z[k+1] - z[1];
+                        real dx2 = dx * dx   + dy * dy   + dz * dz;
+                        real dxe = dx * e[0] + dy * e[1] + dz * e[2];
+                        real d = sqrt(dx2 - dxe * dxe) / del;
                         Qd += sf_integral(d);
                         sfCount++;
                     }
                 }
             }
         }
-        F2 /= (double) (sfCount);
-        Qd /= (double) (sfCount);
+        F2 /= (real) (sfCount);
+        Qd /= (real) (sfCount);
     }
     // prefac is the group prefactor
-    double prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
-    double kc = M_PI / del;
+    real prefac = F2 / Qd; // \mathcal{K}_0 \epsilon^{2/3} k_c^{-2/3}
+    real kc = M_PI / del;
 
     K = prefac * ke_integral(kc * lv);
 
@@ -160,11 +160,11 @@ void spiral::sgs_stress(
 // must be pre-caclculated through a call to the function sgs_stress.
 //
 void spiral::sgs_flux(
-        blitz::TinyVector<double, 3> dsdx,
-        double del, double *qx, double *qy, double *qz)
+        blitz::TinyVector<real, 3> dsdx,
+        real del, real *qx, real *qy, real *qz)
 {
-    double gam = 1.0; // Universal model constant
-    double P = -0.5 * gam * del * sqrt(K);
+    real gam = 1.0; // Universal model constant
+    real P = -0.5 * gam * del * sqrt(K);
 
     // q_i = P (\delta_{ij} - e_i^v e_j^v) ds/dx_j
     *qx = P * ((1.0 - e[0] * e[0]) * dsdx[0]
@@ -183,18 +183,18 @@ void spiral::sgs_flux(
 // (1/2) k^(2/3) Gamma[-1/3, k^2]
 // with maximum relative error of 0.17% at k=2.42806.
 //
-double spiral::ke_integral(double k)
+real spiral::ke_integral(real k)
 {
-    double k2 = k * k;
+    real k2 = k * k;
     if (k2 < 2.42806) {
-        double pade = (3.0 +   2.5107 * k2 +  0.330357 * k2 * k2
+        real pade = (3.0 +   2.5107 * k2 +  0.330357 * k2 * k2
                     +  0.0295481 * k2 * k2 * k2)
                     / (1.0 + 0.336901 * k2 + 0.0416684 * k2 * k2
                     + 0.00187191 * k2 * k2 * k2);
         return 0.5 * (pade - 4.06235 * pow(k2, 1.0 / 3.0));
     }
     else {
-        double pade = (1.26429 + 0.835714 * k2 + 0.0964286 * k2 * k2)
+        real pade = (1.26429 + 0.835714 * k2 + 0.0964286 * k2 * k2)
                     / (1.0     +   2.25   * k2 +  0.964286 * k2 * k2
                     + 0.0964286 * k2 * k2 * k2);
         return 0.5 * pade * exp(-k2);
@@ -206,12 +206,12 @@ double spiral::ke_integral(double k)
 // Integrate[4 x^(-5/3) (1 - BesselJ[0, x Pi d]), {x, 0, 1}]
 // with maximum relative error of 2.71% at d=0.873469.
 //
-double spiral::sf_integral(double d)
+real spiral::sf_integral(real d)
 {
     // Uncomment if spherical averaging and d=1.
     // if (d == 1.0) return 4.09047;
 
-    double d2 = d * d;
+    real d2 = d * d;
     if (d < 0.873469)
         return 7.4022 * d2 - 1.82642 * d2 * d2;
     else
@@ -225,19 +225,19 @@ double spiral::sf_integral(double d)
 // { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
 // assuming distinct eigenvalues.
 //
-double spiral::eigenvalue_symm() {
-    double eigval[3];
+real spiral::eigenvalue_symm() {
+    real eigval[3];
 
     // x^3 + a * x^2 + b * x + c = 0, where x is the eigenvalue
-    double a = - (Sxx + Syy + Szz);
-    double b = Sxx * Syy - Sxy * Sxy + Syy * Szz
+    real a = - (Sxx + Syy + Szz);
+    real b = Sxx * Syy - Sxy * Sxy + Syy * Szz
              - Syz * Syz + Szz * Sxx - Szx * Szx;
-    double c = - (Sxx * (Syy * Szz - Syz * Syz)
+    real c = - (Sxx * (Syy * Szz - Syz * Syz)
                 + Sxy * (Syz * Szx - Sxy * Szz)
                 + Szx * (Sxy * Syz - Syy * Szx));
 
-    double q = (3.0 * b - a * a) / 9.0;
-    double r = (9.0 * a * b - 27.0 * c - 2.0 * a * a * a) / 54.0;
+    real q = (3.0 * b - a * a) / 9.0;
+    real r = (9.0 * a * b - 27.0 * c - 2.0 * a * a * a) / 54.0;
 
     if (q >= 0.0) {
         if (mesh.rankData.rank == 0) {
@@ -247,10 +247,10 @@ double spiral::eigenvalue_symm() {
         exit(0);
     }
 
-    double costheta = r / sqrt(-q * q * q);
+    real costheta = r / sqrt(-q * q * q);
 
     // |costheta| > 1 should not occur, except from round-off errors
-    double theta;
+    real theta;
     theta = costheta > 1.0 ? 0.0 :
             costheta < -1.0 ? M_PI :
             acos(costheta);
@@ -261,13 +261,13 @@ double spiral::eigenvalue_symm() {
 
     // Sort eigenvalues: eigval[0] < eigval[1] < eigval[2]
     if (eigval[0] > eigval[1]) {
-        double tmp = eigval[0]; eigval[0] = eigval[1]; eigval[1] = tmp;
+        real tmp = eigval[0]; eigval[0] = eigval[1]; eigval[1] = tmp;
     }
     if (eigval[1] > eigval[2]) {
-        double tmp = eigval[1]; eigval[1] = eigval[2]; eigval[2] = tmp;
+        real tmp = eigval[1]; eigval[1] = eigval[2]; eigval[2] = tmp;
     }
     if (eigval[0] > eigval[1]) {
-        double tmp = eigval[0]; eigval[0] = eigval[1]; eigval[1] = tmp;
+        real tmp = eigval[0]; eigval[0] = eigval[1]; eigval[1] = tmp;
     }
 
     return eigval[2];
@@ -280,12 +280,12 @@ double spiral::eigenvalue_symm() {
 // { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
 // assuming distinct eigenvalues.
 //
-blitz::TinyVector<double, 3> spiral::eigenvector_symm(double eigval) {
-    blitz::TinyVector<double, 3> eigvec;
+blitz::TinyVector<real, 3> spiral::eigenvector_symm(real eigval) {
+    blitz::TinyVector<real, 3> eigvec;
 
     // There are problems with this unscaled check for zero.
     // A better one would be to check the zero against the det(S), for instance.
-    //double compVal;
+    //real compVal;
     //compVal = fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
     //        + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
     //        + Szx * (Sxy * Syz - (Syy - eigval) * Szx));
@@ -297,11 +297,11 @@ blitz::TinyVector<double, 3> spiral::eigenvector_symm(double eigval) {
     //    exit(0);
     //}
 
-    double det[3] = { (Syy - eigval) * (Szz - eigval) - Syz * Syz,
+    real det[3] = { (Syy - eigval) * (Szz - eigval) - Syz * Syz,
                       (Szz - eigval) * (Sxx - eigval) - Szx * Szx,
                       (Sxx - eigval) * (Syy - eigval) - Sxy * Sxy };
 
-    double fabsdet[3] = { fabs(det[0]), fabs(det[1]), fabs(det[2]) };
+    real fabsdet[3] = { fabs(det[0]), fabs(det[1]), fabs(det[2]) };
 
     if (fabsdet[0] >= fabsdet[1] && fabsdet[0] >= fabsdet[2]) {
         eigvec = 1.0, (-Sxy*(Szz - eigval) + Szx*Syz)/det[0], (-Szx*(Syy - eigval) + Sxy*Syz)/det[0];

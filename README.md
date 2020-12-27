@@ -26,7 +26,6 @@ The first few lines of the ``compileSaras.sh`` script can be used to set certain
 * ``PROC`` - Number of processors to be used when running ``SARAS``. This parameter is used only if the ``EXECUTE_AFTER_COMPILE`` parameter is uncommented.
 * ``REAL_TYPE`` - ``SARAS`` supports computations with both double and single precision floating point values. This parameter must be either ``SINGLE`` or ``DOUBLE``
 * ``PLANAR`` - This parameter has to be enabled to use the ``SARAS`` executable for 2D simulations.
-* ``TIME_RUN`` - Suppresses file-writing and I/O operations. This flag is enabled only when timing the solver for scaling runs.
 * ``TEST_RUN`` - Runs the unit-tests module of the solver. This is distinct from the tests contained in the ``tests/`` folder of the solver.
 * ``EXECUTE_AFTER_COMPILE`` - The script automatically runs the executable by issuing the ``mpirun`` command. This flag is enabled mainly during development for quickly compiling and running the solver.
 
@@ -132,7 +131,7 @@ The user must enable or disable the ``PLANAR`` flag depending on whether the cas
 The ``REAL_TYPE`` flag has the default value of ``DOUBLE``.
 This indicates that the executable will use double precision floating point numbers.
 To use single precision floats, set the flag to ``SINGLE``.
-The remaining two flags, ``TIME_RUN`` and ``TEST_RUN``, are used in special cases only and is best left to their default disabled states.
+The flag ``TEST_RUN`` is used in special cases only and is best left to its default disabled state.
 
 Once the above shell script variables have been set, the script can be executed at the command line to compile ``SARAS``.
 If the compilation occurs without hiccups, an executable file named ``saras`` will appear in the root folder of the solver.

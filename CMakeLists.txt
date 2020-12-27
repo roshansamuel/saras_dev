@@ -88,12 +88,6 @@ if (TEST_RUN)
     add_definitions(-DTEST_RUN)
 endif ()
 
-# Add compiler flag for timing runs for scaling if requested by user
-if (TIME_RUN)
-    message (STATUS "Compiling Saras with additional timing calls")
-    add_definitions(-DTIME_RUN)
-endif ()
-
 # Add compiler flag for using double precision calculations
 if (REAL_DOUBLE)
     message (STATUS "Compiling Saras to solve with double precision calculations")
@@ -126,9 +120,6 @@ unset (PLANAR CACHE)
 
 # Remove the TEST_RUN variable from cache to force user to manually set the TEST_RUN flag each time unit-tests must be performed
 unset (TEST_RUN CACHE)
-
-# Remove the TIME_RUN variable from cache to force user to manually set the TIME_RUN flag each time scaling run must be performed
-unset (TIME_RUN CACHE)
 
 # Remove the REAL_DOUBLE variable from cache to force user to manually set the precision each time the solver is compiled
 unset (REAL_DOUBLE CACHE)

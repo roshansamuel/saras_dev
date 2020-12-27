@@ -124,20 +124,20 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
         int xS, xE, yS, yE, zS, zE;
 
         // Temporary variables to store output from spiral LES solver
-        double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
+        real sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
 
         // These are three 3x3x3 arrays containing local interpolated velocities
         // These are used to calculate the structure function within the spiral les routine
-        blitz::Array<double, 3> u(3, 3, 3), v(3, 3, 3), w(3, 3, 3);
+        blitz::Array<real, 3> u(3, 3, 3), v(3, 3, 3), w(3, 3, 3);
 
         // The following 3x3 matrix stores the velocity gradient tensor
-        blitz::Array<double, 2> dudx(3, 3);
+        blitz::Array<real, 2> dudx(3, 3);
 
         // These 9 arrays store components of the velocity gradient tensor intially
         // Then they are reused to store the derivatives of stress tensor to calculate its divergence
-        blitz::Array<double, 3> A11, A12, A13;
-        blitz::Array<double, 3> A21, A22, A23;
-        blitz::Array<double, 3> A31, A32, A33;
+        blitz::Array<real, 3> A11, A12, A13;
+        blitz::Array<real, 3> A21, A22, A23;
+        blitz::Array<real, 3> A31, A32, A33;
 
         // The 9 arrays of tensor components have the same dimensions and limits as a cell centered variable
         A11.resize(P.F.fSize);      A11.reindexSelf(P.F.flBound);
@@ -189,14 +189,14 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
         zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
 
         for (int iX = xS; iX <= xE; iX++) {
-            double dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
+            real dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
             for (int iY = yS; iY <= yE; iY++) {
-                double dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
+                real dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
                 for (int iZ = zS; iZ <= zE; iZ++) {
-                    double dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
+                    real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
                     // Cutoff wavelength
-                    double del = std::cbrt(dx*dy*dz);
+                    real del = std::cbrt(dx*dy*dz);
 
                     u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                     v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
@@ -207,9 +207,9 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
                            A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
                            A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
 
-                    double x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
-                    double y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
-                    double z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+                    real x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
+                    real y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
+                    real z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
 
                     sgsLES->sgs_stress(u, v, w, dudx, x, y, z, nu, del,
                                     &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
@@ -368,30 +368,30 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
         int xS, xE, yS, yE, zS, zE;
 
         // Temporary variables to store output from spiral LES solver
-        double sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
-        double sQx, sQy, sQz;
+        real sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
+        real sQx, sQy, sQz;
 
         // These are three 3x3x3 arrays containing local interpolated velocities
         // These are used to calculate the structure function within the spiral les routine
-        blitz::Array<double, 3> u(3, 3, 3), v(3, 3, 3), w(3, 3, 3);
+        blitz::Array<real, 3> u(3, 3, 3), v(3, 3, 3), w(3, 3, 3);
 
         // The following 3x3 matrix stores the velocity gradient tensor
-        blitz::Array<double, 2> dudx(3, 3);
+        blitz::Array<real, 2> dudx(3, 3);
 
         // The following TinyVector stores the temperature gradient vector
-        blitz::TinyVector<double, 3> dtdx;
+        blitz::TinyVector<real, 3> dtdx;
 
         // The following TinyVector stores the spiral vortex alignment vector
-        blitz::TinyVector<double, 3> e;
+        blitz::TinyVector<real, 3> e;
 
         // These 9 arrays store components of the velocity gradient tensor intially
         // Then they are reused to store the derivatives of stress tensor to calculate its divergence
-        blitz::Array<double, 3> A11, A12, A13;
-        blitz::Array<double, 3> A21, A22, A23;
-        blitz::Array<double, 3> A31, A32, A33;
+        blitz::Array<real, 3> A11, A12, A13;
+        blitz::Array<real, 3> A21, A22, A23;
+        blitz::Array<real, 3> A31, A32, A33;
 
         // These 3 additional arrays are necessary for computing scalar turbulent SGS diffusion
-        blitz::Array<double, 3> B1, B2, B3;
+        blitz::Array<real, 3> B1, B2, B3;
 
         // The 9 arrays of tensor components have the same dimensions and limits as a cell centered variable
         A11.resize(P.F.fSize);      A11.reindexSelf(P.F.flBound);
@@ -451,14 +451,14 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
         zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
 
         for (int iX = xS; iX <= xE; iX++) {
-            double dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
+            real dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
             for (int iY = yS; iY <= yE; iY++) {
-                double dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
+                real dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
                 for (int iZ = zS; iZ <= zE; iZ++) {
-                    double dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
+                    real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
                     // Cutoff wavelength
-                    double del = std::cbrt(dx*dy*dz);
+                    real del = std::cbrt(dx*dy*dz);
 
                     u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                     v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
@@ -469,9 +469,9 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
                            A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
                            A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
 
-                    double x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
-                    double y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
-                    double z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+                    real x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
+                    real y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
+                    real z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
 
                     sgsLES->sgs_stress(u, v, w, dudx, x, y, z, nu, del,
                                     &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
