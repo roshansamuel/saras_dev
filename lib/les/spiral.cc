@@ -90,9 +90,29 @@ spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, c
     A31.resize(solverP.F.fSize);      A31.reindexSelf(solverP.F.flBound);
     A32.resize(solverP.F.fSize);      A32.reindexSelf(solverP.F.flBound);
     A33.resize(solverP.F.fSize);      A33.reindexSelf(solverP.F.flBound);
+
+    // The 9 arrays of vector components have the same dimensions and limits as a cell centered variable
+    if (mesh.inputParams.probType > 4) {
+        B1.resize(P.F.fSize);       B1.reindexSelf(P.F.flBound);
+        B2.resize(P.F.fSize);       B2.reindexSelf(P.F.flBound);
+        B3.resize(P.F.fSize);       B3.reindexSelf(P.F.flBound);
+    }
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to compute and add contribution from LES model to the RHS of NSE
+ *
+ *          This function is called when only the hydrodynamics equations are being solved.
+ *          It calles the sgsStress function repeatedly for every point in the domain to get the
+ *          sub-grid stress tensor field.
+ *          The divergence of this field is then calculated to obtain the spiral vortex model contribution
+ *          to the NSE
+ *
+ * \param   nseRHS is a reference to the plain vector field denoting the RHS of the NSE
+ ********************************************************************************************************************************************
+ */
 void spiral::computeSG(plainvf &nseRHS) {
     // First interpolate all velocities to cell centers
     // Then U, V and W data are available at all cell centers except ghost points
@@ -237,18 +257,23 @@ void spiral::computeSG(plainvf &nseRHS) {
 }
 
 
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to compute and add contribution from LES model to the RHS of NSE and temperature equation
+ *
+ *          This function is called when both hydrodynamics and scalar equations are being solved.
+ *          It calles the sgsStress and sgsFlux functions repeatedly for every point in the domain to get the
+ *          sub-grid stress tensor field sub-grid scalar flux vector field repsectively.
+ *          The divergences of these fields are then calculated to obtain the spiral vortex model contribution
+ *          to the NSE and scalar equations
+ *
+ * \param   nseRHS is a reference to the plain vector field denoting the RHS of the NSE
+ * \param   tmpRHS is a reference to the plain scalar field denoting the RHS of the scalar equation
+ * \param   T is a reference the scalar field denoting the scalar equation
+ ********************************************************************************************************************************************
+ */
 void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     real sQx, sQy, sQz;
-
-    // The following TinyVector stores the temperature gradient vector
-    blitz::TinyVector<real, 3> dtdx;
-
-    // These 3 additional arrays are necessary for computing scalar turbulent SGS diffusion
-    blitz::Array<real, 3> B1, B2, B3;
-
-    B1.resize(P.F.fSize);       B1.reindexSelf(P.F.flBound);
-    B2.resize(P.F.fSize);       B2.reindexSelf(P.F.flBound);
-    B3.resize(P.F.fSize);       B3.reindexSelf(P.F.flBound);
 
     // First interpolate all velocities to cell centers
     // Then U, V and W data are available at all cell centers except ghost points
@@ -333,10 +358,10 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 // To compute sub-grid scalar flux, the sgsStress calculations have already provided
                 // most of the necessary values. Only an additional temperature gradient vector is needed
                 // 5. The temperature gradient vector specified as a 3 component tiny vector
-                dtdx = B1(iX, iY, iZ), B2(iX, iY, iZ), B3(iX, iY, iZ);
+                dsdx = B1(iX, iY, iZ), B2(iX, iY, iZ), B3(iX, iY, iZ);
 
                 // Now the sub-grid scalar flus can be calculated
-                sgsFlux(dtdx, &sQx, &sQy, &sQz);
+                sgsFlux(&sQx, &sQy, &sQz);
 
                 // Copy the calculated values to the sub-grid scalar flux vector field
                 qX->F.F(iX, iY, iZ) = sQx;
@@ -523,17 +548,20 @@ void spiral::sgsStress(
     *Tzx = (    - e[2] * e[0]) * K;
 }
 
-//
-// Calculate the SGS scalar flux (*qx, *qy, *qz) given the resolved scalar
-// gradient dsdx[3], vortex alignment e[3] (a unit vector), LES cutoff
-// scale del and precalculated SGS kinetic energy K.
-// WARNING: For this function to work, the values of member variables e and K
-// must be pre-calculated through a call to the function sgsStress.
-//
-void spiral::sgsFlux(
-        blitz::TinyVector<real, 3> dsdx,
-        real *qx, real *qy, real *qz)
-{
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to calculate the sub-grid scalar flux vector using stretched vortex model
+ *
+ *          The three components of the subgrid scalar flux vector - qx, qy, qz are calculated at x[0], y[0], z[0].
+ *          It needs the resolved scalar gradient tensor dsdx[3], sub-grid vortex alignment e[3] (a unit vector),
+ *          LES cutoff scale del, and the precalculated SGS kinetic energy K.
+ *          WARNING: For this function to work, the values of member variables e and K must be pre-calculated through
+ *          a call to the sgsStress function.
+ *
+ ********************************************************************************************************************************************
+ */
+void spiral::sgsFlux(real *qx, real *qy, real *qz) {
     real gam = 1.0; // Universal model constant
     real P = -0.5 * gam * del * sqrt(K);
 
@@ -549,13 +577,18 @@ void spiral::sgsFlux(
              + (1.0 - e[2] * e[2]) * dsdx[2]);
 }
 
-//
-// Approximation of
-// (1/2) k^(2/3) Gamma[-1/3, k^2]
-// with maximum relative error of 0.17% at k=2.42806.
-//
-real spiral::keIntegral(real k)
-{
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to approximately evaluate the integral for sub-grid energy
+ *
+ *          The sub-grid energy is calculated as an approximation of (1/2) k^(2/3) Gamma[-1/3, k^2]
+ *          with maximum relative error of 0.17% at k=2.42806.
+ *          The only input for the function is the non-dimensionalized cut-off wavenumber k.
+ *
+ ********************************************************************************************************************************************
+ */
+real spiral::keIntegral(real k) {
     real k2 = k * k;
     if (k2 < 2.42806) {
         real pade = (3.0 +   2.5107 * k2 +  0.330357 * k2 * k2
@@ -572,13 +605,18 @@ real spiral::keIntegral(real k)
     }
 }
 
-//
-// Approximation of
-// Integrate[4 x^(-5/3) (1 - BesselJ[0, x Pi d]), {x, 0, 1}]
-// with maximum relative error of 2.71% at d=0.873469.
-//
-real spiral::sfIntegral(real d)
-{
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to approximately evaluate the structure function integral
+ *
+ *          The structure function integral is calculated as an approximation of
+ *          Integrate[4 x^(-5/3) (1 - BesselJ[0, x Pi d]), {x, 0, 1}]
+ *          with maximum relative error of 2.71% at d=0.873469.
+ *
+ ********************************************************************************************************************************************
+ */
+real spiral::sfIntegral(real d) {
     // Uncomment if spherical averaging and d=1.
     // if (d == 1.0) return 4.09047;
 
@@ -590,12 +628,17 @@ real spiral::sfIntegral(real d)
             - 0.573159 * pow(d, -1.5) * sin(3.14159 * d - 0.785398);
 }
 
-//
-// Calculate the eigenvalues, eigval[0] < eigval[1] < eigval[2],
-// of the 3 x 3 symmetric matrix,
-// { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
-// assuming distinct eigenvalues.
-//
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to calculate the eigenvalues of the strain-rate tensor
+ *
+ *          The function claculates the eigenvalues, eigval[0] < eigval[1] < eigval[2],
+ *          of the 3 x 3 symmetric matrix, { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
+ *          assuming distinct eigenvalues.
+ *
+ ********************************************************************************************************************************************
+ */
 real spiral::eigenvalueSymm() {
     real eigval[3];
 
@@ -644,23 +687,25 @@ real spiral::eigenvalueSymm() {
     return eigval[2];
 }
 
-//
-// Calculate the eigenvector (not normalized), eigvec[3],
-// corresponding to the precalculated eigenvalue, eigval,
-// of the 3 x 3 symmetric matrix,
-// { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
-// assuming distinct eigenvalues.
-//
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to calculate the eigenvectors of the strain-rate tensor
+ *
+ *          The function claculates the eigenvector (not normalized), eigvec[3],
+ *          corresponding to the precalculated eigenvalue, eigval, of the 3 x 3 symmetric matrix,
+ *          { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } }, assuming distinct eigenvalues.
+ *
+ ********************************************************************************************************************************************
+ */
 blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     blitz::TinyVector<real, 3> eigvec;
 
     // There are problems with this unscaled check for zero.
     // A better one would be to check the zero against the det(S), for instance.
-    //real compVal;
-    //compVal = fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
+    //if (fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
     //        + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
-    //        + Szx * (Sxy * Syz - (Syy - eigval) * Szx));
-    //if (compVal < EPS) {
+    //        + Szx * (Sxy * Syz - (Syy - eigval) * Szx)) > EPS) {
     //    if (mesh.rankData.rank == 0) {
     //        std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;
     //    }

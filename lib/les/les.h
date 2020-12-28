@@ -112,6 +112,9 @@ class spiral: public les {
         blitz::Array<real, 3> A21, A22, A23;
         blitz::Array<real, 3> A31, A32, A33;
 
+        // These 3 arrays are used only when computing scalar turbulent SGS diffusion
+        blitz::Array<real, 3> B1, B2, B3;
+
         // These are three 3x3x3 arrays containing local interpolated velocities
         // These are used to calculate the structure function within the spiral les routine
         blitz::Array<real, 3> u, v, w;
@@ -126,6 +129,9 @@ class spiral: public les {
         // The following 3x3 matrix stores the velocity gradient tensor
         blitz::Array<real, 2> dudx;
 
+        // The following 3x1 vector stores the temperature gradient vector
+        blitz::TinyVector<real, 3> dsdx;
+
         // These 3 scalar fields hold the sub-grid scalar flux vector
         sfield *qX, *qY, *qZ;
 
@@ -138,8 +144,7 @@ class spiral: public les {
         void sgsStress(real *Txx, real *Tyy, real *Tzz,
                        real *Txy, real *Tyz, real *Tzx);
 
-        void sgsFlux(blitz::TinyVector<real, 3> dsdx,
-                     real *qx, real *qy, real *qz);
+        void sgsFlux(real *qx, real *qy, real *qz);
 
         real keIntegral(real k);
 
