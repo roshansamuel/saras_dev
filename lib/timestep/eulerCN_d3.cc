@@ -55,8 +55,8 @@
  * \param   mesh is a const reference to the global data contained in the grid class.
  ********************************************************************************************************************************************
  */
-eulerCN_d3::eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P):
-    timestep(mesh, dt, V, P),
+eulerCN_d3::eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P):
+    timestep(mesh, sTime, dt, V, P),
     mgSolver(mesh, mesh.inputParams)
 {
     setCoefficients();
@@ -107,7 +107,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     V.vForcing->addForcing(nseRHS);
 
     // Add sub-grid stress contribution from LES Model, if enabled
-    if (mesh.inputParams.lesModel) {
+    if (mesh.inputParams.lesModel and solTime > 5*mesh.inputParams.tStp) {
         sgsLES->computeSG(nseRHS);
     }
 
@@ -192,7 +192,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     V.vForcing->addForcing(nseRHS);
 
     // Add sub-grid stress contribution from LES Model, if enabled
-    if (mesh.inputParams.lesModel) {
+    if (mesh.inputParams.lesModel and solTime > 5*mesh.inputParams.tStp) {
         sgsLES->computeSG(nseRHS, tmpRHS, T);
     }
 

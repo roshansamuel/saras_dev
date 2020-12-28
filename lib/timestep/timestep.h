@@ -53,13 +53,15 @@ class timestep {
     public:
         real nu, kappa;
 
-        timestep(const grid &mesh, const real &dt, vfield &V, sfield &P);
+        timestep(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P);
 
         virtual void timeAdvance(vfield &V, sfield &P);
         virtual void timeAdvance(vfield &V, sfield &P, sfield &T);
 
     protected:
-        const real &dt;
+        // Const references to the time and time-step variables in the main solver.
+        // These values can only be read by this class and not modified
+        const real &solTime, &dt;
 
         const grid &mesh;
 
@@ -82,7 +84,7 @@ class timestep {
 
 class eulerCN_d2: public timestep {
     public:
-        eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P);
+        eulerCN_d2(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P);
 
         void timeAdvance(vfield &V, sfield &P);
         void timeAdvance(vfield &V, sfield &P, sfield &T);
@@ -113,7 +115,7 @@ class eulerCN_d2: public timestep {
 
 class eulerCN_d3: public timestep {
     public:
-        eulerCN_d3(const grid &mesh, const real &dt, vfield &V, sfield &P);
+        eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P);
 
         void timeAdvance(vfield &V, sfield &P);
         void timeAdvance(vfield &V, sfield &P, sfield &T);

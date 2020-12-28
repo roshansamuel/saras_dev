@@ -103,7 +103,7 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
     T.imposeBCs();
 
     // Initialize semi-implicit Euler-CN time-stepping method
-    ivpSolver = new eulerCN_d2(mesh, dt, V, P);
+    ivpSolver = new eulerCN_d2(mesh, time, dt, V, P);
 }
 
 

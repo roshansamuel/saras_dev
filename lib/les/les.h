@@ -97,8 +97,14 @@ class spiral: public les {
         // Temporary variables to store output from spiral LES solver
         real sTxx, sTyy, sTzz, sTxy, sTyz, sTzx;
 
+        // Temporary variables to store the components of the strain rate tensor
+        real Sxx, Syy, Szz, Sxy, Syz, Szx;
+
         // Cutoff wavelength
         real del;
+
+        // Sub-grid energy
+        real K;
 
         // These 9 arrays store components of the velocity gradient tensor intially
         // Then they are reused to store the derivatives of stress tensor to calculate its divergence
@@ -110,31 +116,30 @@ class spiral: public les {
         // These are used to calculate the structure function within the spiral les routine
         blitz::Array<real, 3> u, v, w;
 
+        // The alignment vector of the sub-grid spiral vortex
+        blitz::TinyVector<real, 3> e;
+
+        // These three tiny vectors hold the x, y and z coordinates of the 3x3x3 cubic cell over which
+        // the structure function will be computed
+        blitz::TinyVector<real, 3> x, y, z;
+
         // The following 3x3 matrix stores the velocity gradient tensor
         blitz::Array<real, 2> dudx;
 
-        real K;
-
+        // These 3 scalar fields hold the sub-grid scalar flux vector
         sfield *qX, *qY, *qZ;
+
+        // These scalar fields are basically the velocity fields interpolated to cell-centers
         sfield *Vxcc, *Vycc, *Vzcc;
+
+        // These 6 scalar fields hold the sub-grid stress tensor field
         sfield *Txx, *Tyy, *Tzz, *Txy, *Tyz, *Tzx;
 
-        blitz::TinyVector<real, 3> e;
+        void sgsStress(real *Txx, real *Tyy, real *Tzz,
+                       real *Txy, real *Tyz, real *Tzx);
 
-        real Sxx, Syy, Szz, Sxy, Syz, Szx;
-
-        void sgsStress(
-            blitz::Array<real, 3> u,
-            blitz::Array<real, 3> v,
-            blitz::Array<real, 3> w,
-            blitz::Array<real, 2> dudx,
-            real *x, real *y, real *z,
-            real *Txx, real *Tyy, real *Tzz,
-            real *Txy, real *Tyz, real *Tzx);
-
-        void sgsFlux(
-            blitz::TinyVector<real, 3> dsdx,
-            real *qx, real *qy, real *qz);
+        void sgsFlux(blitz::TinyVector<real, 3> dsdx,
+                     real *qx, real *qy, real *qz);
 
         real keIntegral(real k);
 

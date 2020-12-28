@@ -124,7 +124,7 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
     V.imposeBCs();
 
     // Initialize semi-implicit Euler-CN time-stepping method
-    ivpSolver = new eulerCN_d3(mesh, dt, V, P);
+    ivpSolver = new eulerCN_d3(mesh, time, dt, V, P);
 }
 
 

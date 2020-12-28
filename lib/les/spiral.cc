@@ -139,25 +139,30 @@ void spiral::computeSG(plainvf &nseRHS) {
             for (int iZ = zS; iZ <= zE; iZ++) {
                 real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
-                // Cutoff wavelength
+                // Specify the values of all the quantities necessary for sgsFlux function to
+                // compute the sub-grid stress correctly. The required quantities are:
+                // 1. Cutoff wavelength
                 del = std::cbrt(dx*dy*dz);
 
+                // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
 
-                // A 3 x 3 matrix of velocity gradient
+                // 3. The x, y and z coordinates of the 3 x 3 x 3 points over which u, v and w have been specified
+                x = mesh.xStaggr(blitz::Range(iX-1, iX+1));
+                y = mesh.yStaggr(blitz::Range(iY-1, iY+1));
+                z = mesh.zStaggr(blitz::Range(iZ-1, iZ+1));
+
+                // 4. The velocity gradient tensor specified as a 3 x 3 matrix
                 dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
                        A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
                        A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
 
-                real x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
-                real y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
-                real z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+                // Now the sub-grid stress can be calculated
+                sgsStress(&sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
 
-                sgsStress(u, v, w, dudx, x, y, z,
-                         &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
-
+                // Copy the calculated values to the sub-grid stress tensor field
                 Txx->F.F(iX, iY, iZ) = sTxx;
                 Tyy->F.F(iX, iY, iZ) = sTyy;
                 Tzz->F.F(iX, iY, iZ) = sTzz;
@@ -168,6 +173,7 @@ void spiral::computeSG(plainvf &nseRHS) {
         }
     }
 
+    // Synchronize the sub-grid stress tensor field data across MPI processors
     Txx->syncData();
     Tyy->syncData();
     Tzz->syncData();
@@ -175,6 +181,7 @@ void spiral::computeSG(plainvf &nseRHS) {
     Tyz->syncData();
     Tzx->syncData();
 
+    // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
     Txy->derS.calcDerivative1_x(A12);
     Tzx->derS.calcDerivative1_x(A13);
@@ -185,14 +192,17 @@ void spiral::computeSG(plainvf &nseRHS) {
     Tyz->derS.calcDerivative1_z(A32);
     Tzz->derS.calcDerivative1_z(A33);
 
+    // Sum the components to get the divergence of the stress tensor field
     A11 = A11 + A21 + A31;
     A22 = A12 + A22 + A32;
     A33 = A13 + A23 + A33;
 
+    // Interpolate the computed divergence and add its contribution to the RHS 
+    // of the NSE provided as argument to the function
+    // Contribution to the X-component of NSE
     xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
     yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
     zS = V.Vx.fCore.lbound(2) + 2; zE = V.Vx.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -201,10 +211,10 @@ void spiral::computeSG(plainvf &nseRHS) {
         }
     }
 
+    // Contribution to the Y-component of NSE
     xS = V.Vy.fCore.lbound(0) + 2; xE = V.Vy.fCore.ubound(0) - 2;
     yS = V.Vy.fCore.lbound(1) + 2; yE = V.Vy.fCore.ubound(1) - 2;
     zS = V.Vy.fCore.lbound(2) + 2; zE = V.Vy.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -213,10 +223,10 @@ void spiral::computeSG(plainvf &nseRHS) {
         }
     }
 
+    // Contribution to the Z-component of NSE
     xS = V.Vz.fCore.lbound(0) + 2; xE = V.Vz.fCore.ubound(0) - 2;
     yS = V.Vz.fCore.lbound(1) + 2; yE = V.Vz.fCore.ubound(1) - 2;
     zS = V.Vz.fCore.lbound(2) + 2; zE = V.Vz.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -289,25 +299,30 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
             for (int iZ = zS; iZ <= zE; iZ++) {
                 real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
-                // Cutoff wavelength
+                // Specify the values of all the quantities necessary for sgsFlux function to
+                // compute the sub-grid stress correctly. The required quantities are:
+                // 1. Cutoff wavelength
                 del = std::cbrt(dx*dy*dz);
 
+                // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
 
-                // A 3 x 3 matrix of velocity gradient
+                // 3. The x, y and z coordinates of the 3 x 3 x 3 points over which u, v and w have been specified
+                x = mesh.xStaggr(blitz::Range(iX-1, iX+1));
+                y = mesh.yStaggr(blitz::Range(iY-1, iY+1));
+                z = mesh.zStaggr(blitz::Range(iZ-1, iZ+1));
+
+                // 4. The velocity gradient tensor specified as a 3 x 3 matrix
                 dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
                        A21(iX, iY, iZ), A22(iX, iY, iZ), A23(iX, iY, iZ),
                        A31(iX, iY, iZ), A32(iX, iY, iZ), A33(iX, iY, iZ);
 
-                real x[3] = {mesh.xStaggr(iX-1), mesh.xStaggr(iX), mesh.xStaggr(iX+1)};
-                real y[3] = {mesh.yStaggr(iY-1), mesh.yStaggr(iY), mesh.yStaggr(iY+1)};
-                real z[3] = {mesh.zStaggr(iZ-1), mesh.zStaggr(iZ), mesh.zStaggr(iZ+1)};
+                // Now the sub-grid stress can be calculated
+                sgsStress(&sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
 
-                sgsStress(u, v, w, dudx, x, y, z,
-                         &sTxx, &sTyy, &sTzz, &sTxy, &sTyz, &sTzx);
-
+                // Copy the calculated values to the sub-grid stress tensor field
                 Txx->F.F(iX, iY, iZ) = sTxx;
                 Tyy->F.F(iX, iY, iZ) = sTyy;
                 Tzz->F.F(iX, iY, iZ) = sTzz;
@@ -315,11 +330,15 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 Tyz->F.F(iX, iY, iZ) = sTyz;
                 Tzx->F.F(iX, iY, iZ) = sTzx;
 
-                // A 3 x 1 vector of temperature gradient
+                // To compute sub-grid scalar flux, the sgsStress calculations have already provided
+                // most of the necessary values. Only an additional temperature gradient vector is needed
+                // 5. The temperature gradient vector specified as a 3 component tiny vector
                 dtdx = B1(iX, iY, iZ), B2(iX, iY, iZ), B3(iX, iY, iZ);
 
+                // Now the sub-grid scalar flus can be calculated
                 sgsFlux(dtdx, &sQx, &sQy, &sQz);
 
+                // Copy the calculated values to the sub-grid scalar flux vector field
                 qX->F.F(iX, iY, iZ) = sQx;
                 qY->F.F(iX, iY, iZ) = sQy;
                 qZ->F.F(iX, iY, iZ) = sQz;
@@ -327,6 +346,7 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         }
     }
 
+    // Synchronize the sub-grid stress tensor field data across MPI processors
     Txx->syncData();
     Tyy->syncData();
     Tzz->syncData();
@@ -334,6 +354,7 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     Tyz->syncData();
     Tzx->syncData();
 
+    // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
     Txy->derS.calcDerivative1_x(A12);
     Tzx->derS.calcDerivative1_x(A13);
@@ -344,14 +365,17 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     Tyz->derS.calcDerivative1_z(A32);
     Tzz->derS.calcDerivative1_z(A33);
 
+    // Sum the components to get the divergence of the stress tensor field
     B1 = A11 + A21 + A31;
     B2 = A12 + A22 + A32;
     B3 = A13 + A23 + A33;
 
+    // Interpolate the computed divergence and add its contribution to the RHS 
+    // of the NSE provided as argument to the function
+    // Contribution to the X-component of NSE
     xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
     yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
     zS = V.Vx.fCore.lbound(2) + 2; zE = V.Vx.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -360,10 +384,10 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         }
     }
 
+    // Contribution to the Y-component of NSE
     xS = V.Vy.fCore.lbound(0) + 2; xE = V.Vy.fCore.ubound(0) - 2;
     yS = V.Vy.fCore.lbound(1) + 2; yE = V.Vy.fCore.ubound(1) - 2;
     zS = V.Vy.fCore.lbound(2) + 2; zE = V.Vy.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -372,10 +396,10 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         }
     }
 
+    // Contribution to the Z-component of NSE
     xS = V.Vz.fCore.lbound(0) + 2; xE = V.Vz.fCore.ubound(0) - 2;
     yS = V.Vz.fCore.lbound(1) + 2; yE = V.Vz.fCore.ubound(1) - 2;
     zS = V.Vz.fCore.lbound(2) + 2; zE = V.Vz.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -384,18 +408,21 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         }
     }
 
+    // Synchronize the sub-grid scalar flux vector field data across MPI processors
     qX->syncData();
     qY->syncData();
     qZ->syncData();
 
+    // Compute the components of the divergence of sub-grid scalar flux vector field
     qX->derS.calcDerivative1_x(B1);
     qY->derS.calcDerivative1_y(B2);
     qZ->derS.calcDerivative1_z(B3);
 
+    // Sum the components to get the divergence of scalar flux, and add its contribution
+    // to the RHS of the temperature field equation provided as argument to the function
     xS = T.F.fCore.lbound(0) + 2; xE = T.F.fCore.ubound(0) - 2;
     yS = T.F.fCore.lbound(1) + 2; yE = T.F.fCore.ubound(1) - 2;
     zS = T.F.fCore.lbound(2) + 2; zE = T.F.fCore.ubound(2) - 2;
-
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -420,11 +447,6 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
  ********************************************************************************************************************************************
  */
 void spiral::sgsStress(
-    blitz::Array<real, 3> u,
-    blitz::Array<real, 3> v,
-    blitz::Array<real, 3> w,
-    blitz::Array<real, 2> dudx,
-    real *x, real *y, real *z,
     real *Txx, real *Tyy, real *Tzz,
     real *Txy, real *Tyz, real *Tzx)
 {
@@ -457,6 +479,7 @@ void spiral::sgsStress(
         lv = sqrt(2.0 * nu / (3.0 * (fabs(a) + EPS)));
     }
 
+    // Structure function calculation
     real F2 = 0.0;
     real Qd = 0.0; 
     {    
@@ -505,7 +528,7 @@ void spiral::sgsStress(
 // gradient dsdx[3], vortex alignment e[3] (a unit vector), LES cutoff
 // scale del and precalculated SGS kinetic energy K.
 // WARNING: For this function to work, the values of member variables e and K
-// must be pre-caclculated through a call to the function sgsStress.
+// must be pre-calculated through a call to the function sgsStress.
 //
 void spiral::sgsFlux(
         blitz::TinyVector<real, 3> dsdx,
@@ -646,8 +669,8 @@ blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     //}
 
     real det[3] = { (Syy - eigval) * (Szz - eigval) - Syz * Syz,
-                      (Szz - eigval) * (Sxx - eigval) - Szx * Szx,
-                      (Sxx - eigval) * (Syy - eigval) - Sxy * Sxy };
+                    (Szz - eigval) * (Sxx - eigval) - Szx * Szx,
+                    (Sxx - eigval) * (Syy - eigval) - Sxy * Sxy };
 
     real fabsdet[3] = { fabs(det[0]), fabs(det[1]), fabs(det[2]) };
 

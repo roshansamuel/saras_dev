@@ -27,7 +27,7 @@
     # Intensity of random perturbation (for Channel Flow)
     # If option 3 or 4 is selected above, the intensity of perturbation can be set below.
     # The intensity is expressed as a percentage of the uniform mean flow velocity
-    "Perturbation Intensity": 15
+    "Perturbation Intensity": 1
 
     # Domain type indicates periodicity/non-periodicity (P/N) along X, Y and Z directions
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
@@ -50,7 +50,7 @@
     # Non-dimensional parameters
     "Reynolds Number": 1000
     "Rossby Number": 12
-    "Rayleigh Number": 1.0e6
+    "Rayleigh Number": 1.0e8
     "Prandtl Number": 1.0
     "Taylor Number": 0.0
 
@@ -100,9 +100,9 @@
     # 2D simulations can be run by setting Y Index to 0
     # Grid sizes: 2 3 5 9 17 33 65 129 257 513 1025 2049 4097 8193 16385]
     # Size index: 0 1 2 3  4  5  6  7   8   9   10   11   12   13    14
-    "X Index": 7
-    "Y Index": 7
-    "Z Index": 7
+    "X Index": 6
+    "Y Index": 6
+    "Z Index": 6
 
 
 # Parellelization parameters
@@ -148,7 +148,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.1
+    "Solution Write Interval": 1.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 20.0
@@ -166,7 +166,7 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 6
+    "V-Cycle Depth": 5
     # Number of V-Cycles to be performed
     "V-Cycle Count": 20
 

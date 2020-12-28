@@ -55,8 +55,8 @@
  * \param   mesh is a const reference to the global data contained in the grid class.
  ********************************************************************************************************************************************
  */
-eulerCN_d2::eulerCN_d2(const grid &mesh, const real &dt, vfield &V, sfield &P):
-    timestep(mesh, dt, V, P),
+eulerCN_d2::eulerCN_d2(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P):
+    timestep(mesh, sTime, dt, V, P),
     mgSolver(mesh, mesh.inputParams)
 {
     setCoefficients();
