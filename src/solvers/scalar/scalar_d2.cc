@@ -90,16 +90,18 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
 
     checkPeriodic();
 
-    // Initialize velocity and temperature boundary conditions
+    // Initialize velocity, pressure and temperature boundary conditions
     initVBCs();
+    initPBCs();
     initTBCs();
 
     // Initialize velocity and temperature forcing fields
     initVForcing();
     initTForcing();
 
-    // Impose boundary conditions on velocity and temperature fields
+    // Impose boundary conditions on velocity, pressure and temperature fields
     V.imposeBCs();
+    P.imposeBCs();
     T.imposeBCs();
 
     // Initialize semi-implicit Euler-CN time-stepping method

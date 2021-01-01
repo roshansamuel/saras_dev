@@ -92,6 +92,7 @@ class hydro {
         void checkPeriodic();
 
         void initVBCs();
+        void initPBCs();
         void initVForcing();
 
         inline int roundNum(int numToRound, int multiple) {

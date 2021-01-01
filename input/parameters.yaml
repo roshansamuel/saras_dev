@@ -8,7 +8,7 @@
     # 5 = Flows with scalar: Heated bottom plate 
     # 6 = Flows with scalar: Heated upper plate
     # 7 = Flows with scalar: Heated sidewall
-    "Problem Type": 2
+    "Problem Type": 5
 
     # Choose from the following initial conditions
     # 0 = Zero-initial condition
@@ -17,7 +17,7 @@
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
     # 5 = Sinusoidal Random Perturbation (for Channel Flow)
-    "Initial Condition": 1
+    "Initial Condition": 0
 
     # Mean flow velocity (for Channel Flow)
     # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
@@ -33,7 +33,7 @@
     # If domain is periodic along X and Y, but non-periodic along Z, Domain Type = PPN
     # If periodic along all directions, Domain Type = PPP, and so on
     # For 2D runs, only X and Z direction values are considered
-    "Domain Type": "PPP"
+    "Domain Type": "NNN"
 
     # For RBC, specify the non-dimensionalization to be used:
     # 1 = small U, large Pr
@@ -45,13 +45,13 @@
     # Enable/Disable LES by choosing LES Model
     # 0 = Disable LES
     # 1 = Stretched Spiral Vortex LES
-    "LES Model": 1
+    "LES Model": 0
 
     # Non-dimensional parameters
-    "Reynolds Number": 1000
+    "Reynolds Number": 2000
     "Rossby Number": 12
-    "Rayleigh Number": 1.0e8
-    "Prandtl Number": 1.0
+    "Rayleigh Number": 1.0e5
+    "Prandtl Number": 0.786
     "Taylor Number": 0.0
 
     # Dimensions of the domain
@@ -71,9 +71,9 @@
     # 1 = Random forcing (This is yet to be implemented)
     # 2 = Coriolis force 
     # 3 = Buoyancy force (Natural convection: only applicable for flows with scalar)
-    # 4 = Buoyancy + Coriolis force (Rotatig natural convection: only applicable for flows with scalar)
+    # 4 = Buoyancy + Coriolis force (Rotating natural convection: only applicable for flows with scalar)
     # 5 = Constant pressure gradient (along X-direction: used mainly for periodic channel flows)
-    "Force": 0
+    "Force": 3
 
     # If constant pressure gradient is chosen as forcing, set the value of mean pressure gradient
     "Mean Pressure Gradient": 1.0
@@ -108,8 +108,8 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 1
-    "X Number of Procs": 1
-    "Y Number of Procs": 1
+    "X Number of Procs": 2
+    "Y Number of Procs": 2
 
 
 # Solver parameters
@@ -135,11 +135,11 @@
     "Use CFL Condition": false
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
-    "Time-Step": 0.001
-    "Final Time": 0.02
+    "Time-Step": 0.02
+    "Final Time": 10.0
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 1
+    "I/O Count": 10
 
     # Select the format in which solution data must be written at each solution write interval
     # 1 = Write a single HDF5 file inside ./output/, containing all the variables - Vx, Vy, P, etc.
@@ -148,7 +148,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 1.0
+    "Solution Write Interval": 10.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 20.0
@@ -166,9 +166,9 @@
 # Poisson solver parameters
 "Multigrid":
     # Number of restriction/prolongation steps in each V-Cycle
-    "V-Cycle Depth": 5
+    "V-Cycle Depth": 4
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 20
+    "V-Cycle Count": 5
 
     # Set the flag to true if the solver should solve at coarsest level instead of just smoothing
     "Solve Coarsest": false
@@ -181,9 +181,9 @@
     "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed after restriction operations
-    "Pre-Smoothing Count": 6
+    "Pre-Smoothing Count": 3
     # Number of smoothing iterations to be performed after prolongation operations
-    "Post-Smoothing Count": 6
+    "Post-Smoothing Count": 3
 
     # Type of residual to be computed at end of each V-Cycle of the multigrid method
     # This value can be set as below:

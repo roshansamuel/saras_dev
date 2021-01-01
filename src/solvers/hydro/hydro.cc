@@ -258,6 +258,38 @@ void hydro::initVBCs() {
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to initialize the boundary conditions for pressure
+ *
+ *          The boundary conditions for all the 6 walls (4 in case of 2D simulations) are initialized here.
+ *          Out of the different boundary conditions available in the boundary class,
+ *          the appropriate BCs are chosen according to the type of problem being solved.
+ ********************************************************************************************************************************************
+ */
+void hydro::initPBCs() {
+    // WALL BCS FOR PRESSURE
+    P.tLft = new neumannCC(mesh, P.F, 0, 0.0);
+    P.tRgt = new neumannCC(mesh, P.F, 1, 0.0);
+
+#ifndef PLANAR
+    // WALL BCS FOR PRESSURE
+    P.tFrn = new neumannCC(mesh, P.F, 2, 0.0);
+    P.tBak = new neumannCC(mesh, P.F, 3, 0.0);
+#endif
+
+    if (inputParams.zPer) {
+        // PERIODIC BC
+        P.tBot = new periodicCC(mesh, P.F, 4);
+        P.tTop = new periodicCC(mesh, P.F, 5);
+    } else {
+        // WALL BCS FOR PRESSURE
+        P.tBot = new neumannCC(mesh, P.F, 4, 0.0);
+        P.tTop = new neumannCC(mesh, P.F, 5, 0.0);
+    }
+};
+
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to test whether periodic BC is being implemented properly
  *
  *          The function populates the arrays with predetermined values at all locations.

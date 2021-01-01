@@ -112,17 +112,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     updatePads(residualData);
     updatePads(pressureData);
 
-#ifndef TEST_POISSON
-    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    real localMean = blitz::mean(residualData(0));
-    real globalAvg = 0.0;
-
-    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    globalAvg /= mesh.rankData.nProc;
-
-    residualData(0) -= globalAvg;
-#endif
-
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
         vCycle();
@@ -228,10 +217,6 @@ void poisson::vCycle() {
     // Step 1) Pre-smoothing iterations of Ax = b
     smooth(inputParams.preSmooth);
 
-        //int nStart = int(pow(2, (5-vLevel)) - 1);
-        //std::cout << pressureData(vLevel)(blitz::Range(nStart, blitz::toEnd), blitz::Range(nStart, blitz::toEnd), blitz::Range(nStart, blitz::toEnd)) << std::endl;
-        //std::cout << pressureData(vLevel)(blitz::Range(blitz::fromStart, 1), blitz::Range(blitz::fromStart, 1), blitz::Range(blitz::fromStart, 1)) << std::endl;
-
     // From now on, homogeneous Dirichlet BCs are used till end of V-Cycle
     zeroBC = true;
 
@@ -245,9 +230,6 @@ void poisson::vCycle() {
 
         // Restrict the residual to a coarser level
         coarsen();
-
-        //int nStart = int(pow(2, (5-vLevel)) - 2);
-        //std::cout << residualData(vLevel)(blitz::Range(nStart, nStart+2), blitz::Range(nStart, nStart+2), blitz::Range(nStart, nStart+2)) << std::endl;
 
         // Initialize pressureData to 0, or the convergence will be drastically slow
         pressureData(vLevel) = 0.0;
