@@ -1,4 +1,2 @@
-Current implementation of obtaining global grid for all MPI sub-domains works only for uniform grid - write a generalized function that uses MPI broadcast instead of computing individually and repeatedly
 Measure the memory footprints of all the arrays
-Add a routine in grid class to write the grid coordinates for plotting of non-uniform data
 Calculation of nu and kappa for scalar runs is taking place both in timestep.cc as well as scalar.cc - this redundancy must be removed.

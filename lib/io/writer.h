@@ -75,6 +75,8 @@ class writer {
         blitz::Array<real, 3> fieldData;
 #endif
 
+        hid_t xDSpace, yDSpace, zDSpace, timeDSpace;
+
         std::vector<hid_t> sourceDSpace, targetDSpace;
 
         std::vector< blitz::TinyVector<int, 3> > localSize;

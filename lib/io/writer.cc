@@ -209,6 +209,21 @@ void writer::initLimits() {
         sourceDSpace.push_back(sDSpace);
         targetDSpace.push_back(tDSpace);
     }
+
+    hsize_t dimgs[1];
+
+    dimgs[0] = mesh.xStaggrGlobal.size() - 2*mesh.padWidths(0);
+    xDSpace = H5Screate_simple(1, dimgs, NULL);
+
+#ifndef PLANAR
+    dimgs[0] = mesh.yStaggrGlobal.size() - 2*mesh.padWidths(1);
+    yDSpace = H5Screate_simple(1, dimgs, NULL);
+#endif
+
+    dimgs[0] = mesh.zStaggrGlobal.size() - 2*mesh.padWidths(2);
+    zDSpace = H5Screate_simple(1, dimgs, NULL);
+
+    timeDSpace = H5Screate(H5S_SCALAR);
 }
 
 /**
@@ -397,6 +412,28 @@ void writer::writeSolution(real time) {
     // Close the property list for later reuse
     H5Pclose(plist_id);
 
+    // Add the coordinates of the grid along X axis to the solution file
+    dataSet = H5Dcreate2(fileHandle, "X", H5T_NATIVE_REAL, xDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, xDSpace, xDSpace, H5P_DEFAULT, mesh.xStaggrGlobal.dataZero());
+    H5Dclose(dataSet);
+
+#ifndef PLANAR
+    // Add the coordinates of the grid along Y axis to the solution file
+    dataSet = H5Dcreate2(fileHandle, "Y", H5T_NATIVE_REAL, yDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, yDSpace, yDSpace, H5P_DEFAULT, mesh.yStaggrGlobal.dataZero());
+    H5Dclose(dataSet);
+#endif
+
+    // Add the coordinates of the grid along Z axis to the solution file
+    dataSet = H5Dcreate2(fileHandle, "Z", H5T_NATIVE_REAL, zDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, zDSpace, zDSpace, H5P_DEFAULT, mesh.zStaggrGlobal.dataZero());
+    H5Dclose(dataSet);
+
+    // Add the scalar value of time to the solution file
+    dataSet = H5Dcreate2(fileHandle, "Time", H5T_NATIVE_REAL, timeDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
+    H5Dclose(dataSet);
+
     // Create a property list to use collective data write
     plist_id = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
@@ -468,13 +505,9 @@ void writer::writeRestart(real time) {
     H5Pclose(plist_id);
 
     // Add a single scalar value containing the time in the restart file
-    hid_t timeDSpace = H5Screate(H5S_SCALAR);
     dataSet = H5Dcreate2(fileHandle, "Time", H5T_NATIVE_REAL, timeDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     status = H5Dwrite(dataSet, H5T_NATIVE_REAL, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
-
-    // Close dataset for future use and dataspace for clearing resources
     H5Dclose(dataSet);
-    H5Sclose(timeDSpace);
 
     // Create a property list to use collective data write
     plist_id = H5Pcreate(H5P_DATASET_XFER);
@@ -508,6 +541,7 @@ void writer::writeRestart(real time) {
             exit(0);
         }
 
+        // Close dataset for reuse
         H5Dclose(dataSet);
     }
 
