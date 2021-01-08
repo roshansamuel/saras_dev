@@ -204,7 +204,8 @@ void multigrid_d3::solve() {
 
 
 void multigrid_d3::coarsen() {
-    real facePoints, edgePoints, vertPoints;
+    real facePoints, edgePoints, vertPoints, centrPoint;
+    real v000, v001, v010, v100, v011, v101, v110, v111, vTot;
 
     int i2, j2, k2;
     int pLevel;
@@ -229,9 +230,43 @@ void multigrid_d3::coarsen() {
             j2 = j*2;
             for (int k = 0; k <= zEnd(vLevel); ++k) {
                 k2 = k*2;
-                facePoints = (tmpDataArray(pLevel)(i2 + 1, j2, k2) + tmpDataArray(pLevel)(i2 - 1, j2, k2) +
-                              tmpDataArray(pLevel)(i2, j2 + 1, k2) + tmpDataArray(pLevel)(i2, j2 - 1, k2) +
-                              tmpDataArray(pLevel)(i2, j2, k2 + 1) + tmpDataArray(pLevel)(i2, j2, k2 - 1))*0.0625;
+
+                v000 = (nuX(vLevel)(i) - nuX(pLevel)(i2 - 1))*(nuY(vLevel)(j) - nuY(pLevel)(j2 - 1))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
+                v100 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(vLevel)(j) - nuY(pLevel)(j2 - 1))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
+                v010 = (nuX(vLevel)(i) - nuX(pLevel)(i2 - 1))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
+                v001 = (nuX(vLevel)(i) - nuX(pLevel)(i2 - 1))*(nuY(vLevel)(j) - nuY(pLevel)(j2 - 1))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                v011 = (nuX(vLevel)(i) - nuX(pLevel)(i2 - 1))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                v101 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(vLevel)(j) - nuY(pLevel)(j2 - 1))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                v110 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
+                v111 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                vTot = (nuX(pLevel)(i2 + 1) - nuX(pLevel)(i2 - 1))*(nuY(pLevel)(j2 + 1) - nuY(pLevel)(j2 - 1))*(nuZ(pLevel)(k2 + 1) - nuZ(pLevel)(k2 - 1));
+
+                facePoints = ((v000 + v001 + v010 + v011)*tmpDataArray(pLevel)(i2 - 1, j2, k2) + (v100 + v101 + v110 + v111)*tmpDataArray(pLevel)(i2 + 1, j2, k2) +
+                              (v000 + v001 + v100 + v101)*tmpDataArray(pLevel)(i2, j2 - 1, k2) + (v010 + v011 + v110 + v111)*tmpDataArray(pLevel)(i2, j2 + 1, k2) +
+                              (v000 + v100 + v010 + v110)*tmpDataArray(pLevel)(i2, j2, k2 - 1) + (v001 + v101 + v011 + v111)*tmpDataArray(pLevel)(i2, j2, k2 + 1));
+                edgePoints = ((v110 + v111)*tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2) + (v100 + v101)*tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2) +
+                              (v000 + v001)*tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2) + (v010 + v011)*tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2) +
+                              (v011 + v111)*tmpDataArray(pLevel)(i2, j2 + 1, k2 + 1) + (v001 + v101)*tmpDataArray(pLevel)(i2, j2 - 1, k2 + 1) +
+                              (v000 + v100)*tmpDataArray(pLevel)(i2, j2 - 1, k2 - 1) + (v010 + v110)*tmpDataArray(pLevel)(i2, j2 + 1, k2 - 1) +
+                              (v101 + v111)*tmpDataArray(pLevel)(i2 + 1, j2, k2 + 1) + (v100 + v110)*tmpDataArray(pLevel)(i2 + 1, j2, k2 - 1) +
+                              (v000 + v010)*tmpDataArray(pLevel)(i2 - 1, j2, k2 - 1) + (v001 + v011)*tmpDataArray(pLevel)(i2 - 1, j2, k2 + 1));
+                vertPoints = (v111*tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 + 1) +
+                              v110*tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 - 1) +
+                              v101*tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 + 1) +
+                              v011*tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 + 1) +
+                              v100*tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 - 1) +
+                              v010*tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 - 1) +
+                              v001*tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 + 1) +
+                              v000*tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 - 1));
+                centrPoint = (vTot*tmpDataArray(pLevel)(i2, j2, k2));
+
+                residualData(vLevel)(i, j, k) = (facePoints + edgePoints + vertPoints + centrPoint)/(vTot*8.0);
+
+                // Uniform grid version used earlier
+                /*
+                facePoints = (tmpDataArray(pLevel)(i2 - 1, j2, k2) + tmpDataArray(pLevel)(i2 + 1, j2, k2) +
+                              tmpDataArray(pLevel)(i2, j2 - 1, k2) + tmpDataArray(pLevel)(i2, j2 + 1, k2) +
+                              tmpDataArray(pLevel)(i2, j2, k2 - 1) + tmpDataArray(pLevel)(i2, j2, k2 + 1))*0.0625;
                 edgePoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2) + tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2) +
                               tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2) + tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2) +
                               tmpDataArray(pLevel)(i2, j2 + 1, k2 + 1) + tmpDataArray(pLevel)(i2, j2 - 1, k2 + 1) +
@@ -248,6 +283,7 @@ void multigrid_d3::coarsen() {
                               tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 - 1))*0.015625;
 
                 residualData(vLevel)(i, j, k) = facePoints + edgePoints + vertPoints + tmpDataArray(pLevel)(i2, j2, k2)*0.125;
+                */
             }
         }
     }
