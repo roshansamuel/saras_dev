@@ -265,6 +265,110 @@ void multigrid_d3::prolong() {
 
     // This method of using loops with conditional expressions is much faster (nearly 1.5 times)
     // than the old method of using 3 vectorized sweeps with Blitz Range objects.
+    real c0, c1, c2, c3, c4, c5, c6, c7, c8;
+    for (int i = 0; i <= xEnd(vLevel); ++i) {
+        i2 = i/2;
+        if (isOdd(i)) {
+            for (int j = 0; j <= yEnd(vLevel); ++j) {
+                j2 = j/2;
+                if (isOdd(j)) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i j and k are odd
+                            c0 = (nuX(pLevel)(i2 + 1) - nuX(pLevel)(i2))*(nuY(pLevel)(j2 + 1) - nuY(pLevel)(j2))*(nuZ(pLevel)(k2 + 1) - nuZ(pLevel)(k2));
+                            c1 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c2 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c3 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(vLevel)(j) - nuY(pLevel)(j2))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c4 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+                            c5 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuY(vLevel)(j) - nuY(pLevel)(j2))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c6 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+                            c7 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(vLevel)(j) - nuY(pLevel)(j2))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+                            c8 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuY(vLevel)(j) - nuY(pLevel)(j2))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) +
+                                                             c2*pressureData(pLevel)(i2 + 1, j2, k2) + c3*pressureData(pLevel)(i2, j2 + 1, k2) + c4*pressureData(pLevel)(i2, j2, k2 + 1) +
+                                                             c5*pressureData(pLevel)(i2 + 1, j2 + 1, k2) + c6*pressureData(pLevel)(i2 + 1, j2, k2 + 1) + c7*pressureData(pLevel)(i2, j2 + 1, k2 + 1) +
+                                                             c8*pressureData(pLevel)(i2 + 1, j2 + 1, k2 + 1))/c0;
+
+                        } else {            // i and j are odd, but k is even
+                            c0 = (nuX(pLevel)(i2 + 1) - nuX(pLevel)(i2))*(nuY(pLevel)(j2 + 1) - nuY(pLevel)(j2));
+                            c1 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j));
+                            c2 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(vLevel)(j) - nuY(pLevel)(j2));
+                            c3 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j));
+                            c4 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuY(vLevel)(j) - nuY(pLevel)(j2));
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) + c2*pressureData(pLevel)(i2, j2 + 1, k2) +
+                                                             c3*pressureData(pLevel)(i2 + 1, j2, k2) + c4*pressureData(pLevel)(i2 + 1, j2 + 1, k2))/c0;
+                        }
+                    }
+                } else {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i and k are odd, but j is even
+                            c0 = (nuX(pLevel)(i2 + 1) - nuX(pLevel)(i2))*(nuZ(pLevel)(k2 + 1) - nuZ(pLevel)(k2));
+                            c1 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c2 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+                            c3 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c4 = (nuX(vLevel)(i) - nuX(pLevel)(i2))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) + c2*pressureData(pLevel)(i2, j2, k2 + 1) +
+                                                             c3*pressureData(pLevel)(i2 + 1, j2, k2) + c4*pressureData(pLevel)(i2 + 1, j2, k2 + 1))/c0;
+
+                        } else {            // i is odd, but j and k are even
+                            c0 = nuX(pLevel)(i2 + 1) - nuX(pLevel)(i2);
+                            c1 = nuX(pLevel)(i2 + 1) - nuX(vLevel)(i);
+                            c2 = nuX(vLevel)(i) - nuX(pLevel)(i2);
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) + c2*pressureData(pLevel)(i2 + 1, j2, k2))/c0;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (int j = 0; j <= yEnd(vLevel); j++) {
+                j2 = j/2;
+                if (isOdd(j)) {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i is even, but j and k are odd
+                            c0 = (nuY(pLevel)(j2 + 1) - nuY(pLevel)(j2))*(nuZ(pLevel)(k2 + 1) - nuZ(pLevel)(k2));
+                            c1 = (nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c2 = (nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+                            c3 = (nuY(vLevel)(j) - nuY(pLevel)(j2))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
+                            c4 = (nuY(vLevel)(j) - nuY(pLevel)(j2))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2));
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) + c2*pressureData(pLevel)(i2, j2, k2 + 1) +
+                                                             c3*pressureData(pLevel)(i2, j2 + 1, k2) + c4*pressureData(pLevel)(i2, j2 + 1, k2 + 1))/c0;
+
+                        } else {            // i and k are even, but j is odd
+                            c0 = nuY(pLevel)(j2 + 1) - nuY(pLevel)(j2);
+                            c1 = nuY(pLevel)(j2 + 1) - nuY(vLevel)(j);
+                            c2 = nuY(vLevel)(j) - nuY(pLevel)(j2);
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) + c2*pressureData(pLevel)(i2, j2 + 1, k2))/c0;
+                        }
+                    }
+                } else {
+                    for (int k = 0; k <= zEnd(vLevel); ++k) {
+                        k2 = k/2;
+                        if (isOdd(k)) {     // i and j are even, but k is odd
+                            c0 = nuZ(pLevel)(k2 + 1) - nuZ(pLevel)(k2);
+                            c1 = nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k);
+                            c2 = nuZ(vLevel)(k) - nuZ(pLevel)(k2);
+
+                            pressureData(vLevel)(i, j, k) = (c1*pressureData(pLevel)(i2, j2, k2) + c2*pressureData(pLevel)(i2, j2, k2 + 1))/c0;
+
+                        } else {            // i j and k are even
+                            pressureData(vLevel)(i, j, k) = pressureData(pLevel)(i2, j2, k2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Uniform grid version used earlier
+    /*
     for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i/2;
         if (isOdd(i)) {
@@ -321,6 +425,7 @@ void multigrid_d3::prolong() {
             }
         }
     }
+    */
 }
 
 
