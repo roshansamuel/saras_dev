@@ -50,15 +50,22 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the spiral class
  *
- *          The empty constructer merely initializes the local reference to the global mesh variable.
+ *          The constructor initializes the base les class using part of the arguments supplied to it.
+ *          The value of viscous diffusion coefficient, denoted by nu, is also set in the initialization list.
+ *          All the blitz arrays and scalar fields necessary to compute velocity gradient tensor, stress tensor, etc.
+ *          are initialized in the constructor.
  *
  * \param   mesh is a const reference to the global data contained in the grid class.
+ * \param   solverV is a const reference to the velocity field which will be read to compute structure function and velocity gradient
+ * \param   solverP is a const reference to the cell-centered pressure field whose array limits are used to compute SGS terms
+ * \param   kDiff is a const reference to scalar value denoting viscous dissipation
  ********************************************************************************************************************************************
  */
 spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, const real &kDiff):
     les(mesh, solverV, solverP),
     nu(kDiff)
 {
+    // Scalar fields used to store components of the sub-grid stress tensor field
     Txx = new sfield(mesh, "Txx");
     Tyy = new sfield(mesh, "Tyy");
     Tzz = new sfield(mesh, "Tzz");
@@ -66,32 +73,40 @@ spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, c
     Tyz = new sfield(mesh, "Tyz");
     Tzx = new sfield(mesh, "Tzx");
 
+    // Scalar fields used to store components of the sub-grid scalar flux vector
     qX = new sfield(mesh, "qX");
     qY = new sfield(mesh, "qY");
     qZ = new sfield(mesh, "qZ");
 
+    // Scalar fields used to store the velocity fields interpolated to cell-centers
+    // The vector field class cannot be used here because vfield by default stores
+    // its comopnents in face-centered configuration.
     Vxcc = new sfield(mesh, "Ucc");
     Vycc = new sfield(mesh, "Vcc");
     Vzcc = new sfield(mesh, "Wcc");
 
+    // 3x3x3 arrays which store local velocity field when computing structure function
     u.resize(3, 3, 3);
     v.resize(3, 3, 3);
     w.resize(3, 3, 3);
 
+    // 3x3 matrix to store the velocity gradient tensor
     dudx.resize(3, 3);
 
-    // The 9 arrays of tensor components have the same dimensions and limits as a cell centered variable
-    A11.resize(solverP.F.fSize);      A11.reindexSelf(solverP.F.flBound);
-    A12.resize(solverP.F.fSize);      A12.reindexSelf(solverP.F.flBound);
-    A13.resize(solverP.F.fSize);      A13.reindexSelf(solverP.F.flBound);
-    A21.resize(solverP.F.fSize);      A21.reindexSelf(solverP.F.flBound);
-    A22.resize(solverP.F.fSize);      A22.reindexSelf(solverP.F.flBound);
-    A23.resize(solverP.F.fSize);      A23.reindexSelf(solverP.F.flBound);
-    A31.resize(solverP.F.fSize);      A31.reindexSelf(solverP.F.flBound);
-    A32.resize(solverP.F.fSize);      A32.reindexSelf(solverP.F.flBound);
-    A33.resize(solverP.F.fSize);      A33.reindexSelf(solverP.F.flBound);
+    // The 9 blitz arrays of tensor components have the same dimensions and limits as a cell centered variable (P)
+    A11.resize(P.F.fSize);      A11.reindexSelf(P.F.flBound);
+    A12.resize(P.F.fSize);      A12.reindexSelf(P.F.flBound);
+    A13.resize(P.F.fSize);      A13.reindexSelf(P.F.flBound);
+    A21.resize(P.F.fSize);      A21.reindexSelf(P.F.flBound);
+    A22.resize(P.F.fSize);      A22.reindexSelf(P.F.flBound);
+    A23.resize(P.F.fSize);      A23.reindexSelf(P.F.flBound);
+    A31.resize(P.F.fSize);      A31.reindexSelf(P.F.flBound);
+    A32.resize(P.F.fSize);      A32.reindexSelf(P.F.flBound);
+    A33.resize(P.F.fSize);      A33.reindexSelf(P.F.flBound);
 
-    // The 9 arrays of vector components have the same dimensions and limits as a cell centered variable
+    // The 9 arrays of vector components have the same dimensions and limits as a cell centered variable (P)
+    // These arrays are needed only when computing the sub-grid scalar flux.
+    // Hence they are initialized only for thermal convection problems (probType > 4)
     if (mesh.inputParams.probType > 4) {
         B1.resize(P.F.fSize);       B1.reindexSelf(P.F.flBound);
         B2.resize(P.F.fSize);       B2.reindexSelf(P.F.flBound);
@@ -105,10 +120,10 @@ spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, c
  * \brief   Function to compute and add contribution from LES model to the RHS of NSE
  *
  *          This function is called when only the hydrodynamics equations are being solved.
- *          It calles the sgsStress function repeatedly for every point in the domain to get the
+ *          It calls the sgsStress function repeatedly for every point in the domain to get the
  *          sub-grid stress tensor field.
- *          The divergence of this field is then calculated to obtain the spiral vortex model contribution
- *          to the NSE
+ *          The divergence of this tensor field is then calculated to obtain the spiral vortex model's
+ *          contribution to the NSE.
  *
  * \param   nseRHS is a reference to the plain vector field denoting the RHS of the NSE
  ********************************************************************************************************************************************
@@ -134,6 +149,9 @@ void spiral::computeSG(plainvf &nseRHS) {
     }
     Vzcc->F.F /= P.F.VzIntSlices.size();
 
+    // Compute the x, y and z derivatives of the interpolated velocity field and store them into
+    // the arrays A11, A12, A13, ... A33. These arrays will be later accessed when constructing
+    // the velocity gradient tensor at each point in the domain.
     Vxcc->derS.calcDerivative1_x(A11);
     Vxcc->derS.calcDerivative1_y(A12);
     Vxcc->derS.calcDerivative1_z(A13);
@@ -144,9 +162,10 @@ void spiral::computeSG(plainvf &nseRHS) {
     Vzcc->derS.calcDerivative1_y(A32);
     Vzcc->derS.calcDerivative1_z(A33);
 
-    // Use only cell centers like a collocated grid and compute T tensor
-    // Since U, V, and W data is available only in the core,
-    // Adjust the loop limits so that the boundary points are excluded
+    // Set the array limits when looping over the domain to compute SG contribution.
+    // Use only the cell centers like a collocated grid and compute T tensor.
+    // Since interpolated U, V, and W data is available only in the core of the domain,
+    // adjust the loop limits so that the boundary points are excluded
     // to compute derivatives and structure functions correctly.
     xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
     yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
@@ -160,7 +179,10 @@ void spiral::computeSG(plainvf &nseRHS) {
                 real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
                 // Specify the values of all the quantities necessary for sgsFlux function to
-                // compute the sub-grid stress correctly. The required quantities are:
+                // compute the sub-grid stress correctly. These are all member variables of the les
+                // class and hence globally available to all the member functions of the class.
+
+                // The required quantities are:
                 // 1. Cutoff wavelength
                 del = std::cbrt(dx*dy*dz);
 
@@ -295,6 +317,9 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     }
     Vzcc->F.F /= P.F.VzIntSlices.size();
 
+    // Compute the x, y and z derivatives of the interpolated velocity field and store them into
+    // the arrays A11, A12, A13, ... A33. These arrays will be later accessed when constructing
+    // the velocity gradient tensor at each point in the domain.
     Vxcc->derS.calcDerivative1_x(A11);
     Vxcc->derS.calcDerivative1_y(A12);
     Vxcc->derS.calcDerivative1_z(A13);
@@ -305,12 +330,16 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     Vzcc->derS.calcDerivative1_y(A32);
     Vzcc->derS.calcDerivative1_z(A33);
 
+    // Compute the x, y and z derivatives of the temperature field and store them into
+    // the arrays B1, B2, and B3. These arrays will be later accessed when constructing
+    // the temperature gradient tensor at each point in the domain.
     T.derS.calcDerivative1_x(B1);
     T.derS.calcDerivative1_y(B2);
     T.derS.calcDerivative1_z(B3);
 
-    // Use only cell centers like a collocated grid and compute T tensor
-    // Since U, V, and W data is available only in the core,
+    // Set the array limits when looping over the domain to compute SG contribution.
+    // Use only the cell centers like a collocated grid and compute T tensor.
+    // Since interpolated U, V, and W data is available only in the core,
     // Adjust the loop limits so that the boundary points are excluded
     // to compute derivatives and structure functions correctly.
     xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
@@ -325,7 +354,10 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
 
                 // Specify the values of all the quantities necessary for sgsFlux function to
-                // compute the sub-grid stress correctly. The required quantities are:
+                // compute the sub-grid stress correctly. These are all member variables of the les
+                // class and hence globally available to all the member functions of the class.
+
+                // The required quantities are:
                 // 1. Cutoff wavelength
                 del = std::cbrt(dx*dy*dz);
 
@@ -585,6 +617,7 @@ void spiral::sgsFlux(real *qx, real *qy, real *qz) {
  *          The sub-grid energy is calculated as an approximation of (1/2) k^(2/3) Gamma[-1/3, k^2]
  *          with maximum relative error of 0.17% at k=2.42806.
  *          The only input for the function is the non-dimensionalized cut-off wavenumber k.
+ *          It returns the sub-grid energy as a real valued number.
  *
  ********************************************************************************************************************************************
  */
@@ -613,6 +646,7 @@ real spiral::keIntegral(real k) {
  *          The structure function integral is calculated as an approximation of
  *          Integrate[4 x^(-5/3) (1 - BesselJ[0, x Pi d]), {x, 0, 1}]
  *          with maximum relative error of 2.71% at d=0.873469.
+ *          It returns the structure function integral as a real valued number.
  *
  ********************************************************************************************************************************************
  */
@@ -636,6 +670,7 @@ real spiral::sfIntegral(real d) {
  *          The function claculates the eigenvalues, eigval[0] < eigval[1] < eigval[2],
  *          of the 3 x 3 symmetric matrix, { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } },
  *          assuming distinct eigenvalues.
+ *          It returns the eigenvalue corresponding to the most extensive eigenvector.
  *
  ********************************************************************************************************************************************
  */
@@ -695,6 +730,7 @@ real spiral::eigenvalueSymm() {
  *          The function claculates the eigenvector (not normalized), eigvec[3],
  *          corresponding to the precalculated eigenvalue, eigval, of the 3 x 3 symmetric matrix,
  *          { { Sxx, Sxy, Szx }, { Sxy, Syy, Syz }, { Szx, Syz, Szz } }, assuming distinct eigenvalues.
+ *          It returns the eigenvector corresponding to the eigenvalue supplied, as a blitz TinyVector.
  *
  ********************************************************************************************************************************************
  */
@@ -712,6 +748,8 @@ blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     //    MPI_Finalize();
     //    exit(0);
     //}
+    // The above section had to be commented since the spiral LES solver kept failing with this check
+    // for almost every input velocity field given to it.
 
     real det[3] = { (Syy - eigval) * (Szz - eigval) - Syz * Syz,
                     (Szz - eigval) * (Sxx - eigval) - Szx * Szx,

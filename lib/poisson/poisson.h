@@ -84,6 +84,8 @@ class poisson {
         blitz::Array<real, 1> hx2, hz2, hzhx;
         blitz::Array<real, 1> hxhy, hyhz, hxhyhz;
 
+        blitz::Array<blitz::Array<real, 1>, 1> nuX, nuY, nuZ;
+
         blitz::Array<blitz::Array<real, 1>, 1> xixx, xix2;
         blitz::Array<blitz::Array<real, 1>, 1> etyy, ety2;
         blitz::Array<blitz::Array<real, 1>, 1> ztzz, ztz2;
@@ -102,6 +104,7 @@ class poisson {
         void setLocalSizeIndex();
         void initializeArrays();
         void copyStaggrDerivs();
+        void copyStaggrGrids();
         void setCoefficients();
         void setStagBounds();
 

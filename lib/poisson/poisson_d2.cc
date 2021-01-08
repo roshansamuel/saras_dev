@@ -47,36 +47,17 @@
  * \brief   Constructor of the multigrid_d2 class derived from the poisson class
  *
  *          The constructor of the derived multigrid_d2 class frst calls the base poisson class with the arguments passed to it.
- *          It then calls a series of functions in sequence to initialize all the necessary parameters and data structures to
- *          store and manipulate the multi-grid data.
- *          Since the multi-grid solver operates on the staggered grid, it first computes the limits of the full and core
- *          staggered grid, as the grid class does the same for the collocated grid.
- *
- *          It then initializes all the Range objects to obtain the correct slices of the full grid at various
- *          levels of the V-cycle.
- *          It also copies the staggered grid derivatives to local arrays with wide pads, and finally generates the MPI datatypes
- *          for data transfer between sub-domain boundaries.
+ *          Most of the array initializations are performed in the constructor of the base class.
+ *          Initializations unique to 2D implementation of multi-grid solver are then done here.
+ *          Primarily this involves generating the MPI datatypes for data transfer between sub-domain boundaries.
+ *          When testing the Poisson solver with Dirichlet BC, the analytical 2D solution for the test is also calculated here
+ *          through a call to initDirichlet() function.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   solParam is a const reference to the user-set parameters contained in the parser class
  ********************************************************************************************************************************************
  */
 multigrid_d2::multigrid_d2(const grid &mesh, const parser &solParam): poisson(mesh, solParam) {
-    // GET THE localSizeIndex AS IT WILL BE USED TO SET THE FULL AND CORE LIMITS OF THE STAGGERED POINTS
-    setLocalSizeIndex();
-
-    // SET THE FULL AND CORE LIMTS SET ABOVE USING THE localSizeIndex VARIABLE SET ABOVE
-    setStagBounds();
-
-    // SET VALUES OF COEFFICIENTS USED FOR COMPUTING LAPLACIAN
-    setCoefficients();
-
-    // COPY THE STAGGERED GRID DERIVATIVES TO LOCAL ARRAYS
-    copyStaggrDerivs();
-
-    // RESIZE AND INITIALIZE NECESSARY DATA-STRUCTURES
-    initializeArrays();
-
     // CREATE THE MPI SUB-ARRAYS NECESSARY TO TRANSFER DATA ACROSS SUB-DOMAINS AT ALL MESH LEVELS
     createMGSubArrays();
 
