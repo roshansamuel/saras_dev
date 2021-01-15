@@ -163,7 +163,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     V.imposeBCs();
 
     // Impose boundary conditions on the updated pressure field, P
-    P.imposeBCs();
+    //P.imposeBCs();
 }
 
 
@@ -184,22 +184,32 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     nseRHS = 0.0;
     tmpRHS = 0.0;
 
-    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
+    // Compute the explicit part of the semi-implicit viscous term of momentum equation
     V.computeDiff(nseRHS);
     nseRHS *= nu;
 
-    // Compute the non-linear term and subtract it from the RHS
+    // Compute the explicit part of the semi-implicit viscous term of scalar equation
+    T.computeDiff(tmpRHS);
+    tmpRHS *= kappa;
+
+    // Compute the non-linear term and subtract it from the RHS of momentum equation
     V.computeNLin(V, nseRHS);
+
+    // Compute the non-linear term and subtract it from the RHS of scalar equation
+    T.computeNLin(V, tmpRHS);
 
     // Add the velocity forcing term
     V.vForcing->addForcing(nseRHS);
+
+    // Add the scalar forcing term
+    T.tForcing->addForcing(tmpRHS);
 
     // Add sub-grid stress contribution from LES Model, if enabled
     if (mesh.inputParams.lesModel and solTime > 5*mesh.inputParams.tStp) {
         sgsLES->computeSG(nseRHS, tmpRHS, T);
     }
 
-    // Subtract the pressure gradient term
+    // Subtract the pressure gradient term from momentum equation
     pressureGradient = 0.0;
     P.gradient(pressureGradient, V);
     nseRHS -= pressureGradient;
@@ -208,13 +218,21 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     nseRHS *= dt;
     nseRHS += V;
 
-    // Synchronize the RHS term across all processors by updating its sub-domain pads
+    // Multiply the entire RHS with dt and add the temperature of previous time-step to advance by explicit Euler method
+    tmpRHS *= dt;
+    tmpRHS += T;
+
+    // Synchronize both the RHS terms across all processors by updating their sub-domain pads
     nseRHS.syncData();
+    tmpRHS.syncData();
 
     // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
     solveVx(V, nseRHS);
     solveVy(V, nseRHS);
     solveVz(V, nseRHS);
+
+    // Using the RHS term computed, compute the temperature at next time-step iteratively (and store it in T)
+    solveT(T, tmpRHS);
 
     // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
     V.divergence(mgRHS, P);
@@ -234,31 +252,11 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     pressureGradient *= dt;
     V -= pressureGradient;
 
-    // Next, for temperature, again compute semi-implicit diffusion term first
-    T.computeDiff(tmpRHS);
-    tmpRHS *= kappa;
-
-    // Compute the non-linear term and subtract it from the RHS
-    T.computeNLin(V, tmpRHS);
-
-    // Add the scalar forcing term
-    T.tForcing->addForcing(tmpRHS);
-
-    // Multiply the entire RHS with dt and add the temperature of previous time-step to advance by explicit Euler method
-    tmpRHS *= dt;
-    tmpRHS += T;
-
-    // Synchronize the RHS term across all processors by updating its sub-domain pads
-    tmpRHS.syncData();
-
-    // Using the RHS term computed, compute the guessed temperature of CN method iteratively (and store it in T)
-    solveT(T, tmpRHS);
-
     // Impose boundary conditions on the updated velocity field, V
     V.imposeBCs();
 
     // Impose boundary conditions on the updated pressure field, P
-    P.imposeBCs();
+    //P.imposeBCs();
 
     // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();

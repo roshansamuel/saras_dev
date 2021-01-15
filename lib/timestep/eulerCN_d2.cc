@@ -146,7 +146,7 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
     V.imposeBCs();
 
     // Impose boundary conditions on the updated pressure field, P
-    P.imposeBCs();
+    //P.imposeBCs();
 }
 
 
@@ -172,56 +172,19 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P, sfield &T) {
     nseRHS = 0.0;
     tmpRHS = 0.0;
 
-    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
+    // Compute the explicit part of the semi-implicit viscous term of momentum equation
     V.computeDiff(nseRHS);
     nseRHS *= nu;
 
-    // Compute the non-linear term and subtract it from the RHS
-    V.computeNLin(V, nseRHS);
-
-    // Add the velocity forcing term
-    V.vForcing->addForcing(nseRHS);
-
-    // Subtract the pressure gradient term
-    pressureGradient = 0.0;
-    P.gradient(pressureGradient, V);
-    nseRHS -= pressureGradient;
-
-    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
-    nseRHS *= dt;
-    nseRHS += V;
-
-    // Synchronize the RHS term across all processors by updating its sub-domain pads
-    nseRHS.syncData();
-
-    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
-    solveVx(V, nseRHS);
-    solveVz(V, nseRHS);
-
-    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
-    V.divergence(mgRHS, P);
-    mgRHS *= 1.0/dt;
-
-    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
-    mgSolver.mgSolve(Pp, mgRHS);
-
-    // Synchronise the pressure correction term across processors
-    Pp.syncData();
-
-    // Add the pressure correction term to the pressure field of previous time-step, P
-    P += Pp;
-
-    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
-    Pp.gradient(pressureGradient, V);
-    pressureGradient *= dt;
-    V -= pressureGradient;
-
-    // Next, for temperature, again compute semi-implicit diffusion term first
+    // Compute the explicit part of the semi-implicit viscous term of scalar equation
     T.computeDiff(tmpRHS);
     tmpRHS *= kappa;
 
+    // Compute the non-linear term and subtract it from the RHS of momentum equation
+    V.computeNLin(V, nseRHS);
+
     if (nlinSwitch) {
-        // Compute the non-linear term and subtract it from the RHS
+        // Compute the non-linear term and subtract it from the RHS of scalar equation
         T.computeNLin(V, tmpRHS);
 
     } else {
@@ -246,24 +209,59 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P, sfield &T) {
         }
     }
 
+    // Add the velocity forcing term
+    V.vForcing->addForcing(nseRHS);
+
     // Add the scalar forcing term
     T.tForcing->addForcing(tmpRHS);
+
+    // Subtract the pressure gradient term from momentum equation
+    pressureGradient = 0.0;
+    P.gradient(pressureGradient, V);
+    nseRHS -= pressureGradient;
+
+    // Multiply the entire RHS with dt and add the velocity of previous time-step to advance by explicit Euler method
+    nseRHS *= dt;
+    nseRHS += V;
 
     // Multiply the entire RHS with dt and add the temperature of previous time-step to advance by explicit Euler method
     tmpRHS *= dt;
     tmpRHS += T;
 
-    // Synchronize the RHS term across all processors by updating its sub-domain pads
+    // Synchronize both the RHS terms across all processors by updating their sub-domain pads
+    nseRHS.syncData();
     tmpRHS.syncData();
 
-    // Using the RHS term computed, compute the guessed temperature of CN method iteratively (and store it in T)
+    // Using the RHS term computed, compute the guessed velocity of CN method iteratively (and store it in V)
+    solveVx(V, nseRHS);
+    solveVz(V, nseRHS);
+
+    // Using the RHS term computed, compute the temperature at next time-step iteratively (and store it in T)
     solveT(T, tmpRHS);
+
+    // Calculate the rhs for the poisson solver (mgRHS) using the divergence of guessed velocity in V
+    V.divergence(mgRHS, P);
+    mgRHS *= 1.0/dt;
+
+    // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
+    mgSolver.mgSolve(Pp, mgRHS);
+
+    // Synchronise the pressure correction term across processors
+    Pp.syncData();
+
+    // Add the pressure correction term to the pressure field of previous time-step, P
+    P += Pp;
+
+    // Finally get the velocity field at end of time-step by subtracting the gradient of pressure correction from V
+    Pp.gradient(pressureGradient, V);
+    pressureGradient *= dt;
+    V -= pressureGradient;
 
     // Impose boundary conditions on the updated velocity field, V
     V.imposeBCs();
 
     // Impose boundary conditions on the updated pressure field, P
-    P.imposeBCs();
+    //P.imposeBCs();
 
     // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();

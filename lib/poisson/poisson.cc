@@ -134,19 +134,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     updatePads(residualData);
     updatePads(pressureData);
 
-#ifndef TEST_POISSON
-    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    // This procedure caused some problems in the pressure solution, that became worse with non-uniform grids
-    // Once the issue with non-uniform grids is sorted out, check if this procedure is necessary or not.
-    //real localMean = blitz::mean(residualData(0));
-    //real globalAvg = 0.0;
-
-    //MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    //globalAvg /= mesh.rankData.nProc;
-
-    //residualData(0) -= globalAvg;
-#endif
-
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
         vCycle();
@@ -481,6 +468,12 @@ void poisson::setCoefficients() {
  ********************************************************************************************************************************************
  */
 void poisson::copyStaggrDerivs() {
+    // Points at the left and right pads of the MPI-subdomains need to be taken from
+    // neighbouring sub-domains, and these real values will be used to hold the coordinates
+    // temporarily during transfer along each axis
+    real recvPoint0, recvPoint1, sendPoint0, sendPoint1;
+    MPI_Status srStatus;
+
     xixx.resize(inputParams.vcDepth + 1);
     xix2.resize(inputParams.vcDepth + 1);
 #ifndef PLANAR
@@ -491,37 +484,119 @@ void poisson::copyStaggrDerivs() {
     ztz2.resize(inputParams.vcDepth + 1);
 
     for(int n=0; n<=inputParams.vcDepth; ++n) {
+        /////////////////// d^2 xi / d x^2 terms ///////////////////
+
         xixx(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
         xixx(n).reindexSelf(stagFull(n).lbound(0));
         xixx(n) = 0.0;
         xixx(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
+
+        // Assign points to be sent
+        sendPoint0 = xixx(n)(1);
+        sendPoint1 = xixx(n)(stagCore(n).ubound(0) - 1);
+
+        // Exchange the pad points across processors
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+        // Assign received points to the grid
+        xixx(n)(-1) = recvPoint0;
+        xixx(n)(stagCore(n).ubound(0) + 1) = recvPoint1;
+
+        // Whether domain is periodic or not, left-most point and right-most points will be differently calculated
+        if (mesh.rankData.xRank == 0) xixx(n)(-1) = xixx(n)(1);
+        if (mesh.rankData.xRank == mesh.rankData.npX - 1) xixx(n)(stagCore(n).ubound(0) + 1) = xixx(n)(stagCore(n).ubound(0) - 1);
+
+        /////////////////// (d xi / d x)^2 terms ///////////////////
 
         xix2(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
         xix2(n).reindexSelf(stagFull(n).lbound(0));
         xix2(n) = 0.0;
         xix2(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
 
+        // Assign points to be sent
+        sendPoint0 = xix2(n)(1);
+        sendPoint1 = xix2(n)(stagCore(n).ubound(0) - 1);
+
+        // Exchange the pad points across processors
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+        // Assign received points to the grid
+        xix2(n)(-1) = recvPoint0;
+        xix2(n)(stagCore(n).ubound(0) + 1) = recvPoint1;
+
+        // Whether domain is periodic or not, left-most point and right-most points will be differently calculated
+        if (mesh.rankData.xRank == 0) xix2(n)(-1) = xix2(n)(1);
+        if (mesh.rankData.xRank == mesh.rankData.npX - 1) xix2(n)(stagCore(n).ubound(0) + 1) = xix2(n)(stagCore(n).ubound(0) - 1);
+
 #ifndef PLANAR
+        /////////////////// d^2 eta / d y^2 terms ///////////////////
+
         etyy(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
         etyy(n).reindexSelf(stagFull(n).lbound(1));
         etyy(n) = 0.0;
         etyy(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
 
+        // Assign points to be sent
+        sendPoint0 = etyy(n)(1);
+        sendPoint1 = etyy(n)(stagCore(n).ubound(1) - 1);
+
+        // Exchange the pad points across processors
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+        // Assign received points to the grid
+        etyy(n)(-1) = recvPoint0;
+        etyy(n)(stagCore(n).ubound(1) + 1) = recvPoint1;
+
+        // Whether domain is periodic or not, front-most point and rear-most points will be differently calculated
+        if (mesh.rankData.yRank == 0) etyy(n)(-1) = etyy(n)(1);
+        if (mesh.rankData.yRank == mesh.rankData.npY - 1) etyy(n)(stagCore(n).ubound(1) + 1) = etyy(n)(stagCore(n).ubound(1) - 1);
+
+        /////////////////// (d eta / d y)^2 terms ///////////////////
+
         ety2(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
         ety2(n).reindexSelf(stagFull(n).lbound(1));
         ety2(n) = 0.0;
         ety2(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
+
+        // Assign points to be sent
+        sendPoint0 = ety2(n)(1);
+        sendPoint1 = ety2(n)(stagCore(n).ubound(1) - 1);
+
+        // Exchange the pad points across processors
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+        // Assign received points to the grid
+        ety2(n)(-1) = recvPoint0;
+        ety2(n)(stagCore(n).ubound(1) + 1) = recvPoint1;
+
+        // Whether domain is periodic or not, front-most point and rear-most points will be differently calculated
+        if (mesh.rankData.yRank == 0) ety2(n)(-1) = ety2(n)(1);
+        if (mesh.rankData.yRank == mesh.rankData.npY - 1) ety2(n)(stagCore(n).ubound(1) + 1) = ety2(n)(stagCore(n).ubound(1) - 1);
 #endif
+
+        /////////////////// d^2 zeta / d z^2 terms ///////////////////
 
         ztzz(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
         ztzz(n).reindexSelf(stagFull(n).lbound(2));
         ztzz(n) = 0.0;
         ztzz(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
 
+        ztzz(n)(-1) = ztzz(n)(1);
+        ztzz(n)(stagCore(n).ubound(2) + 1) = ztzz(n)(stagCore(n).ubound(2) - 1);
+
+        /////////////////// (d zeta / d z)^2 terms ///////////////////
+
         ztz2(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
         ztz2(n).reindexSelf(stagFull(n).lbound(2));
         ztz2(n) = 0.0;
         ztz2(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
+
+        ztz2(n)(-1) = ztz2(n)(1);
+        ztz2(n)(stagCore(n).ubound(2) + 1) = ztz2(n)(stagCore(n).ubound(2) - 1);
     }
 };
 
@@ -606,12 +681,7 @@ void poisson::copyStaggrGrids() {
         nuZ(n)(-1) = -nuZ(n)(1);
         nuZ(n)(stagCore(n).ubound(2) + 1) = nuZ(n)(stagCore(n).ubound(2)) +
                                         (nuZ(n)(stagCore(n).ubound(2)) - nuZ(n)(stagCore(n).ubound(2) - 1));
-
-        //if (mesh.rankData.rank == 0) std::cout << nuY(n) << std::endl;
     }
-
-    //MPI_Finalize();
-    //exit(0);
 };
 
 

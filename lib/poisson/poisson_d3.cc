@@ -231,6 +231,9 @@ void multigrid_d3::coarsen() {
             for (int k = 0; k <= zEnd(vLevel); ++k) {
                 k2 = k*2;
 
+                // Volumes of the 8 cubiodal sub-sections into which the coarse grid point divides the fine grid cell.
+                // These values reduce to fractions of powers of 2 for uniform grids.
+                // The total volume of the coarse grid cell is also calculated.
                 v000 = (nuX(vLevel)(i) - nuX(pLevel)(i2 - 1))*(nuY(vLevel)(j) - nuY(pLevel)(j2 - 1))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
                 v100 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(vLevel)(j) - nuY(pLevel)(j2 - 1))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
                 v010 = (nuX(vLevel)(i) - nuX(pLevel)(i2 - 1))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(vLevel)(k) - nuZ(pLevel)(k2 - 1));
@@ -241,6 +244,7 @@ void multigrid_d3::coarsen() {
                 v111 = (nuX(pLevel)(i2 + 1) - nuX(vLevel)(i))*(nuY(pLevel)(j2 + 1) - nuY(vLevel)(j))*(nuZ(pLevel)(k2 + 1) - nuZ(vLevel)(k));
                 vTot = (nuX(pLevel)(i2 + 1) - nuX(pLevel)(i2 - 1))*(nuY(pLevel)(j2 + 1) - nuY(pLevel)(j2 - 1))*(nuZ(pLevel)(k2 + 1) - nuZ(pLevel)(k2 - 1));
 
+                // Full-weighted restriction for non-uniform grids
                 facePoints = ((v000 + v001 + v010 + v011)*tmpDataArray(pLevel)(i2 - 1, j2, k2) + (v100 + v101 + v110 + v111)*tmpDataArray(pLevel)(i2 + 1, j2, k2) +
                               (v000 + v001 + v100 + v101)*tmpDataArray(pLevel)(i2, j2 - 1, k2) + (v010 + v011 + v110 + v111)*tmpDataArray(pLevel)(i2, j2 + 1, k2) +
                               (v000 + v100 + v010 + v110)*tmpDataArray(pLevel)(i2, j2, k2 - 1) + (v001 + v101 + v011 + v111)*tmpDataArray(pLevel)(i2, j2, k2 + 1));
@@ -261,29 +265,6 @@ void multigrid_d3::coarsen() {
                 centrPoint = (vTot*tmpDataArray(pLevel)(i2, j2, k2));
 
                 residualData(vLevel)(i, j, k) = (facePoints + edgePoints + vertPoints + centrPoint)/(vTot*8.0);
-
-                // Uniform grid version used earlier
-                /*
-                facePoints = (tmpDataArray(pLevel)(i2 - 1, j2, k2) + tmpDataArray(pLevel)(i2 + 1, j2, k2) +
-                              tmpDataArray(pLevel)(i2, j2 - 1, k2) + tmpDataArray(pLevel)(i2, j2 + 1, k2) +
-                              tmpDataArray(pLevel)(i2, j2, k2 - 1) + tmpDataArray(pLevel)(i2, j2, k2 + 1))*0.0625;
-                edgePoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2) + tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2) +
-                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2) + tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2) +
-                              tmpDataArray(pLevel)(i2, j2 + 1, k2 + 1) + tmpDataArray(pLevel)(i2, j2 - 1, k2 + 1) +
-                              tmpDataArray(pLevel)(i2, j2 - 1, k2 - 1) + tmpDataArray(pLevel)(i2, j2 + 1, k2 - 1) +
-                              tmpDataArray(pLevel)(i2 + 1, j2, k2 + 1) + tmpDataArray(pLevel)(i2 + 1, j2, k2 - 1) +
-                              tmpDataArray(pLevel)(i2 - 1, j2, k2 - 1) + tmpDataArray(pLevel)(i2 - 1, j2, k2 + 1))*0.03125;
-                vertPoints = (tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 + 1) +
-                              tmpDataArray(pLevel)(i2 + 1, j2 + 1, k2 - 1) +
-                              tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 + 1) +
-                              tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 + 1) +
-                              tmpDataArray(pLevel)(i2 + 1, j2 - 1, k2 - 1) +
-                              tmpDataArray(pLevel)(i2 - 1, j2 + 1, k2 - 1) +
-                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 + 1) +
-                              tmpDataArray(pLevel)(i2 - 1, j2 - 1, k2 - 1))*0.015625;
-
-                residualData(vLevel)(i, j, k) = facePoints + edgePoints + vertPoints + tmpDataArray(pLevel)(i2, j2, k2)*0.125;
-                */
             }
         }
     }
@@ -299,8 +280,10 @@ void multigrid_d3::prolong() {
 
     pressureData(vLevel) = 0.0;
 
-    // This method of using loops with conditional expressions is much faster (nearly 1.5 times)
-    // than the old method of using 3 vectorized sweeps with Blitz Range objects.
+    // This method of using loops with conditional expressions was much faster (nearly 1.5 times)
+    // than the old method of using 3 vectorized sweeps with Blitz Range objects on uniform grids
+    // without additional computational work of calculating interpolation coefficients on
+    // non-uniform grids.
     real c0, c1, c2, c3, c4, c5, c6, c7, c8;
     for (int i = 0; i <= xEnd(vLevel); ++i) {
         i2 = i/2;
@@ -402,66 +385,6 @@ void multigrid_d3::prolong() {
             }
         }
     }
-
-    // Uniform grid version used earlier
-    /*
-    for (int i = 0; i <= xEnd(vLevel); ++i) {
-        i2 = i/2;
-        if (isOdd(i)) {
-            for (int j = 0; j <= yEnd(vLevel); ++j) {
-                j2 = j/2;
-                if (isOdd(j)) {
-                    for (int k = 0; k <= zEnd(vLevel); ++k) {
-                        k2 = k/2;
-                        if (isOdd(k)) {     // i j and k are odd
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) +
-                                                             pressureData(pLevel)(i2 + 1, j2, k2) + pressureData(pLevel)(i2, j2 + 1, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
-                                                             pressureData(pLevel)(i2 + 1, j2 + 1, k2) + pressureData(pLevel)(i2 + 1, j2, k2 + 1) + pressureData(pLevel)(i2, j2 + 1, k2 + 1) +
-                                                             pressureData(pLevel)(i2 + 1, j2 + 1, k2 + 1))/8.0;
-                        } else {            // i and j are odd, but k is even
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2 + 1, k2) +
-                                                             pressureData(pLevel)(i2 + 1, j2, k2) + pressureData(pLevel)(i2 + 1, j2 + 1, k2))/4.0;
-                        }
-                    }
-                } else {
-                    for (int k = 0; k <= zEnd(vLevel); ++k) {
-                        k2 = k/2;
-                        if (isOdd(k)) {     // i and k are odd, but j is even
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
-                                                             pressureData(pLevel)(i2 + 1, j2, k2) + pressureData(pLevel)(i2 + 1, j2, k2 + 1))/4.0;
-                        } else {            // i is odd, but j and k are even
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2 + 1, j2, k2))/2.0;
-                        }
-                    }
-                }
-            }
-        } else {
-            for (int j = 0; j <= yEnd(vLevel); j++) {
-                j2 = j/2;
-                if (isOdd(j)) {
-                    for (int k = 0; k <= zEnd(vLevel); ++k) {
-                        k2 = k/2;
-                        if (isOdd(k)) {     // i is even, but j and k are odd
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1) +
-                                                             pressureData(pLevel)(i2, j2 + 1, k2) + pressureData(pLevel)(i2, j2 + 1, k2 + 1))/4.0;
-                        } else {            // i and k are even, but j is odd
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2 + 1, k2))/2.0;
-                        }
-                    }
-                } else {
-                    for (int k = 0; k <= zEnd(vLevel); ++k) {
-                        k2 = k/2;
-                        if (isOdd(k)) {     // i and j are even, but k is odd
-                            pressureData(vLevel)(i, j, k) = (pressureData(pLevel)(i2, j2, k2) + pressureData(pLevel)(i2, j2, k2 + 1))/2.0;
-                        } else {            // i j and k are even
-                            pressureData(vLevel)(i, j, k) = pressureData(pLevel)(i2, j2, k2);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
 }
 
 
