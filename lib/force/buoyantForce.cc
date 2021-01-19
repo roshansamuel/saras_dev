@@ -60,36 +60,9 @@ void buoyantForce::addForcing(plainvf &Hv) {
     //ADD THE BUOYANCY TERM TO THE Vz COMPONENT OF Hv
     V.interTempZ = 0.0;
     for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        //if (mesh.rankData.rank == 0) std::cout << mesh.rankData.rank << "\t" << V.Vz.fCore.ubound() << "\t" << V.Vz.PcIntSlices(i).ubound() << "\t" << T.F.F.ubound() << std::endl;
-        //MPI_Barrier(MPI_COMM_WORLD);
-        //if (mesh.rankData.rank == 1) std::cout << mesh.rankData.rank << "\t" << V.Vz.fCore.ubound() << "\t" << V.Vz.PcIntSlices(i).ubound() << "\t" << T.F.F.ubound() << std::endl;
-        //MPI_Barrier(MPI_COMM_WORLD);
-        //if (mesh.rankData.rank == 2) std::cout << mesh.rankData.rank << "\t" << V.Vz.fCore.ubound() << "\t" << V.Vz.PcIntSlices(i).ubound() << "\t" << T.F.F.ubound() << std::endl;
-        //MPI_Barrier(MPI_COMM_WORLD);
-        //if (mesh.rankData.rank == 3) std::cout << mesh.rankData.rank << "\t" << V.Vz.fCore.ubound() << "\t" << V.Vz.PcIntSlices(i).ubound() << "\t" << T.F.F.ubound() << std::endl;
-        //MPI_Barrier(MPI_COMM_WORLD);
-
         V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
     }
     V.interTempZ /= V.Vz.PcIntSlices.size();
 
-    //if (mesh.rankData.rank == 0) std::cout << mesh.rankData.rank << "\t" << Hv.Vz.ubound() << "\t" << V.interTempZ.ubound() << std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 1) std::cout << mesh.rankData.rank << "\t" << Hv.Vz.ubound() << "\t" << V.interTempZ.ubound() << std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 2) std::cout << mesh.rankData.rank << "\t" << Hv.Vz.ubound() << "\t" << V.interTempZ.ubound() << std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (mesh.rankData.rank == 3) std::cout << mesh.rankData.rank << "\t" << Hv.Vz.ubound() << "\t" << V.interTempZ.ubound() << std::endl;
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //MPI_Finalize();
-    //exit(0);
-
     Hv.Vz += Fb*V.interTempZ;
-    //Hv.Vz += 0.001;
-
-    //if (mesh.rankData.rank == 0) std::cout << V.interTempZ(blitz::Range(25, blitz::toEnd), blitz::Range(25, blitz::toEnd), 5) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << V.interTempZ(blitz::Range(25, 33), blitz::Range(25, 33), 3) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << V.interTempZ(blitz::Range(-1, 5), blitz::Range(-1, 5), 3) << std::endl;
-
-    //if (mesh.rankData.rank == 0) std::cout << V.interTempZ(blitz::Range::all(), blitz::Range::all(), 3) << std::endl;
 }

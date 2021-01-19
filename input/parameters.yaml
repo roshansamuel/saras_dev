@@ -136,10 +136,10 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.001
-    "Final Time": 0.002
+    "Final Time": 1.0
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 1
+    "I/O Count": 20
 
     # Select the format in which solution data must be written at each solution write interval
     # 1 = Write a single HDF5 file inside ./output/, containing all the variables - Vx, Vy, P, etc.
@@ -148,7 +148,7 @@
     "Solution Format": 1
 
     # Time interval at which solution file must be written
-    "Solution Write Interval": 0.002
+    "Solution Write Interval": 1.0
 
     # Time interval at which restart file must be written
     "Restart Write Interval": 20.0

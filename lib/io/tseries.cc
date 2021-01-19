@@ -144,9 +144,9 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
  */
 void tseries::writeTSData() {
     V.divergence(divV, P);
-    maxDivergence = divV.fxMax();
+    meanDivergence = divV.fxMean();
 
-    if (maxDivergence > 1.0e5) {
+    if (meanDivergence > 1.0e5) {
         if (mesh.rankData.rank == 0) std::cout << std::endl << "ERROR: Divergence exceeds permissible limits. ABORTING" << std::endl << std::endl;
         MPI_Finalize();
         exit(0);
@@ -179,12 +179,12 @@ void tseries::writeTSData() {
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                    std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
-                                                                            maxDivergence << std::endl;
+                                                                            meanDivergence << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                 std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
                                                                          sqrt(2.0*totalKineticEnergy) << "\t" <<
-                                                                         maxDivergence << "\t" <<
+                                                                         meanDivergence << "\t" <<
                                                                          tStp << std::endl;
     }
 }
@@ -209,9 +209,9 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
 
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     V.divergence(divV, P);
-    maxDivergence = divV.fxMax();
+    meanDivergence = divV.fxMean();
 
-    if (maxDivergence > 1.0e5) {
+    if (meanDivergence > 1.0e5) {
         if (mesh.rankData.rank == 0) std::cout << std::endl << "ERROR: Divergence exceeds permissible limits. ABORTING" << std::endl << std::endl;
         MPI_Finalize();
         exit(0);
@@ -269,14 +269,14 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                    std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
                                                                             NusseltNo << "\t" <<
-                                                                            maxDivergence << std::endl;
+                                                                            meanDivergence << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                 std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
                                                                          NusseltNo << "\t" <<
                                                                          totalKineticEnergy << "\t" <<
                                                                          totalThermalEnergy << "\t" <<
-                                                                         maxDivergence << "\t" <<
+                                                                         meanDivergence << "\t" <<
                                                                          tStp << std::endl;
     }
 }

@@ -50,7 +50,7 @@
  *          transformation derivatives along each direction are chosen according to the grid staggering.
  *          The arrays to store the output from various operators like derivatives, convective derivatives, etc. are also
  *          allocated.
- *          Finally, an instance of the <B>mpidata</B> class is initialized to store the sub-arrays to be send/received
+ *          Finally, an instance of the <B>mpidata</B> class is initialized to store the sub-arrays to be sent/received
  *          across the processors during MPI communication.
  *
  * \param   gridData is a const reference to the global data contained in the grid class

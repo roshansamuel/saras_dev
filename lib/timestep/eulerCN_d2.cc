@@ -146,7 +146,7 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
     V.imposeBCs();
 
     // Impose boundary conditions on the updated pressure field, P
-    //P.imposeBCs();
+    P.imposeBCs();
 }
 
 
@@ -261,7 +261,7 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P, sfield &T) {
     V.imposeBCs();
 
     // Impose boundary conditions on the updated pressure field, P
-    //P.imposeBCs();
+    P.imposeBCs();
 
     // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();

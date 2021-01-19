@@ -65,7 +65,7 @@ class tseries {
         int zLow, zTop;
 
         real totalVol;
-        real maxDivergence;
+        real meanDivergence;
         real totalKineticEnergy, localKineticEnergy;
         real totalThermalEnergy, localThermalEnergy;
         real totalUzT, localUzT, NusseltNo, ReynoldsNo;

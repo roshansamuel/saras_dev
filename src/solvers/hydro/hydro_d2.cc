@@ -119,7 +119,7 @@ hydro_d2::hydro_d2(const grid &mesh, const parser &solParam, parallel &mpiParam)
 
     // Impose boundary conditions on velocity and pressure fields
     V.imposeBCs();
-    //P.imposeBCs();
+    P.imposeBCs();
 
     // Initialize semi-implicit Euler-CN time-stepping method
     ivpSolver = new eulerCN_d2(mesh, time, dt, V, P);

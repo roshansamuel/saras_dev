@@ -102,7 +102,7 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
 
     // Impose boundary conditions on velocity, pressure and temperature fields
     V.imposeBCs();
-    //P.imposeBCs();
+    P.imposeBCs();
     T.imposeBCs();
 
     // Initialize semi-implicit Euler-CN time-stepping method
