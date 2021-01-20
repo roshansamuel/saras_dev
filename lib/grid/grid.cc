@@ -133,6 +133,8 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
         gridCheck = true;
     }
 
+    syncGrid();
+
     if (gridCheck) checkAnisotropy();
 
     gatherGlobal();
@@ -524,6 +526,194 @@ void grid::createTanHypGrid(int dim) {
 
 /**
  ********************************************************************************************************************************************
+ * \brief   Function to synchronize grid data across the MPI sub-domains
+ *
+ *          The function updates the pad regions of the MPI sub-domains with grid data from adjacent sub-domains.
+ *          Special MPI data structures are created temporarily for this one-off operation.
+ *
+ ********************************************************************************************************************************************
+ */
+void grid::syncGrid() {
+    // Points at the left and right pads of the MPI-subdomains need to be taken from
+    // neighbouring sub-domains, and this MPI datatype will be used for this purpose.
+    MPI_Datatype padGrid;
+    MPI_Status srStatus;
+    int count;
+
+    // At the leftmost and rightmost subdomains, the pad regions have to be populated differently.
+    // The following blitz::Range objects identify the pad region and the corresponding regions
+    // within the computational domain from which grid coordinates have to be pulled to appropriately
+    // set the coordinates in the pads.
+    blitz::Range xLftPad, xRgtPad, xLftPts, xRgtPts;
+    blitz::Range yLftPad, yRgtPad, yLftPts, yRgtPts;
+    blitz::Range zLftPad, zRgtPad, zLftPts, zRgtPts;
+
+    // There is an assumption here that the pad widths are same along X and Y axes here
+    // This is not a necessary assumption, but it allows me to write less code here.
+    // Moreover, it is a pretty weird configuration to use different padwidths along X and Y axes
+    count = padWidths(0);
+    MPI_Type_contiguous(count, MPI_FP_REAL, &padGrid);
+    MPI_Type_commit(&padGrid);
+
+    // First, let us deal with the staggered grid
+    // Along X Axis
+    xLftPad = blitz::Range(-padWidths(0), -1, 1);
+    xLftPts = blitz::Range(padWidths(0) , 1, -1);
+
+    xRgtPad = blitz::Range(staggrCoreSize(0), staggrCoreSize(0) + padWidths(0) - 1, 1);
+    xRgtPts = blitz::Range(staggrCoreSize(0) - 2, staggrCoreSize(0) - padWidths(0) - 1, -1);
+
+    // Exchange the pad points across processors for staggered grid data along X axis
+    MPI_Sendrecv(&xStaggr(1), 1, padGrid, rankData.nearRanks(0), 1, &xStaggr(staggrCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xStaggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.nearRanks(1), 2, &xStaggr(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&xi_xStaggr(1), 1, padGrid, rankData.nearRanks(0), 1, &xi_xStaggr(staggrCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xi_xStaggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.nearRanks(1), 2, &xi_xStaggr(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&xixxStaggr(1), 1, padGrid, rankData.nearRanks(0), 1, &xixxStaggr(staggrCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xixxStaggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.nearRanks(1), 2, &xixxStaggr(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&xix2Staggr(1), 1, padGrid, rankData.nearRanks(0), 1, &xix2Staggr(staggrCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xix2Staggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.nearRanks(1), 2, &xix2Staggr(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    // Whether domain is periodic or not, left-most point and right-most points will be differently calculated
+    if (rankData.xRank == 0) {
+        xStaggr(xLftPad) = -xStaggr(xLftPts);
+        xixxStaggr(xLftPad) = -xixxStaggr(xLftPad);
+    }
+    if (rankData.xRank == rankData.npX - 1) {
+        xStaggr(xRgtPad) = 2.0*xLen - xStaggr(xRgtPts);
+        xixxStaggr(xRgtPad) = -xixxStaggr(xRgtPad);
+    }
+
+    // Along Y Axis
+#ifndef PLANAR
+    yLftPad = blitz::Range(-padWidths(1), -1, 1);
+    yLftPts = blitz::Range(padWidths(1) , 1, -1);
+
+    yRgtPad = blitz::Range(staggrCoreSize(1), staggrCoreSize(1) + padWidths(1) - 1, 1);
+    yRgtPts = blitz::Range(staggrCoreSize(1) - 2, staggrCoreSize(1) - padWidths(1) - 1, -1);
+
+    // Exchange the pad points across processors for staggered grid data along Y axis
+    MPI_Sendrecv(&yStaggr(1), 1, padGrid, rankData.nearRanks(2), 1, &yStaggr(staggrCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&yStaggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.nearRanks(3), 2, &yStaggr(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&et_yStaggr(1), 1, padGrid, rankData.nearRanks(2), 1, &et_yStaggr(staggrCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&et_yStaggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.nearRanks(3), 2, &et_yStaggr(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&etyyStaggr(1), 1, padGrid, rankData.nearRanks(2), 1, &etyyStaggr(staggrCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&etyyStaggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.nearRanks(3), 2, &etyyStaggr(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&ety2Staggr(1), 1, padGrid, rankData.nearRanks(2), 1, &ety2Staggr(staggrCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&ety2Staggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.nearRanks(3), 2, &ety2Staggr(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    // Whether domain is periodic or not, front-most point and rear-most points will be differently calculated
+    if (rankData.yRank == 0) {
+        yStaggr(yLftPad) = -yStaggr(yLftPts);
+        etyyStaggr(yLftPad) = -etyyStaggr(yLftPad);
+    }
+    if (rankData.yRank == rankData.npY - 1) {
+        yStaggr(yRgtPad) = 2.0*yLen - yStaggr(yRgtPts);
+        etyyStaggr(yRgtPad) = -etyyStaggr(yRgtPad);
+    }
+#endif
+
+    // Along Z Axis
+    zLftPad = blitz::Range(-padWidths(2), -1, 1);
+    zLftPts = blitz::Range(padWidths(2) , 1, -1);
+
+    zRgtPad = blitz::Range(staggrCoreSize(2), staggrCoreSize(2) + padWidths(2) - 1, 1);
+    zRgtPts = blitz::Range(staggrCoreSize(2) - 2, staggrCoreSize(2) - padWidths(2) - 1, -1);
+
+    // Whether domain is periodic or not, top-most point and bottom-most points will be differently calculated
+    zStaggr(zLftPad) = -zStaggr(zLftPts);
+    ztzzStaggr(zLftPad) = -ztzzStaggr(zLftPad);
+
+    zStaggr(zRgtPad) = 2.0*zLen - zStaggr(zRgtPts);
+    ztzzStaggr(zRgtPad) = -ztzzStaggr(zRgtPad);
+
+
+    // Now, let us deal with the collocated grid
+    // Along X Axis
+    xLftPad = blitz::Range(-padWidths(0), -1, 1);
+    xLftPts = blitz::Range(padWidths(0) - 1 , 0, -1);
+
+    xRgtPad = blitz::Range(collocCoreSize(0), collocCoreSize(0) + padWidths(0) - 1, 1);
+    xRgtPts = blitz::Range(collocCoreSize(0) - 1, collocCoreSize(0) - padWidths(0), -1);
+
+    // Exchange the pad points across processors for collocated grid data along X axis
+    MPI_Sendrecv(&xColloc(0), 1, padGrid, rankData.nearRanks(0), 1, &xColloc(collocCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xColloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.nearRanks(1), 2, &xColloc(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&xi_xColloc(0), 1, padGrid, rankData.nearRanks(0), 1, &xi_xColloc(collocCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xi_xColloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.nearRanks(1), 2, &xi_xColloc(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&xixxColloc(0), 1, padGrid, rankData.nearRanks(0), 1, &xixxColloc(collocCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xixxColloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.nearRanks(1), 2, &xixxColloc(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&xix2Colloc(0), 1, padGrid, rankData.nearRanks(0), 1, &xix2Colloc(collocCoreSize(0)), 1, padGrid, rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xix2Colloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.nearRanks(1), 2, &xix2Colloc(-padWidths(0)), 1, padGrid, rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+
+    // Whether domain is periodic or not, left-most point and right-most points will be differently calculated
+    if (rankData.xRank == 0) {
+        xColloc(xLftPad) = -xColloc(xLftPts);
+        xixxColloc(xLftPad) = -xixxColloc(xLftPad);
+    }
+    if (rankData.xRank == rankData.npX - 1) {
+        xColloc(xRgtPad) = 2.0*xLen - xColloc(xRgtPts);
+        xixxColloc(xRgtPad) = -xixxColloc(xRgtPad);
+    }
+
+    // Along Y Axis
+#ifndef PLANAR
+    yLftPad = blitz::Range(-padWidths(1), -1, 1);
+    yLftPts = blitz::Range(padWidths(1) - 1 , 0, -1);
+
+    yRgtPad = blitz::Range(collocCoreSize(1), collocCoreSize(1) + padWidths(1) - 1, 1);
+    yRgtPts = blitz::Range(collocCoreSize(1) - 1, collocCoreSize(1) - padWidths(1), -1);
+
+    // Exchange the pad points across processors for collocated grid data along Y axis
+    MPI_Sendrecv(&yColloc(0), 1, padGrid, rankData.nearRanks(2), 1, &yColloc(collocCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&yColloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.nearRanks(3), 2, &yColloc(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&et_yColloc(0), 1, padGrid, rankData.nearRanks(2), 1, &et_yColloc(collocCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&et_yColloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.nearRanks(3), 2, &et_yColloc(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&etyyColloc(0), 1, padGrid, rankData.nearRanks(2), 1, &etyyColloc(collocCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&etyyColloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.nearRanks(3), 2, &etyyColloc(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    MPI_Sendrecv(&ety2Colloc(0), 1, padGrid, rankData.nearRanks(2), 1, &ety2Colloc(collocCoreSize(1)), 1, padGrid, rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&ety2Colloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.nearRanks(3), 2, &ety2Colloc(-padWidths(1)), 1, padGrid, rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+
+    // Whether domain is periodic or not, front-most point and rear-most points will be differently calculated
+    if (rankData.yRank == 0) {
+        yColloc(yLftPad) = -yColloc(yLftPts);
+        etyyColloc(yLftPad) = -etyyColloc(yLftPad);
+    }
+    if (rankData.yRank == rankData.npY - 1) {
+        yColloc(yRgtPad) = 2.0*yLen - yColloc(yRgtPts);
+        etyyColloc(yRgtPad) = -etyyColloc(yRgtPad);
+    }
+#endif
+
+    // Along Z Axis
+    zLftPad = blitz::Range(-padWidths(2), -1, 1);
+    zLftPts = blitz::Range(padWidths(2) - 1 , 0, -1);
+
+    zRgtPad = blitz::Range(collocCoreSize(2), collocCoreSize(2) + padWidths(2) - 1, 1);
+    zRgtPts = blitz::Range(collocCoreSize(2) - 1, collocCoreSize(2) - padWidths(2), -1);
+
+    // Whether domain is periodic or not, top-most point and bottom-most points will be differently calculated
+    zColloc(zLftPad) = -zColloc(zLftPts);
+    ztzzColloc(zLftPad) = -ztzzColloc(zLftPad);
+
+    zColloc(zRgtPad) = 2.0*zLen - zColloc(zRgtPts);
+    ztzzColloc(zRgtPad) = -ztzzColloc(zRgtPad);
+}
+
+
+/**
+ ********************************************************************************************************************************************
  * \brief   Function to check the anisotropy of the grid
  *
  *          The function is called only if non-uniform grid is made.
@@ -534,12 +724,24 @@ void grid::createTanHypGrid(int dim) {
  ********************************************************************************************************************************************
  */
 void grid::checkAnisotropy() {
+    real xyRatio, yzRatio, zxRatio;
     real xWidth, yWidth, zWidth;
     real localMax, globalMax;
-    real xyRatio, yzRatio;
+    real aRatio, bRatio;
     real cellMaxAR;
 
     localMax = 0.0;
+#ifdef PLANAR
+    for (int i = 0; i < collocCoreSize.ubound(0); i++) {
+        for (int k = 0; k < collocCoreSize.ubound(0); k++) {
+            xWidth = xColloc(i-1) - xColloc(i);
+            zWidth = zColloc(k-1) - zColloc(k);
+            cellMaxAR = std::max(xWidth/zWidth, zWidth/xWidth);
+            if (cellMaxAR > localMax) localMax = cellMaxAR;
+
+        }
+    }
+#else
     for (int i = 0; i < collocCoreSize.ubound(0); i++) {
         for (int j = 0; j < collocCoreSize.ubound(0); j++) {
             for (int k = 0; k < collocCoreSize.ubound(0); k++) {
@@ -548,11 +750,15 @@ void grid::checkAnisotropy() {
                 zWidth = zColloc(k-1) - zColloc(k);
                 xyRatio = std::max(xWidth/yWidth, yWidth/xWidth);
                 yzRatio = std::max(yWidth/zWidth, zWidth/yWidth);
-                cellMaxAR = std::max(xyRatio, yzRatio);
+                zxRatio = std::max(zWidth/xWidth, xWidth/zWidth);
+                aRatio = std::max(xyRatio, yzRatio);
+                bRatio = std::max(yzRatio, zxRatio);
+                cellMaxAR = std::max(aRatio, bRatio);
                 if (cellMaxAR > localMax) localMax = cellMaxAR;
             }
         }
     }
+#endif
 
     MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 

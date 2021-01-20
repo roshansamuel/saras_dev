@@ -77,6 +77,8 @@ class grid {
         void createUniformGrid();
         void createTanHypGrid(int dim);
 
+        void syncGrid();
+
         void checkAnisotropy();
         void gatherGlobal();
 
