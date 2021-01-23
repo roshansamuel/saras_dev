@@ -244,6 +244,9 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     // Synchronise the pressure correction term across processors
     Pp.syncData();
 
+    //if (mesh.rankData.rank == 0) std::cout << "0 Grid\t" << mesh.xStaggr << "0 Data\t" << Pp.F(blitz::Range::all(), 8, 8) << std::endl;
+    //if (mesh.rankData.rank == 1) std::cout << "1 Grid\t" << mesh.xStaggr << "1 Data\t" << Pp.F(blitz::Range::all(), 8, 8) << std::endl;
+
     // Add the pressure correction term to the pressure field of previous time-step, P
     P += Pp;
 

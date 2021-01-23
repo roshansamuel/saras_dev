@@ -134,6 +134,17 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     updatePads(residualData);
     updatePads(pressureData);
 
+#ifndef TEST_POISSON
+    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
+    real localMean = blitz::mean(residualData(0)(stagCore(0)));
+    real globalAvg = 0.0;
+
+    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    globalAvg /= mesh.rankData.nProc;
+
+    residualData(0) -= globalAvg;
+#endif
+
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
         vCycle();
@@ -199,6 +210,19 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         prevResidual = mgResidual;
 #endif
     }
+
+    /*
+#ifndef TEST_POISSON
+    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
+    localMean = blitz::mean(pressureData(0)(stagCore(0)));
+    globalAvg = 0.0;
+
+    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    globalAvg /= mesh.rankData.nProc;
+
+    pressureData(0) -= globalAvg;
+#endif
+    */
 
     // RETURN CALCULATED PRESSURE DATA
     inFn.F(stagFull(0)) = pressureData(0)(stagFull(0));

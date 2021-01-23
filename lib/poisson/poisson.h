@@ -99,6 +99,11 @@ class poisson {
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
 
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgCntrLft, mgCntrRgt;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgCntrFrn, mgCntrBak;
+
+        blitz::Array<blitz::Array<real, 2>, 1> lFace, rFace, fFace, bFace;
+
         static inline bool isOdd(int x) { return x % 2; };
 
         void setLocalSizeIndex();

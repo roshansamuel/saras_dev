@@ -485,6 +485,14 @@ void multigrid_d3::createMGSubArrays() {
     mgSendFrn.resize(inputParams.vcDepth + 1);        mgSendBak.resize(inputParams.vcDepth + 1);
     mgRecvFrn.resize(inputParams.vcDepth + 1);        mgRecvBak.resize(inputParams.vcDepth + 1);
 
+    mgCntrLft.resize(inputParams.vcDepth + 1);        mgCntrRgt.resize(inputParams.vcDepth + 1);
+    mgCntrFrn.resize(inputParams.vcDepth + 1);        mgCntrBak.resize(inputParams.vcDepth + 1);
+
+    lFace.resize(inputParams.vcDepth + 1);
+    rFace.resize(inputParams.vcDepth + 1);
+    fFace.resize(inputParams.vcDepth + 1);
+    bFace.resize(inputParams.vcDepth + 1);
+
     /***************************************************************************************************
     * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
     * This condition remained as a hidden bug in the code for the long time
@@ -518,6 +526,27 @@ void multigrid_d3::createMGSubArrays() {
         mgRecvFrn(n) = -1, -1, -1;
         mgSendBak(n) = -1, stagCore(n).ubound(1) - 1, -1;
         mgRecvBak(n) = -1, stagCore(n).ubound(1) + 1, -1;
+
+        mgCntrLft(n) =  0, -1, -1;
+        mgCntrFrn(n) = -1,  0, -1;
+        mgCntrRgt(n) = stagCore(n).ubound(0), -1, -1;
+        mgCntrBak(n) = -1, stagCore(n).ubound(1), -1;
+
+        lFace(n).resize(stagFull(n).ubound(1) + 2, stagFull(n).ubound(2) + 2);
+        lFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
+        lFace(n) = 0.0;
+
+        rFace(n).resize(stagFull(n).ubound(1) + 2, stagFull(n).ubound(2) + 2);
+        rFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
+        rFace(n) = 0.0;
+
+        fFace(n).resize(stagFull(n).ubound(0) + 2, stagFull(n).ubound(2) + 2);
+        fFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
+        fFace(n) = 0.0;
+
+        bFace(n).resize(stagFull(n).ubound(0) + 2, stagFull(n).ubound(2) + 2);
+        bFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
+        bFace(n) = 0.0;
     }
 }
 
@@ -674,6 +703,17 @@ void multigrid_d3::imposeBC() {
 void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
+    /*
+    lSndFace(vLevel) = data(vLevel)(0, all, all);
+    rSndFace(vLevel) = data(vLevel)(stagCore(vLevel).ubound(0), all, all);
+    fSndFace(vLevel) = data(vLevel)(all, 0, all);
+    bSndFace(vLevel) = data(vLevel)(all, stagCore(vLevel).ubound(1), all);
+        mgCntrLft(n) =  0, -1, -1;
+        mgCntrFrn(n) = -1,  0, -1;
+        mgCntrRgt(n) = stagCore(n).ubound(0), -1, -1;
+        mgCntrBak(n) = -1, stagCore(n).ubound(1), -1;
+    */
+
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
     MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
@@ -686,6 +726,39 @@ void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     MPI_Send(&(data(vLevel)(mgSendBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
+
+    MPI_Irecv(&(lFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(rFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(&(fFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(&(bFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+
+    MPI_Send(&(data(vLevel)(mgCntrLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgCntrRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgCntrFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgCntrBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
+
+    MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
+
+    blitz::Range subRange;
+    subRange = blitz::Range(1, stagCore(vLevel).ubound(1) - 1);
+    if (mesh.rankData.xRank > 0) {
+        data(vLevel)(0, subRange, all) = (data(vLevel)(0, subRange, all) + lFace(vLevel)(subRange, all))*0.5;
+    }
+    if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
+        data(vLevel)(stagCore(vLevel).ubound(0), subRange, all) = (data(vLevel)(stagCore(vLevel).ubound(0), subRange, all) + rFace(vLevel)(subRange, all))*0.5;
+    }
+
+    subRange = blitz::Range(1, stagCore(vLevel).ubound(0) - 1);
+    if (mesh.rankData.yRank > 0) {
+        data(vLevel)(subRange, 0, all) = (data(vLevel)(subRange, 0, all) + fFace(vLevel)(subRange, all))*0.5;
+    }
+    if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
+        data(vLevel)(subRange, stagCore(vLevel).ubound(1), all) = (data(vLevel)(subRange, stagCore(vLevel).ubound(1), all) + bFace(vLevel)(subRange, all))*0.5;
+    }
+
+    //if (mesh.rankData.xRank > 0 and mesh.rankData.yRank > 0) {
+    //    data(vLevel)(0, 0, all) = (data(vLevel)(0, subRange, all) + lRcvFace(vLevel)(subRange, all))*0.5;
+    //}
 }
 
 
