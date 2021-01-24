@@ -479,19 +479,20 @@ void multigrid_d3::createMGSubArrays() {
 
     xMGArray.resize(inputParams.vcDepth + 1);
     yMGArray.resize(inputParams.vcDepth + 1);
+    zMGArray.resize(inputParams.vcDepth + 1);
 
-    mgSendLft.resize(inputParams.vcDepth + 1);        mgSendRgt.resize(inputParams.vcDepth + 1);
-    mgRecvLft.resize(inputParams.vcDepth + 1);        mgRecvRgt.resize(inputParams.vcDepth + 1);
-    mgSendFrn.resize(inputParams.vcDepth + 1);        mgSendBak.resize(inputParams.vcDepth + 1);
-    mgRecvFrn.resize(inputParams.vcDepth + 1);        mgRecvBak.resize(inputParams.vcDepth + 1);
+    xub.resize(inputParams.vcDepth + 1);
+    yub.resize(inputParams.vcDepth + 1);
 
-    mgCntrLft.resize(inputParams.vcDepth + 1);        mgCntrRgt.resize(inputParams.vcDepth + 1);
-    mgCntrFrn.resize(inputParams.vcDepth + 1);        mgCntrBak.resize(inputParams.vcDepth + 1);
+    lcFace.resize(inputParams.vcDepth + 1);
+    rcFace.resize(inputParams.vcDepth + 1);
+    fcFace.resize(inputParams.vcDepth + 1);
+    bcFace.resize(inputParams.vcDepth + 1);
 
-    lFace.resize(inputParams.vcDepth + 1);
-    rFace.resize(inputParams.vcDepth + 1);
-    fFace.resize(inputParams.vcDepth + 1);
-    bFace.resize(inputParams.vcDepth + 1);
+    lfEdge.resize(inputParams.vcDepth + 1);
+    lbEdge.resize(inputParams.vcDepth + 1);
+    rfEdge.resize(inputParams.vcDepth + 1);
+    rbEdge.resize(inputParams.vcDepth + 1);
 
     /***************************************************************************************************
     * Previously xMGArray and yMGArray were defined only if npX > 1 or npY > 1 respectively.
@@ -503,51 +504,64 @@ void multigrid_d3::createMGSubArrays() {
 
     for(int n=0; n<=inputParams.vcDepth; n++) {
         // CREATE X_MG_ARRAY DATATYPE
-        count = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2);
+        count = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2)*2;
 
         MPI_Type_contiguous(count, MPI_FP_REAL, &xMGArray(n));
         MPI_Type_commit(&xMGArray(n));
 
         // CREATE Y_MG_ARRAY DATATYPE
         count = stagFull(n).ubound(0) + 2;
-        length = stagFull(n).ubound(2) + 2;
-        stride = length*(stagFull(n).ubound(1) + 2);
+        length = (stagFull(n).ubound(2) + 2)*2;
+        stride = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2);
+
+        //if (mesh.rankData.rank == 5) {
+        //    std::cout << count << "\t" << length << "\t" << stride << std::endl;
+        //    std::cout << stagFull(n).lbound() << "\t" << stagFull(n).ubound() << std::endl;
+        //}
 
         MPI_Type_vector(count, length, stride, MPI_FP_REAL, &yMGArray(n));
         MPI_Type_commit(&yMGArray(n));
 
+        // CREATE Z_MG_ARRAY DATATYPE - FOR DATA-TRANFER ACROSS SUB-DOMAIN EDGES
+        count = stagFull(n).ubound(2) + 2;
+
+        MPI_Type_contiguous(count, MPI_FP_REAL, &zMGArray(n));
+        MPI_Type_commit(&zMGArray(n));
+
         // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
-        mgSendLft(n) =  1, -1, -1;
-        mgRecvLft(n) = -1, -1, -1;
-        mgSendRgt(n) = stagCore(n).ubound(0) - 1, -1, -1;
-        mgRecvRgt(n) = stagCore(n).ubound(0) + 1, -1, -1;
+        xub(n) = stagCore(n).ubound(0);
+        yub(n) = stagCore(n).ubound(1);
 
-        mgSendFrn(n) = -1,  1, -1;
-        mgRecvFrn(n) = -1, -1, -1;
-        mgSendBak(n) = -1, stagCore(n).ubound(1) - 1, -1;
-        mgRecvBak(n) = -1, stagCore(n).ubound(1) + 1, -1;
+        lcFace(n).resize(2, stagFull(n).ubound(1) + 2, stagFull(n).ubound(2) + 2);
+        lcFace(n).reindexSelf(blitz::TinyVector<int, 3>(0, -1, -1));
 
-        mgCntrLft(n) =  0, -1, -1;
-        mgCntrFrn(n) = -1,  0, -1;
-        mgCntrRgt(n) = stagCore(n).ubound(0), -1, -1;
-        mgCntrBak(n) = -1, stagCore(n).ubound(1), -1;
+        rcFace(n).resize(2, stagFull(n).ubound(1) + 2, stagFull(n).ubound(2) + 2);
+        rcFace(n).reindexSelf(blitz::TinyVector<int, 3>(0, -1, -1));
 
-        lFace(n).resize(stagFull(n).ubound(1) + 2, stagFull(n).ubound(2) + 2);
-        lFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
-        lFace(n) = 0.0;
+        fcFace(n).resize(stagFull(n).ubound(0) + 2, 2, stagFull(n).ubound(2) + 2);
+        fcFace(n).reindexSelf(blitz::TinyVector<int, 3>(-1, 0, -1));
 
-        rFace(n).resize(stagFull(n).ubound(1) + 2, stagFull(n).ubound(2) + 2);
-        rFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
-        rFace(n) = 0.0;
+        bcFace(n).resize(stagFull(n).ubound(0) + 2, 2, stagFull(n).ubound(2) + 2);
+        bcFace(n).reindexSelf(blitz::TinyVector<int, 3>(-1, 0, -1));
 
-        fFace(n).resize(stagFull(n).ubound(0) + 2, stagFull(n).ubound(2) + 2);
-        fFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
-        fFace(n) = 0.0;
+        lcFace(n) = 0.0; rcFace(n) = 0.0; fcFace(n) = 0.0; bcFace(n) = 0.0;
 
-        bFace(n).resize(stagFull(n).ubound(0) + 2, stagFull(n).ubound(2) + 2);
-        bFace(n).reindexSelf(blitz::TinyVector<int, 2>(-1, -1));
-        bFace(n) = 0.0;
+        lfEdge(n).resize(stagFull(n).ubound(2) + 2);
+        lfEdge(n).reindexSelf(-1);
+
+        lbEdge(n).resize(stagFull(n).ubound(2) + 2);
+        lbEdge(n).reindexSelf(-1);
+
+        rfEdge(n).resize(stagFull(n).ubound(2) + 2);
+        rfEdge(n).reindexSelf(-1);
+
+        rbEdge(n).resize(stagFull(n).ubound(2) + 2);
+        rbEdge(n).reindexSelf(-1);
+
+        lfEdge(n) = 0.0; lbEdge(n) = 0.0; rfEdge(n) = 0.0; rbEdge(n) = 0.0;
     }
+    //MPI_Finalize();
+    //exit(0);
 }
 
 
@@ -703,61 +717,108 @@ void multigrid_d3::imposeBC() {
 void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
-    /*
-    lSndFace(vLevel) = data(vLevel)(0, all, all);
-    rSndFace(vLevel) = data(vLevel)(stagCore(vLevel).ubound(0), all, all);
-    fSndFace(vLevel) = data(vLevel)(all, 0, all);
-    bSndFace(vLevel) = data(vLevel)(all, stagCore(vLevel).ubound(1), all);
-        mgCntrLft(n) =  0, -1, -1;
-        mgCntrFrn(n) = -1,  0, -1;
-        mgCntrRgt(n) = stagCore(n).ubound(0), -1, -1;
-        mgCntrBak(n) = -1, stagCore(n).ubound(1), -1;
-    */
+    //if (vLevel == 3) {
+    //    if (mesh.rankData.rank == 1) {
+    //        for (int i=-1; i<=stagFull(vLevel).ubound(0); i++ ) {
+    //            for (int j=-1; j<=stagFull(vLevel).ubound(0); j++ ) {
+    //                data(vLevel)(i, j, 7) = 12 + 10*i + j;
+    //            }
+    //        }
+    //        std::cout << data(vLevel)(all, all, 7) << std::endl;
+    //    }
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 5) {
+    //        for (int i=-1; i<=stagFull(vLevel).ubound(0); i++ ) {
+    //            for (int j=-1; j<=stagFull(vLevel).ubound(0); j++ ) {
+    //                data(vLevel)(i, j, 7) = 20 + 10*i + j;
+    //            }
+    //        }
+    //        std::cout << data(vLevel)(all, all, 7) << std::endl;
+    //    }
+    //}
 
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
-    MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    MPI_Irecv(&(data(vLevel)(mgRecvFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-    MPI_Irecv(&(data(vLevel)(mgRecvBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+    MPI_Irecv(&(lcFace(vLevel)(0, -1, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(rcFace(vLevel)(0, -1, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(&(fcFace(vLevel)(-1, 0, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(&(bcFace(vLevel)(-1, 0, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
 
-    MPI_Send(&(data(vLevel)(mgSendLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(mgSendRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(mgSendFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(mgSendBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
-
-    MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
-
-    MPI_Irecv(&(lFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&(rFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    MPI_Irecv(&(fFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-    MPI_Irecv(&(bFace(vLevel)(-1, -1)), 1, xMGArray(vLevel), mesh.rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
-
-    MPI_Send(&(data(vLevel)(mgCntrLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(mgCntrRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(mgCntrFrn(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(2), 4, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(mgCntrBak(vLevel))), 1, yMGArray(vLevel), mesh.rankData.nearRanks(3), 3, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(0, -1, -1)),               1, xMGArray(vLevel), mesh.rankData.faceRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(xub(vLevel) - 1, -1, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(1), 1, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(-1, 0, -1)),               1, yMGArray(vLevel), mesh.rankData.faceRanks(2), 4, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(-1, yub(vLevel) - 1, -1)), 1, yMGArray(vLevel), mesh.rankData.faceRanks(3), 3, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 
+    // EVER SINCE THE DEVELOPMENT OF THE SOLVER STARTED IN 2018, THE ABOVE 4 SEND/IRECV CALLS WERE
+    // SUFFICIENT FOR UPDATING THE PADS IN THE POISSON SOLVER. HOWEVER, IN JAN 2021, IT WAS FINALLY
+    // DISCOVERED THAT THESE 4 CALLS WERE *NOT* ENOUGH, AND THAT THE VALUE AT THE SHARED POINTS
+    // BETWEEN MPI SUB-DOMAIN BOUNDARIES NEEDED TO BE AVERAGED FROM BOTH THE SUB-DOMAINS.
+    // THIS BUG MADE ITS APPEARANCE ONLY WHEN SOLVING CONVECTION PROBLEMS ON NON-UNIFORM GRIDS.
+    MPI_Irecv(&(lfEdge(vLevel)(-1)), 1, zMGArray(vLevel), mesh.rankData.edgeRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(lbEdge(vLevel)(-1)), 1, zMGArray(vLevel), mesh.rankData.edgeRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(&(rfEdge(vLevel)(-1)), 1, zMGArray(vLevel), mesh.rankData.edgeRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(&(rbEdge(vLevel)(-1)), 1, zMGArray(vLevel), mesh.rankData.edgeRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+
+    MPI_Send(&(data(vLevel)(0, 0, -1)),                     1, zMGArray(vLevel), mesh.rankData.edgeRanks(0), 4, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(0, yub(vLevel), -1)),           1, zMGArray(vLevel), mesh.rankData.edgeRanks(1), 3, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(xub(vLevel), 0, -1)),           1, zMGArray(vLevel), mesh.rankData.edgeRanks(2), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(xub(vLevel), yub(vLevel), -1)), 1, zMGArray(vLevel), mesh.rankData.edgeRanks(3), 1, MPI_COMM_WORLD);
+
+    MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
+
+    //if (vLevel == 3) {
+    //    if (mesh.rankData.rank == 5) std::cout << fcFace(vLevel)(all, 0, 7) << std::endl;
+    //    if (mesh.rankData.rank == 5) std::cout << fcFace(vLevel)(all, 1, 7) << std::endl;
+    //}
+
+    // COPY DATA INTO THE PAD REGIONS
+    if (mesh.rankData.xRank > 0) data(vLevel)(-1, all, all) = lcFace(vLevel)(0, all, all);
+    if (mesh.rankData.xRank < mesh.rankData.npX - 1) data(vLevel)(xub(vLevel) + 1, all, all) = rcFace(vLevel)(1, all, all);
+    if (mesh.rankData.yRank > 0) data(vLevel)(all, -1, all) = fcFace(vLevel)(all, 0, all);
+    if (mesh.rankData.yRank < mesh.rankData.npY - 1) data(vLevel)(all, yub(vLevel) + 1, all) = bcFace(vLevel)(all, 1, all);
+
+    // AVERAGING OF FACE DATA EXCLUDING EDGES
     blitz::Range subRange;
-    subRange = blitz::Range(1, stagCore(vLevel).ubound(1) - 1);
+    subRange = blitz::Range(1, yub(vLevel) - 1);
     if (mesh.rankData.xRank > 0) {
-        data(vLevel)(0, subRange, all) = (data(vLevel)(0, subRange, all) + lFace(vLevel)(subRange, all))*0.5;
+        data(vLevel)(0, subRange, all) = (data(vLevel)(0, subRange, all) + lcFace(vLevel)(1, subRange, all))*0.5;
     }
     if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
-        data(vLevel)(stagCore(vLevel).ubound(0), subRange, all) = (data(vLevel)(stagCore(vLevel).ubound(0), subRange, all) + rFace(vLevel)(subRange, all))*0.5;
+        data(vLevel)(xub(vLevel), subRange, all) = (data(vLevel)(xub(vLevel), subRange, all) + rcFace(vLevel)(0, subRange, all))*0.5;
     }
 
-    subRange = blitz::Range(1, stagCore(vLevel).ubound(0) - 1);
+    subRange = blitz::Range(1, xub(vLevel) - 1);
     if (mesh.rankData.yRank > 0) {
-        data(vLevel)(subRange, 0, all) = (data(vLevel)(subRange, 0, all) + fFace(vLevel)(subRange, all))*0.5;
+        data(vLevel)(subRange, 0, all) = (data(vLevel)(subRange, 0, all) + fcFace(vLevel)(subRange, 1, all))*0.5;
     }
     if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
-        data(vLevel)(subRange, stagCore(vLevel).ubound(1), all) = (data(vLevel)(subRange, stagCore(vLevel).ubound(1), all) + bFace(vLevel)(subRange, all))*0.5;
+        data(vLevel)(subRange, yub(vLevel), all) = (data(vLevel)(subRange, yub(vLevel), all) + bcFace(vLevel)(subRange, 0, all))*0.5;
     }
 
-    //if (mesh.rankData.xRank > 0 and mesh.rankData.yRank > 0) {
-    //    data(vLevel)(0, 0, all) = (data(vLevel)(0, subRange, all) + lRcvFace(vLevel)(subRange, all))*0.5;
+    // AVERAGING OF EDGE DATA
+    if (mesh.rankData.xRank > 0 and mesh.rankData.yRank > 0) {
+        data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all) + fcFace(vLevel)(0, 1, all) + lfEdge(vLevel)(all))*0.25;
+    }
+
+    if (mesh.rankData.xRank > 0 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
+        data(vLevel)(0, yub(vLevel), all) = (data(vLevel)(0, yub(vLevel), all) + lcFace(vLevel)(1, yub(vLevel), all) + bcFace(vLevel)(0, 0, all) + lbEdge(vLevel)(all))*0.25;
+    }
+
+    if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank > 0) {
+        data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all) + fcFace(vLevel)(xub(vLevel), 1, all) + rfEdge(vLevel)(all))*0.25;
+    }
+
+    if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
+        data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
+    }
+
+    //if (vLevel == 3) {
+    //    //if (mesh.rankData.rank == 3) std::cout << data(vLevel)(all, all, 7) << std::endl;
+    //    //MPI_Barrier(MPI_COMM_WORLD);
+    //    if (mesh.rankData.rank == 5) std::cout << data(vLevel)(all, all, 7) << std::endl;
+    //    MPI_Finalize();
+    //    exit(0);
     //}
 }
 
@@ -817,8 +878,8 @@ real multigrid_d3::testTransfer() {
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int j = 0; j <= yEnd(n); ++j) {
             for (int k = 0; k <= zEnd(n); ++k) {
-                residualData(n)(-1, j, k) = (mesh.rankData.nearRanks(0) + 1)*1000 + (xEnd(n) - 1)*100 + j*10 + k;
-                residualData(n)(xEnd(n) + 1, j, k) = (mesh.rankData.nearRanks(1) + 1)*1000 + 100 + j*10 + k;
+                residualData(n)(-1, j, k) = (mesh.rankData.faceRanks(0) + 1)*1000 + (xEnd(n) - 1)*100 + j*10 + k;
+                residualData(n)(xEnd(n) + 1, j, k) = (mesh.rankData.faceRanks(1) + 1)*1000 + 100 + j*10 + k;
             }
         }
     }
@@ -826,8 +887,8 @@ real multigrid_d3::testTransfer() {
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int i = 0; i <= xEnd(n); ++i) {
             for (int k = 0; k <= zEnd(n); ++k) {
-                residualData(n)(i, -1, k) = (mesh.rankData.nearRanks(2) + 1)*1000 + i*100 + (yEnd(n) - 1)*10 + k;
-                residualData(n)(i, yEnd(n) + 1, k) = (mesh.rankData.nearRanks(3) + 1)*1000 + i*100 + 10 + k;
+                residualData(n)(i, -1, k) = (mesh.rankData.faceRanks(2) + 1)*1000 + i*100 + (yEnd(n) - 1)*10 + k;
+                residualData(n)(i, yEnd(n) + 1, k) = (mesh.rankData.faceRanks(3) + 1)*1000 + i*100 + 10 + k;
             }
         }
     }

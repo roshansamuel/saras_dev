@@ -520,8 +520,8 @@ void poisson::copyStaggrDerivs() {
         sendPoint1 = xixx(n)(stagCore(n).ubound(0) - 1);
 
         // Exchange the pad points across processors
-        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
         // Assign received points to the grid
         xixx(n)(-1) = recvPoint0;
@@ -543,8 +543,8 @@ void poisson::copyStaggrDerivs() {
         sendPoint1 = xix2(n)(stagCore(n).ubound(0) - 1);
 
         // Exchange the pad points across processors
-        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
         // Assign received points to the grid
         xix2(n)(-1) = recvPoint0;
@@ -567,8 +567,8 @@ void poisson::copyStaggrDerivs() {
         sendPoint1 = etyy(n)(stagCore(n).ubound(1) - 1);
 
         // Exchange the pad points across processors
-        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
         // Assign received points to the grid
         etyy(n)(-1) = recvPoint0;
@@ -590,8 +590,8 @@ void poisson::copyStaggrDerivs() {
         sendPoint1 = ety2(n)(stagCore(n).ubound(1) - 1);
 
         // Exchange the pad points across processors
-        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
         // Assign received points to the grid
         ety2(n)(-1) = recvPoint0;
@@ -661,8 +661,8 @@ void poisson::copyStaggrGrids() {
         sendPoint1 = nuX(n)(stagCore(n).ubound(0) - 1);
 
         // Exchange the pad points across processors
-        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(0), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(1), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
         // Assign received points to the grid
         nuX(n)(-1) = recvPoint0;
@@ -684,8 +684,8 @@ void poisson::copyStaggrGrids() {
         sendPoint1 = nuY(n)(stagCore(n).ubound(1) - 1);
 
         // Exchange the pad points across processors
-        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.nearRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.nearRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(2), 1, &recvPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+        MPI_Sendrecv(&sendPoint1, 1, MPI_FP_REAL, mesh.rankData.faceRanks(3), 2, &recvPoint0, 1, MPI_FP_REAL, mesh.rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
         // Assign received points to the grid
         nuY(n)(-1) = recvPoint0;

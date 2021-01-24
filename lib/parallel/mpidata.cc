@@ -221,15 +221,15 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 void mpidata::syncData() {
     recvRequest = MPI_REQUEST_NULL;
 
-    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0, rankData.nearRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1, rankData.nearRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY0, rankData.nearRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY1, rankData.nearRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0, rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1, rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY0, rankData.faceRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY1, rankData.faceRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
 
-    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX0, rankData.nearRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX1, rankData.nearRanks(1), 1, MPI_COMM_WORLD);
-    MPI_Send(dataField.dataFirst(), 1, sendSubarrayY0, rankData.nearRanks(2), 4, MPI_COMM_WORLD);
-    MPI_Send(dataField.dataFirst(), 1, sendSubarrayY1, rankData.nearRanks(3), 3, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX0, rankData.faceRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX1, rankData.faceRanks(1), 1, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayY0, rankData.faceRanks(2), 4, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayY1, rankData.faceRanks(3), 3, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 }

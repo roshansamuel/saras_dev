@@ -92,17 +92,16 @@ class poisson {
 
         blitz::Array<MPI_Datatype, 1> xMGArray;
         blitz::Array<MPI_Datatype, 1> yMGArray;
+        blitz::Array<MPI_Datatype, 1> zMGArray;
 
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendLft, mgSendRgt;
         blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvLft, mgRecvRgt;
 
-        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
-        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
+        // Upper bounds (ub) of the core along X and Y directions at different levels of V-Cycle
+        blitz::Array<int, 1> xub, yub;
 
-        blitz::Array<blitz::TinyVector<int, 3>, 1> mgCntrLft, mgCntrRgt;
-        blitz::Array<blitz::TinyVector<int, 3>, 1> mgCntrFrn, mgCntrBak;
-
-        blitz::Array<blitz::Array<real, 2>, 1> lFace, rFace, fFace, bFace;
+        blitz::Array<blitz::Array<real, 3>, 1> lcFace, rcFace, fcFace, bcFace;
+        blitz::Array<blitz::Array<real, 1>, 1> lfEdge, lbEdge, rfEdge, rbEdge;
 
         static inline bool isOdd(int x) { return x % 2; };
 
