@@ -87,7 +87,7 @@
     # D - Double sided tangent-hyperbolic stretching (finest near both edges and coarsest at the center)
     # Specify the required spacing along X, Y and Z directions by using appropriate letters from above
     # Eg. Uniform spacing in X-direction, double sided tan-hyp stretching along Y and single sided tan-hyp along Z would be "UDS"
-    "Mesh Type": "UUU"
+    "Mesh Type": "DDD"
 
     # Stretching factor to be used for tangent-hyperbolic grids.
     # This option is considered only when tangent-hyperbolic stretching is specified in the Mesh Type
@@ -151,7 +151,7 @@
     "Solution Write Interval": 10.0
 
     # Time interval at which restart file must be written
-    "Restart Write Interval": 50.0
+    "Restart Write Interval": 30.0
 
     # Set below flag to true if data from probes have to be recorded, if true, set appropriate probe time interval
     "Record Probes": false
@@ -174,7 +174,7 @@
     "V-Cycle Count": 7
 
     # Set the flag to true if the solver should solve at coarsest level instead of just smoothing
-    "Solve Coarsest": true
+    "Solve Coarsest": false
     # If the above flag is true, set the tolerance used in iterative method when solving
     "Solve Tolerance": 1.0e-6
 

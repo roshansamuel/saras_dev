@@ -60,12 +60,14 @@ class tseries {
         ~tseries();
 
     private:
+        bool maxSwitch;
+
         int xLow, xTop;
         int yLow, yTop;
         int zLow, zTop;
 
         real totalVol;
-        real meanDivergence;
+        real divValue;
         real totalKineticEnergy, localKineticEnergy;
         real totalThermalEnergy, localThermalEnergy;
         real totalUzT, localUzT, NusseltNo, ReynoldsNo;

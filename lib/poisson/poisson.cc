@@ -97,6 +97,15 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
 
     // RESIZE AND INITIALIZE NECESSARY DATA-STRUCTURES
     initializeArrays();
+
+    // SET allNeumann FLAG APPROPRIATELY
+    allNeumann = false;
+    // CHECK IF ALL WALLS ARE NON-PERIODIC
+    if ((not inputParams.xPer) and (not inputParams.yPer) and (not inputParams.zPer)) {
+        allNeumann = true;
+
+        if (mesh.rankData.rank == 0) std::cout << "Neumann BC on all walls - imposing compatibility condition in multi-grid solver\n" << std::endl;
+    }
 }
 
 
@@ -135,14 +144,17 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
     updatePads(pressureData);
 
 #ifndef TEST_POISSON
-    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    real localMean = blitz::mean(residualData(0)(stagCore(0)));
-    real globalAvg = 0.0;
+    // TO MAKE THE PROBLEM WELL-POSED WHEN USING NEUMANN BC ON ALL SIDES,
+    // SUBTRACT THE MEAN OF THE RHS FROM THE RHS - COMPATIBILITY CONDITION
+    if (allNeumann) {
+        real localMean = blitz::mean(residualData(0)(stagCore(0)));
+        real globalAvg = 0.0;
 
-    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    globalAvg /= mesh.rankData.nProc;
+        MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+        globalAvg /= mesh.rankData.nProc;
 
-    residualData(0) -= globalAvg;
+        residualData(0) -= globalAvg;
+    }
 #endif
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED

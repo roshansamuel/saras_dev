@@ -102,6 +102,7 @@ def loadGhia():
 def loadData(timeVal):
     global Nx, Nz
     global U, W
+    global X, Z
 
     fileName = "output/Soln_{0:09.4f}.h5".format(float(timeVal))
 
@@ -112,11 +113,11 @@ def loadData(timeVal):
         exit()
 
     # Initialize and read staggered grid data
-    U = np.zeros([Nx, Nz])
     U = np.array(f['Vx'])
-
-    W = np.zeros([Nx, Nz])
     W = np.array(f['Vz'])
+
+    X = np.array(f['X'])
+    Z = np.array(f['Z'])
 
 
 def getVorticity():
@@ -138,6 +139,7 @@ def getVorticity():
 
 
 def plotProfile():
+    global X, Z
     global U, W
     global Nx, Nz
     global u_ghia, v_ghia
@@ -151,9 +153,8 @@ def plotProfile():
     fig, axes = plt.subplots(1, 2, figsize=figSize)
 
     uProfile = U[int(Nx/2), :]
-    profAxis = np.linspace(0.0, zLen, Nz)
     axes[0].plot(u_ghia[:,2], u_ghia[:,1], marker='*', markersize=10, linestyle=' ', label='Ghia et al')
-    axes[0].plot(uProfile, profAxis, linewidth=2, label='SARAS')
+    axes[0].plot(uProfile, Z, linewidth=2, label='SARAS')
     axes[0].set_xlim([-0.6, 1.1])
     axes[0].set_xlabel(r"$u_x$", fontsize=25)
     axes[0].set_ylabel(r"$z$", fontsize=25)
@@ -162,9 +163,8 @@ def plotProfile():
     axes[0].set_title(r"$u_x$ at $x=0.5$", fontsize=25)
 
     vProfile = W[:, int(Nz/2)]
-    profAxis = np.linspace(0.0, xLen, Nx)
     axes[1].plot(v_ghia[:,1], v_ghia[:,2], marker='*', markersize=10, linestyle=' ', label='Ghia et al')
-    axes[1].plot(profAxis, vProfile, linewidth=2, label='SARAS')
+    axes[1].plot(X, vProfile, linewidth=2, label='SARAS')
     axes[1].set_ylim([-0.62, 0.42])
     axes[1].set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     axes[1].set_xlabel(r"$x$", fontsize=25)
@@ -184,14 +184,14 @@ def plotProfile():
 
 
 def checkTolerance():
+    global X, Z
     global U, W
     global Nx, Nz
     global u_ghia, v_ghia
 
     uProfile = U[int(Nx/2), :]
-    profAxis = np.linspace(0.0, zLen, Nz)
     intpAxis = u_ghia[:,1]
-    intpData = griddata(profAxis, uProfile, intpAxis)
+    intpData = griddata(Z, uProfile, intpAxis)
 
     avgError = sum(np.absolute(u_ghia[:,2] - intpData))/len(intpData)
     avgValue = sum(np.absolute(u_ghia[:,2]))/len(intpData)
@@ -201,9 +201,8 @@ def checkTolerance():
     print("Average absolute value of deviation = " + str(avgError) + "\n")
 
     vProfile = W[:, int(Nz/2)]
-    profAxis = np.linspace(0.0, xLen, Nx)
     intpAxis = v_ghia[:,1]
-    intpData = griddata(profAxis, vProfile, intpAxis)
+    intpData = griddata(X, vProfile, intpAxis)
 
     avgError = sum(np.absolute(v_ghia[:,2] - intpData))/len(intpData)
     avgValue = sum(np.absolute(v_ghia[:,2]))/len(intpData)

@@ -344,9 +344,6 @@ void multigrid_d2::createMGSubArrays() {
 
     xub.resize(inputParams.vcDepth + 1);
 
-    mgSendLft.resize(inputParams.vcDepth + 1);        mgSendRgt.resize(inputParams.vcDepth + 1);
-    mgRecvLft.resize(inputParams.vcDepth + 1);        mgRecvRgt.resize(inputParams.vcDepth + 1);
-
     lcFace.resize(inputParams.vcDepth + 1);
     rcFace.resize(inputParams.vcDepth + 1);
 
@@ -359,12 +356,6 @@ void multigrid_d2::createMGSubArrays() {
         MPI_Type_vector(count, length, stride, MPI_FP_REAL, &xMGArray(n));
         MPI_Type_commit(&xMGArray(n));
 
-        //if (mesh.rankData.rank == 0) std::cout << length << "\t" << stride << std::endl;
-
-        //count = (stagFull(n).ubound(2) + 2)*2;
-        //MPI_Type_contiguous(count, MPI_FP_REAL, &xMGArray(n));
-        //MPI_Type_commit(&xMGArray(n));
-
         // CREATE Z_MG_ARRAY DATATYPE - FOR RECEIVING SENT DATA
         count = (stagFull(n).ubound(2) + 2)*2;
 
@@ -374,22 +365,14 @@ void multigrid_d2::createMGSubArrays() {
         // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
         xub(n) = stagCore(n).ubound(0);
 
-        // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
-        mgSendLft(n) =  1, 0, -1;
-        mgRecvLft(n) = -1, 0, -1;
-        mgSendRgt(n) = stagCore(n).ubound(0) - 1, 0, -1;
-        mgRecvRgt(n) = stagCore(n).ubound(0) + 1, 0, -1;
-
         lcFace(n).resize(2, 1, stagFull(n).ubound(2) + 2);
         lcFace(n).reindexSelf(blitz::TinyVector<int, 3>(0, 0, -1));
 
-        //if (mesh.rankData.rank == 0) std::cout << lcFace(n).ubound() << std::endl;
-
         rcFace(n).resize(2, 1, stagFull(n).ubound(2) + 2);
         rcFace(n).reindexSelf(blitz::TinyVector<int, 3>(0, 0, -1));
+
+        lcFace(n) = 0.0; rcFace(n) = 0.0;
     }
-    //MPI_Finalize();
-    //exit(0);
 }
 
 
@@ -526,27 +509,6 @@ void multigrid_d2::imposeBC() {
 void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
-    //if (vLevel == 3) {
-    //    if (mesh.rankData.rank == 1) {
-    //        std::cout << data(vLevel).shape() << std::endl;
-    //        for (int i=-1; i<=stagFull(vLevel).ubound(0); i++ ) {
-    //            for (int j=-1; j<=stagFull(vLevel).ubound(2); j++ ) {
-    //                data(vLevel)(i, 0, j) = 25 + 10*i + j;
-    //            }
-    //        }
-    //        std::cout << data(vLevel)(all, 0, all) << std::endl;
-    //    }
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 2) {
-    //        for (int i=-1; i<=stagFull(vLevel).ubound(0); i++ ) {
-    //            for (int j=-1; j<=stagFull(vLevel).ubound(2); j++ ) {
-    //                data(vLevel)(i, 0, j) = 50 + 10*i + j;
-    //            }
-    //        }
-    //        std::cout << data(vLevel)(all, 0, all) << std::endl;
-    //    }
-    //}
-
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
     MPI_Irecv(&(lcFace(vLevel)(0, 0, -1)), 1, zMGArray(vLevel), mesh.rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(&(rcFace(vLevel)(0, 0, -1)), 1, zMGArray(vLevel), mesh.rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
@@ -556,31 +518,27 @@ void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
 
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
 
-    //if (vLevel == 3) {
-    //    if (mesh.rankData.rank == 5) std::cout << fcFace(vLevel)(all, 0, 7) << std::endl;
-    //    if (mesh.rankData.rank == 5) std::cout << fcFace(vLevel)(all, 1, 7) << std::endl;
-    //}
+    if (inputParams.xPer) {
+        // COPY DATA INTO PAD REGIONS
+        data(vLevel)(-1, 0, all) = lcFace(vLevel)(0, 0, all);
+        data(vLevel)(xub(vLevel) + 1, 0, all) = rcFace(vLevel)(1, 0, all);
 
-    // WARNING: THE BELOW LINES OF CODE WORK ONLY FOR NON-PERIODIC PROBLEMS
-    // COPY DATA INTO THE PAD REGIONS
-    if (mesh.rankData.xRank > 0) data(vLevel)(-1, 0, all) = lcFace(vLevel)(0, 0, all);
-    if (mesh.rankData.xRank < mesh.rankData.npX - 1) data(vLevel)(xub(vLevel) + 1, 0, all) = rcFace(vLevel)(1, 0, all);
-
-    // AVERAGING OF FACE DATA
-    if (mesh.rankData.xRank > 0) {
+        // AVERAGE DATA AT THE SHARED POINTS ACROSS SUB-DOMAINS
         data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all))*0.5;
-    }
-    if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
         data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all))*0.5;
-    }
 
-    //if (vLevel == 3) {
-    //    //if (mesh.rankData.rank == 1) std::cout << data(vLevel)(all, 0, all) << std::endl;
-    //    //MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 2) std::cout << lcFace(vLevel)(all, all, all) << std::endl;
-    //    MPI_Finalize();
-    //    exit(0);
-    //}
+    } else {
+        // IF THE DOMAIN IS NOT PERIODIC, THE ABOVE 2 STEPS ARE DONE ONLY
+        // FOR THE INTERIOR SUB-DOMAINS AND NOT AT THE BOUNDARIES
+        if (mesh.rankData.xRank > 0) {
+            data(vLevel)(-1, 0, all) = lcFace(vLevel)(0, 0, all);
+            data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all))*0.5;
+        }
+        if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
+            data(vLevel)(xub(vLevel) + 1, 0, all) = rcFace(vLevel)(1, 0, all);
+            data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all))*0.5;
+        }
+    }
 }
 
 

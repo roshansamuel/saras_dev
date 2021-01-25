@@ -724,11 +724,15 @@ void grid::syncGrid() {
  ********************************************************************************************************************************************
  */
 void grid::checkAnisotropy() {
-    real xyRatio, yzRatio, zxRatio;
-    real xWidth, yWidth, zWidth;
-    real localMax, globalMax;
-    real aRatio, bRatio;
     real cellMaxAR;
+    real xWidth, zWidth;
+    real localMax, globalMax;
+
+#ifndef PLANAR
+    real yWidth;
+    real aRatio, bRatio;
+    real xyRatio, yzRatio, zxRatio;
+#endif
 
     localMax = 0.0;
 #ifdef PLANAR

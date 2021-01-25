@@ -58,6 +58,10 @@ class poisson {
 
         bool zeroBC;
 
+        // THIS FLAG IS SET BY SOLVER WHEN USING NEUMANN BC ON ALL WALLS.
+        // USING THIS, THE MG SOLVER DECIDES ON IMPOSING COMPATIBILITY CONDITION. 
+        bool allNeumann;
+
         const grid &mesh;
         const parser &inputParams;
 
@@ -93,9 +97,6 @@ class poisson {
         blitz::Array<MPI_Datatype, 1> xMGArray;
         blitz::Array<MPI_Datatype, 1> yMGArray;
         blitz::Array<MPI_Datatype, 1> zMGArray;
-
-        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendLft, mgSendRgt;
-        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvLft, mgRecvRgt;
 
         // Upper bounds (ub) of the core along X and Y directions at different levels of V-Cycle
         blitz::Array<int, 1> xub, yub;

@@ -129,6 +129,12 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
             ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, dt\n";
         }
     }
+
+    // This switch decides if mean or maximum of divergence has to be printed.
+    // Ideally maximum has to be tracked, but mean is a less strict metric.
+    // By default, the mean is computed. To enable a stricter check, the below flag
+    // must be turned on.
+    maxSwitch = false;
 }
 
 
@@ -144,9 +150,9 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
  */
 void tseries::writeTSData() {
     V.divergence(divV, P);
-    meanDivergence = divV.fxMean();
+    divValue = maxSwitch? divV.fxMax(): divV.fxMean();
 
-    if (meanDivergence > 1.0e5) {
+    if (divValue > 1.0e5) {
         if (mesh.rankData.rank == 0) std::cout << std::endl << "ERROR: Divergence exceeds permissible limits. ABORTING" << std::endl << std::endl;
         MPI_Finalize();
         exit(0);
@@ -179,12 +185,12 @@ void tseries::writeTSData() {
     if (mesh.rankData.rank == 0) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                    std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
-                                                                            meanDivergence << std::endl;
+                                                                            divValue << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                 std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
                                                                          sqrt(2.0*totalKineticEnergy) << "\t" <<
-                                                                         meanDivergence << "\t" <<
+                                                                         divValue << "\t" <<
                                                                          tStp << std::endl;
     }
 }
@@ -209,9 +215,9 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
 
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     V.divergence(divV, P);
-    meanDivergence = divV.fxMean();
+    divValue = maxSwitch? divV.fxMax(): divV.fxMean();
 
-    if (meanDivergence > 1.0e5) {
+    if (divValue > 1.0e5) {
         if (mesh.rankData.rank == 0) std::cout << std::endl << "ERROR: Divergence exceeds permissible limits. ABORTING" << std::endl << std::endl;
         MPI_Finalize();
         exit(0);
@@ -269,14 +275,14 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
         std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                    std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
                                                                             NusseltNo << "\t" <<
-                                                                            meanDivergence << std::endl;
+                                                                            divValue << std::endl;
 
         ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
                                 std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
                                                                          NusseltNo << "\t" <<
                                                                          totalKineticEnergy << "\t" <<
                                                                          totalThermalEnergy << "\t" <<
-                                                                         meanDivergence << "\t" <<
+                                                                         divValue << "\t" <<
                                                                          tStp << std::endl;
     }
 }

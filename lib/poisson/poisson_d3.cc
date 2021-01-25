@@ -740,46 +740,92 @@ void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 
-    // WARNING: THE BELOW LINES OF CODE WORK ONLY FOR NON-PERIODIC PROBLEMS
-    // COPY DATA INTO THE PAD REGIONS
-    if (mesh.rankData.xRank > 0) data(vLevel)(-1, all, all) = lcFace(vLevel)(0, all, all);
-    if (mesh.rankData.xRank < mesh.rankData.npX - 1) data(vLevel)(xub(vLevel) + 1, all, all) = rcFace(vLevel)(1, all, all);
-    if (mesh.rankData.yRank > 0) data(vLevel)(all, -1, all) = fcFace(vLevel)(all, 0, all);
-    if (mesh.rankData.yRank < mesh.rankData.npY - 1) data(vLevel)(all, yub(vLevel) + 1, all) = bcFace(vLevel)(all, 1, all);
-
-    // AVERAGING OF FACE DATA EXCLUDING EDGES
     blitz::Range subRange;
     subRange = blitz::Range(1, yub(vLevel) - 1);
-    if (mesh.rankData.xRank > 0) {
+    if (inputParams.xPer) {
+        // COPY DATA INTO THE PAD REGIONS
+        data(vLevel)(-1, all, all) = lcFace(vLevel)(0, all, all);
+        data(vLevel)(xub(vLevel) + 1, all, all) = rcFace(vLevel)(1, all, all);
+
+        // AVERAGE DATA AT THE SHARED POINTS ACROSS SUB-DOMAINS, EXCLUDING EDGES
         data(vLevel)(0, subRange, all) = (data(vLevel)(0, subRange, all) + lcFace(vLevel)(1, subRange, all))*0.5;
-    }
-    if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
         data(vLevel)(xub(vLevel), subRange, all) = (data(vLevel)(xub(vLevel), subRange, all) + rcFace(vLevel)(0, subRange, all))*0.5;
+    } else {
+        // IF THE DOMAIN IS NOT PERIODIC, THE ABOVE 2 STEPS ARE DONE ONLY
+        // FOR THE INTERIOR SUB-DOMAINS AND NOT AT THE BOUNDARIES
+        if (mesh.rankData.xRank > 0) {
+            data(vLevel)(-1, all, all) = lcFace(vLevel)(0, all, all);
+            data(vLevel)(0, subRange, all) = (data(vLevel)(0, subRange, all) + lcFace(vLevel)(1, subRange, all))*0.5;
+        }
+        if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
+            data(vLevel)(xub(vLevel) + 1, all, all) = rcFace(vLevel)(1, all, all);
+            data(vLevel)(xub(vLevel), subRange, all) = (data(vLevel)(xub(vLevel), subRange, all) + rcFace(vLevel)(0, subRange, all))*0.5;
+        }
     }
 
     subRange = blitz::Range(1, xub(vLevel) - 1);
-    if (mesh.rankData.yRank > 0) {
+    if (inputParams.yPer) {
+        // COPY DATA INTO THE PAD REGIONS
+        data(vLevel)(all, -1, all) = fcFace(vLevel)(all, 0, all);
+        data(vLevel)(all, yub(vLevel) + 1, all) = bcFace(vLevel)(all, 1, all);
+
+        // AVERAGE DATA AT THE SHARED POINTS ACROSS SUB-DOMAINS, EXCLUDING EDGES
         data(vLevel)(subRange, 0, all) = (data(vLevel)(subRange, 0, all) + fcFace(vLevel)(subRange, 1, all))*0.5;
-    }
-    if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
         data(vLevel)(subRange, yub(vLevel), all) = (data(vLevel)(subRange, yub(vLevel), all) + bcFace(vLevel)(subRange, 0, all))*0.5;
+    } else {
+        // IF THE DOMAIN IS NOT PERIODIC, THE ABOVE 2 STEPS ARE DONE ONLY
+        // FOR THE INTERIOR SUB-DOMAINS AND NOT AT THE BOUNDARIES
+        if (mesh.rankData.yRank > 0) {
+            data(vLevel)(all, -1, all) = fcFace(vLevel)(all, 0, all);
+            data(vLevel)(subRange, 0, all) = (data(vLevel)(subRange, 0, all) + fcFace(vLevel)(subRange, 1, all))*0.5;
+        }
+        if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
+            data(vLevel)(all, yub(vLevel) + 1, all) = bcFace(vLevel)(all, 1, all);
+            data(vLevel)(subRange, yub(vLevel), all) = (data(vLevel)(subRange, yub(vLevel), all) + bcFace(vLevel)(subRange, 0, all))*0.5;
+        }
     }
 
-    // AVERAGING OF EDGE DATA
-    if (mesh.rankData.xRank > 0 and mesh.rankData.yRank > 0) {
-        data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all) + fcFace(vLevel)(0, 1, all) + lfEdge(vLevel)(all))*0.25;
-    }
-
-    if (mesh.rankData.xRank > 0 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
-        data(vLevel)(0, yub(vLevel), all) = (data(vLevel)(0, yub(vLevel), all) + lcFace(vLevel)(1, yub(vLevel), all) + bcFace(vLevel)(0, 0, all) + lbEdge(vLevel)(all))*0.25;
-    }
-
-    if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank > 0) {
-        data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all) + fcFace(vLevel)(xub(vLevel), 1, all) + rfEdge(vLevel)(all))*0.25;
-    }
-
-    if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
-        data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
+    // AVERAGING OF EDGE POINTS REQUIRE A FEW CHECKS ON PERIODICITY ALONG BOTH X AND Y
+    if (inputParams.xPer) {
+        if (inputParams.yPer) {
+            data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all) + fcFace(vLevel)(0, 1, all) + lfEdge(vLevel)(all))*0.25;
+            data(vLevel)(0, yub(vLevel), all) = (data(vLevel)(0, yub(vLevel), all) + lcFace(vLevel)(1, yub(vLevel), all) + bcFace(vLevel)(0, 0, all) + lbEdge(vLevel)(all))*0.25;
+            data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all) + fcFace(vLevel)(xub(vLevel), 1, all) + rfEdge(vLevel)(all))*0.25;
+            data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
+        } else {
+            if (mesh.rankData.yRank > 0) {
+                data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all) + fcFace(vLevel)(0, 1, all) + lfEdge(vLevel)(all))*0.25;
+                data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all) + fcFace(vLevel)(xub(vLevel), 1, all) + rfEdge(vLevel)(all))*0.25;
+            }
+            if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
+                data(vLevel)(0, yub(vLevel), all) = (data(vLevel)(0, yub(vLevel), all) + lcFace(vLevel)(1, yub(vLevel), all) + bcFace(vLevel)(0, 0, all) + lbEdge(vLevel)(all))*0.25;
+                data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
+            }
+        }
+    } else {
+        if (inputParams.yPer) {
+            if (mesh.rankData.xRank > 0) {
+                data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all) + fcFace(vLevel)(0, 1, all) + lfEdge(vLevel)(all))*0.25;
+                data(vLevel)(0, yub(vLevel), all) = (data(vLevel)(0, yub(vLevel), all) + lcFace(vLevel)(1, yub(vLevel), all) + bcFace(vLevel)(0, 0, all) + lbEdge(vLevel)(all))*0.25;
+            }
+            if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
+                data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all) + fcFace(vLevel)(xub(vLevel), 1, all) + rfEdge(vLevel)(all))*0.25;
+                data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
+            }
+        } else {
+            if (mesh.rankData.xRank > 0 and mesh.rankData.yRank > 0) {
+                data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all) + fcFace(vLevel)(0, 1, all) + lfEdge(vLevel)(all))*0.25;
+            }
+            if (mesh.rankData.xRank > 0 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
+                data(vLevel)(0, yub(vLevel), all) = (data(vLevel)(0, yub(vLevel), all) + lcFace(vLevel)(1, yub(vLevel), all) + bcFace(vLevel)(0, 0, all) + lbEdge(vLevel)(all))*0.25;
+            }
+            if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank > 0) {
+                data(vLevel)(xub(vLevel), 0, all) = (data(vLevel)(xub(vLevel), 0, all) + rcFace(vLevel)(0, 0, all) + fcFace(vLevel)(xub(vLevel), 1, all) + rfEdge(vLevel)(all))*0.25;
+            }
+            if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
+                data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
+            }
+        }
     }
 }
 
