@@ -514,11 +514,6 @@ void multigrid_d3::createMGSubArrays() {
         length = (stagFull(n).ubound(2) + 2)*2;
         stride = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2);
 
-        //if (mesh.rankData.rank == 5) {
-        //    std::cout << count << "\t" << length << "\t" << stride << std::endl;
-        //    std::cout << stagFull(n).lbound() << "\t" << stagFull(n).ubound() << std::endl;
-        //}
-
         MPI_Type_vector(count, length, stride, MPI_FP_REAL, &yMGArray(n));
         MPI_Type_commit(&yMGArray(n));
 
@@ -560,8 +555,6 @@ void multigrid_d3::createMGSubArrays() {
 
         lfEdge(n) = 0.0; lbEdge(n) = 0.0; rfEdge(n) = 0.0; rbEdge(n) = 0.0;
     }
-    //MPI_Finalize();
-    //exit(0);
 }
 
 
@@ -717,26 +710,6 @@ void multigrid_d3::imposeBC() {
 void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
-    //if (vLevel == 3) {
-    //    if (mesh.rankData.rank == 1) {
-    //        for (int i=-1; i<=stagFull(vLevel).ubound(0); i++ ) {
-    //            for (int j=-1; j<=stagFull(vLevel).ubound(0); j++ ) {
-    //                data(vLevel)(i, j, 7) = 12 + 10*i + j;
-    //            }
-    //        }
-    //        std::cout << data(vLevel)(all, all, 7) << std::endl;
-    //    }
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 5) {
-    //        for (int i=-1; i<=stagFull(vLevel).ubound(0); i++ ) {
-    //            for (int j=-1; j<=stagFull(vLevel).ubound(0); j++ ) {
-    //                data(vLevel)(i, j, 7) = 20 + 10*i + j;
-    //            }
-    //        }
-    //        std::cout << data(vLevel)(all, all, 7) << std::endl;
-    //    }
-    //}
-
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
     MPI_Irecv(&(lcFace(vLevel)(0, -1, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(&(rcFace(vLevel)(0, -1, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
@@ -767,11 +740,7 @@ void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 
-    //if (vLevel == 3) {
-    //    if (mesh.rankData.rank == 5) std::cout << fcFace(vLevel)(all, 0, 7) << std::endl;
-    //    if (mesh.rankData.rank == 5) std::cout << fcFace(vLevel)(all, 1, 7) << std::endl;
-    //}
-
+    // WARNING: THE BELOW LINES OF CODE WORK ONLY FOR NON-PERIODIC PROBLEMS
     // COPY DATA INTO THE PAD REGIONS
     if (mesh.rankData.xRank > 0) data(vLevel)(-1, all, all) = lcFace(vLevel)(0, all, all);
     if (mesh.rankData.xRank < mesh.rankData.npX - 1) data(vLevel)(xub(vLevel) + 1, all, all) = rcFace(vLevel)(1, all, all);
@@ -812,14 +781,6 @@ void multigrid_d3::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     if (mesh.rankData.xRank < mesh.rankData.npX - 1 and mesh.rankData.yRank < mesh.rankData.npY - 1) {
         data(vLevel)(xub(vLevel), yub(vLevel), all) = (data(vLevel)(xub(vLevel), yub(vLevel), all) + rcFace(vLevel)(0, yub(vLevel), all) + bcFace(vLevel)(xub(vLevel), 0, all) + rbEdge(vLevel)(all))*0.25;
     }
-
-    //if (vLevel == 3) {
-    //    //if (mesh.rankData.rank == 3) std::cout << data(vLevel)(all, all, 7) << std::endl;
-    //    //MPI_Barrier(MPI_COMM_WORLD);
-    //    if (mesh.rankData.rank == 5) std::cout << data(vLevel)(all, all, 7) << std::endl;
-    //    MPI_Finalize();
-    //    exit(0);
-    //}
 }
 
 
