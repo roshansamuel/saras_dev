@@ -346,12 +346,14 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
     zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
 
+    //bool bFlag = false;
+
     for (int iX = xS; iX <= xE; iX++) {
-        real dx = mesh.xColloc(iX - 1) - mesh.xColloc(iX);
+        real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
         for (int iY = yS; iY <= yE; iY++) {
-            real dy = mesh.yColloc(iY - 1) - mesh.yColloc(iY);
+            real dy = mesh.yColloc(iY) - mesh.yColloc(iY - 1);
             for (int iZ = zS; iZ <= zE; iZ++) {
-                real dz = mesh.zColloc(iZ - 1) - mesh.zColloc(iZ);
+                real dz = mesh.zColloc(iZ) - mesh.zColloc(iZ - 1);
 
                 // Specify the values of all the quantities necessary for sgsFlux function to
                 // compute the sub-grid stress correctly. These are all member variables of the les
@@ -361,6 +363,11 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 // 1. Cutoff wavelength
                 del = std::cbrt(dx*dy*dz);
 
+                //if (del < 0.0) {
+                //    std::cout << mesh.rankData.rank << "\t" << iX << "\t" << iY << "\t" << iZ << "\t" << del << "\t" << dx << "\t" << dy << "\t" << dz << std::endl;
+                //    bFlag = true;
+                //    break;
+                //}
                 // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
@@ -401,7 +408,13 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 qZ->F.F(iX, iY, iZ) = sQz;
             }
         }
+        //if (bFlag) {
+        //    MPI_Finalize();
+        //    exit(0);
+        //}
     }
+    //MPI_Finalize();
+    //exit(0);
 
     // Synchronize the sub-grid stress tensor field data across MPI processors
     Txx->syncData();
@@ -437,6 +450,11 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
                 nseRHS.Vx(iX, iY, iZ) += (B1(iX, iY, iZ) + B1(iX + 1, iY, iZ))*0.5;
+
+                //if (std::isnan(nseRHS.Vx(iX, iY, iZ))) {
+                //    std::cout << "Vx\t" << mesh.rankData.rank << "\t" << iX << "\t" << iY << "\t" << iZ << "\t" << nseRHS.Vx(iX, iY, iZ) << std::endl;
+                //    bFlag = true;
+                //}
             }
         }
     }
@@ -449,6 +467,11 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
                 nseRHS.Vy(iX, iY, iZ) += (B2(iX, iY, iZ) + B2(iX, iY + 1, iZ))*0.5;
+
+                //if (std::isnan(nseRHS.Vy(iX, iY, iZ))) {
+                //    std::cout << "Vy\t" << mesh.rankData.rank << "\t" << iX << "\t" << iY << "\t" << iZ << "\t" << nseRHS.Vy(iX, iY, iZ) << std::endl;
+                //    bFlag = true;
+                //}
             }
         }
     }
@@ -461,6 +484,11 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
                 nseRHS.Vz(iX, iY, iZ) += (B3(iX, iY, iZ) + B3(iX, iY, iZ + 1))*0.5;
+
+                //if (std::isnan(nseRHS.Vz(iX, iY, iZ))) {
+                //    std::cout << "Vz\t" << mesh.rankData.rank << "\t" << iX << "\t" << iY << "\t" << iZ << "\t" << nseRHS.Vz(iX, iY, iZ) << std::endl;
+                //    bFlag = true;
+                //}
             }
         }
     }
@@ -484,9 +512,22 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
                 tmpRHS.F(iX, iY, iZ) = (B1(iX, iY, iX) + B2(iX, iY, iX) + B3(iX, iY, iX));
+
+                //if (std::isnan(tmpRHS.F(iX, iY, iZ))) {
+                //    std::cout << "T\t" << mesh.rankData.rank << "\t" << iX << "\t" << iY << "\t" << iZ << "\t" << tmpRHS.F(iX, iY, iZ) << std::endl;
+                //    bFlag = true;
+                //}
             }
         }
     }
+
+    //if (mesh.rankData.rank == 0) 
+    //if (mesh.rankData.rank == 1) std::cout << tmpRHS.F(blitz::Range::all(), 5, 0) << std::endl;
+    //if (mesh.rankData.rank == 1) std::cout << nseRHS.Vx.shape() << std::endl;
+    //if (bFlag) {
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 }
 
 
@@ -558,10 +599,13 @@ void spiral::sgsStress(
                         real d = sqrt(dx2 - dxe * dxe) / del;
                         Qd += sfIntegral(d);
                         sfCount++;
+                        //std::cout << d << "\t" << del << std::endl;
                     }
                 }
             }
         }
+        //MPI_Finalize();
+        //exit(0);
         F2 /= (real) (sfCount);
         Qd /= (real) (sfCount);
     }
@@ -570,6 +614,12 @@ void spiral::sgsStress(
     real kc = M_PI / del;
 
     K = prefac * keIntegral(kc * lv);
+
+    //if (K < 0.0) {
+    //    std::cout << K << "\t" << F2 << "\t" << Qd << std::endl;
+    //    MPI_Finalize();
+    //    exit(0);
+    //}
 
     // T_{ij} = (\delta_{ij} - e_i^v e_j^v) K
     *Txx = (1.0 - e[0] * e[0]) * K;

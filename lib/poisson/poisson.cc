@@ -146,15 +146,15 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 #ifndef TEST_POISSON
     // TO MAKE THE PROBLEM WELL-POSED WHEN USING NEUMANN BC ON ALL SIDES,
     // SUBTRACT THE MEAN OF THE RHS FROM THE RHS - COMPATIBILITY CONDITION
-    if (allNeumann) {
-        real localMean = blitz::mean(residualData(0)(stagCore(0)));
-        real globalAvg = 0.0;
+    //if (allNeumann) {
+    //    real localMean = blitz::mean(residualData(0)(stagCore(0)));
+    //    real globalAvg = 0.0;
 
-        MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-        globalAvg /= mesh.rankData.nProc;
+    //    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+    //    globalAvg /= mesh.rankData.nProc;
 
-        residualData(0) -= globalAvg;
-    }
+    //    residualData(0) -= globalAvg;
+    //}
 #endif
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
