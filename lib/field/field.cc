@@ -95,7 +95,8 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
 
     setInterpolationSlices();
 
-    mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths, xStag, yStag);
+    mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths, xStag, yStag,
+                               gridData.inputParams.xPer, gridData.inputParams.yPer);
 
     F = 0.0;
 }
@@ -200,55 +201,10 @@ void field::setBulkSlice() {
         buBound(2) = gridData.staggrCoreDomain.ubound()(2);
     }
 
-    // Bulk and core slices are differentiated only in the boundary sub-domains,
-    // and that differentiation is imposed in the following lines
-    // At all interior sub-domains after performing MPI domain decomposition,
-    // the bulk and core slices are identical
-
-    // Different ways of defining bulk are clubbed together
-    // The correct method needs to be chosen through Swayamvar
-
-    // Method 1: The method originally present in Saras
-    /*
-    if (xStag and gridData.rankData.xRank == 0) blBound(0) += 1;
-
-    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) buBound(0) -= 1;
-
-    if (yStag and gridData.rankData.yRank == 0) blBound(1) += 1;
-
-    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1) buBound(1) -= 1;
-
-    if (zStag) {
-        blBound(2) += 1;
-        buBound(2) -= 1;
-    }
-    */
-
-    // Method 2: The method implemented after long discussions - shift the entire bulk to one side
-    /*
-    if (xStag and gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
-
-    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1) {
-        gridData.inputParams.xPer? buBound(0) -= 2: buBound(0) -= 1;
-    }
-
-    if (yStag and gridData.rankData.yRank == 0 and not gridData.inputParams.yPer) blBound(1) += 1;
-
-    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1) {
-        gridData.inputParams.yPer? buBound(1) -= 2: buBound(1) -= 1;
-    }
-
-    if (zStag) {
-        if (not gridData.inputParams.zPer) {
-            blBound(2) += 1;
-            buBound(2) -= 1;
-        } else {
-            buBound(2) -= 2;
-        }
-    }
-    */
-
-    // Method 3: Seemingly the oldest version that existed in Aether
+    // Bulk and core slices are different only for the boundary sub-domains.
+    // That difference in limits is imposed in the following lines.
+    // Only in the interior sub-domains, are the bulk and core slices identical.
+    // However, in periodic problems, bulk and core slices are identical for all sub-domains.
     if (xStag and gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
 
     if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and not gridData.inputParams.xPer) buBound(0) -= 1;
