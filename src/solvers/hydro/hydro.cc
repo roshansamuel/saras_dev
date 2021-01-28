@@ -288,14 +288,20 @@ void hydro::initVBCs() {
  ********************************************************************************************************************************************
  */
 void hydro::initPBCs() {
-    // WALL BCS FOR PRESSURE
-    P.tLft = new neumannCC(mesh, P.F, 0, 0.0);
-    P.tRgt = new neumannCC(mesh, P.F, 1, 0.0);
+    if (inputParams.probType == 3) {
+        // INFLOW AND OUTFLOW BCS
+        P.tLft = new nullBC(mesh, P.F, 0);
+        P.tRgt = new neumannCC(mesh, P.F, 1, 0.0);
+    } else {
+        // NO BCS REQUIRED FOR P WHEN V IS SPECIFED
+        P.tLft = new nullBC(mesh, P.F, 0);
+        P.tRgt = new nullBC(mesh, P.F, 1);
+    }
 
 #ifndef PLANAR
-    // WALL BCS FOR PRESSURE
-    P.tFrn = new neumannCC(mesh, P.F, 2, 0.0);
-    P.tBak = new neumannCC(mesh, P.F, 3, 0.0);
+    // NO BCS REQUIRED FOR P WHEN V IS SPECIFED ON NO-SLIP WALLS
+    P.tFrn = new nullBC(mesh, P.F, 2);
+    P.tBak = new nullBC(mesh, P.F, 3);
 #endif
 
     if (inputParams.zPer) {
@@ -303,9 +309,9 @@ void hydro::initPBCs() {
         P.tBot = new periodicCC(mesh, P.F, 4);
         P.tTop = new periodicCC(mesh, P.F, 5);
     } else {
-        // WALL BCS FOR PRESSURE
-        P.tBot = new neumannCC(mesh, P.F, 4, 0.0);
-        P.tTop = new neumannCC(mesh, P.F, 5, 0.0);
+        // NO BCS REQUIRED FOR P WHEN V IS SPECIFED
+        P.tBot = new nullBC(mesh, P.F, 4);
+        P.tTop = new nullBC(mesh, P.F, 5);
     }
 };
 

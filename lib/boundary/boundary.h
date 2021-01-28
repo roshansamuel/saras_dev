@@ -235,4 +235,19 @@ class hotPlateCC: public boundary {
  ********************************************************************************************************************************************
  */
 
+class nullBC: public boundary {
+    public:
+        nullBC(const grid &mesh, field &inField, const int bcWall): boundary(mesh, inField, bcWall) { };
+
+        inline void imposeBC() { };
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class nullBC boundary.h "lib/boundary/boundary.h"
+ *  \brief The derived class from boundary to impose null boundary condition that leaves the data unchanged.
+ *
+ ********************************************************************************************************************************************
+ */
+
 #endif

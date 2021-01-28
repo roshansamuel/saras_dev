@@ -98,7 +98,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
     // RESIZE AND INITIALIZE NECESSARY DATA-STRUCTURES
     initializeArrays();
 
-    /*
     // SET allNeumann FLAG APPROPRIATELY
     allNeumann = false;
     // CHECK IF ALL WALLS ARE NON-PERIODIC
@@ -107,7 +106,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
 
         if (mesh.rankData.rank == 0) std::cout << "Neumann BC on all walls - imposing compatibility condition in multi-grid solver\n" << std::endl;
     }
-    */
 }
 
 
@@ -144,20 +142,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 
     updatePads(residualData);
     updatePads(pressureData);
-
-#ifndef TEST_POISSON
-    // TO MAKE THE PROBLEM WELL-POSED WHEN USING NEUMANN BC ON ALL SIDES,
-    // SUBTRACT THE MEAN OF THE RHS FROM THE RHS - COMPATIBILITY CONDITION
-    //if (allNeumann) {
-    //    real localMean = blitz::mean(residualData(0)(stagCore(0)));
-    //    real globalAvg = 0.0;
-
-    //    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    //    globalAvg /= mesh.rankData.nProc;
-
-    //    residualData(0) -= globalAvg;
-    //}
-#endif
 
     // PERFORM V-CYCLES AS MANY TIMES AS REQUIRED
     for (int i=0; i<inputParams.vcCount; i++) {
@@ -225,18 +209,20 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 #endif
     }
 
-    /*
 #ifndef TEST_POISSON
-    // TO MAKE THE PROBLEM WELL-POSED (WHEN USING NEUMANN BC ONLY), SUBTRACT THE MEAN OF THE RHS FROM THE RHS
-    localMean = blitz::mean(pressureData(0)(stagCore(0)));
-    globalAvg = 0.0;
+    if (allNeumann) {
+        // WHEN USING NEUMANN BC ON ALL SIDES, THERE ARE INFINTELY MANY SOLUTIONS.
+        // SUBTRACT THE MEAN OF THE SOLUTION SO THAT THE PRESSURE CORRECTION HAS ZERO MEAN.
+        // THIS CAN ENSURE THAT THE PRESSURE DOESN'T DRIFT WILDLY AS THE SIMULATION EVOLVES.
+        real localMean = blitz::mean(pressureData(0)(stagCore(0)));
+        real globalAvg = 0.0;
 
-    MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-    globalAvg /= mesh.rankData.nProc;
+        MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
+        globalAvg /= mesh.rankData.nProc;
 
-    pressureData(0) -= globalAvg;
+        pressureData(0) -= globalAvg;
+    }
 #endif
-    */
 
     // RETURN CALCULATED PRESSURE DATA
     inFn.F(stagFull(0)) = pressureData(0)(stagFull(0));

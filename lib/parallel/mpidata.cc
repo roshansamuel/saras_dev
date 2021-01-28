@@ -57,6 +57,8 @@
 mpidata::mpidata(blitz::Array<real, 3> inputArray, const parallel &parallelData): dataField(inputArray), rankData(parallelData) {
     recvStatus.resize(4);
     recvRequest.resize(4);
+
+    all = blitz::Range::all();
 }
 
 /**
@@ -127,10 +129,6 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0);
     MPI_Type_commit(&sendSubarrayX0);
-
-    //if (rankData.rank == 0) std::cout << loclSize << std::endl;
-    //MPI_Finalize();
-    //exit(0);
 
     // RECEIVE SUB-ARRAY ON LEFT SIDE
     // FOR FACE-CENTERED (STAGGERED) DATA, THE RECEIVED DATA IS WRITTEN
@@ -288,15 +286,8 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
  ********************************************************************************************************************************************
  */
 void mpidata::syncData() {
-    blitz::Range all;
-
-    all = blitz::Range::all();
     recvRequest = MPI_REQUEST_NULL;
 
-    //if (xsFlag) {
-    //    if (rankData.rank == 0) std::cout << "0 Before \t" << dataField(blitz::Range(60, blitz::toEnd), 10, 10) << std::endl;
-    //    if (rankData.rank == 1) std::cout << "1 Before \t" << dataField(blitz::Range(blitz::fromStart, 6), 10, 10) << std::endl;
-    //}
     if (xsFlag) {
         MPI_Irecv(recvDataX0.dataFirst(), 1, recvSubarrayX0, rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
         MPI_Irecv(recvDataX1.dataFirst(), 1, recvSubarrayX1, rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
@@ -321,60 +312,30 @@ void mpidata::syncData() {
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 
     if (xsFlag) {
-        //if (rankData.rank == 0) dataField = 0.0;
-        //if (rankData.rank == 0) std::cout << "0\t" << dataField(all, 6, 6) << std::endl;
-        //if (rankData.rank == 1) std::cout << "1\t" << dataField(all, 6, 6) << std::endl;
-
         dataField(padX0) = recvDataX0(blitz::Range(0, pSize(0) - 1), all, all);
         dataField(padX1) = recvDataX1(blitz::Range(1, pSize(0)), all, all);
 
-        //if (rankData.rank == 0) std::cout << pSize(0) << std::endl;
-        //MPI_Finalize();
-        //exit(0);
-
+        // AVERAGING OF DATA FOR SHARED POINTS
         if (xsPer) {
             dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
             dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
         } else {
-            if (rankData.xRank > 0) {
-                dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
-            }
-            if (rankData.xRank < rankData.npX - 1) {
-                dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
-            }
+            if (rankData.xRank > 0) dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
+            if (rankData.xRank < rankData.npX - 1) dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
         }
-
-        //if (rankData.rank == 0) std::cout << padX0.ubound() << padX0.lbound() << std::endl;
-        //if (rankData.rank == 0) std::cout << dataField.ubound() << dataField.lbound() << std::endl;
-        //if (rankData.rank == 0) std::cout << recvDataX0.ubound() << recvDataX0.lbound() << std::endl;
-        //if (rankData.rank == 0) std::cout << recvDataX1.ubound() << recvDataX1.lbound() << std::endl;
-
-        //if (rankData.rank == 0) std::cout << recvDataX0(all, 6, 6) << std::endl;
-        //if (rankData.rank == 0) std::cout << recvDataX1(all, 6, 6) << std::endl;
-        //if (rankData.rank == 0) std::cout << dataField(all, 6, 6) << std::endl;
-        //if (rankData.rank == 2) std::cout << recvDataX1(6, all, 6) << std::endl;
-        //MPI_Finalize();
-        //exit(0);
     }
 
     if (ysFlag) {
         dataField(padY0) = recvDataY0(all, blitz::Range(0, pSize(1) - 1), all);
         dataField(padY1) = recvDataY1(all, blitz::Range(1, pSize(1)), all);
 
+        // AVERAGING OF DATA FOR SHARED POINTS
         if (ysPer) {
             dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
             dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
         } else {
-            if (rankData.yRank > 0) {
-                dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
-            }
-            if (rankData.yRank < rankData.npY - 1) {
-                dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
-            }
+            if (rankData.yRank > 0) dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
+            if (rankData.yRank < rankData.npY - 1) dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
         }
     }
-    //if (xsFlag) {
-    //    if (rankData.rank == 0) std::cout << "0 After \t" << dataField(blitz::Range(60, blitz::toEnd), 10, 10) << std::endl;
-    //    if (rankData.rank == 1) std::cout << "1 After \t" << dataField(blitz::Range(blitz::fromStart, 6), 10, 10) << std::endl;
-    //}
 }

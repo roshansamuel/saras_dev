@@ -60,7 +60,7 @@ class poisson {
 
         // THIS FLAG IS SET BY SOLVER WHEN USING NEUMANN BC ON ALL WALLS.
         // USING THIS, THE MG SOLVER DECIDES ON IMPOSING COMPATIBILITY CONDITION. 
-        //bool allNeumann;
+        bool allNeumann;
 
         const grid &mesh;
         const parser &inputParams;
