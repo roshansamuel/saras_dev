@@ -134,7 +134,7 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
     // Ideally maximum has to be tracked, but mean is a less strict metric.
     // By default, the mean is computed. To enable a stricter check, the below flag
     // must be turned on.
-    maxSwitch = false;
+    maxSwitch = true;
 }
 
 

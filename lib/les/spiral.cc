@@ -216,12 +216,12 @@ void spiral::computeSG(plainvf &nseRHS) {
     }
 
     // Synchronize the sub-grid stress tensor field data across MPI processors
-    Txx->syncData();
-    Tyy->syncData();
-    Tzz->syncData();
-    Txy->syncData();
-    Tyz->syncData();
-    Tzx->syncData();
+    syncSGTerm(Txx);
+    syncSGTerm(Tyy);
+    syncSGTerm(Tzz);
+    syncSGTerm(Txy);
+    syncSGTerm(Tyz);
+    syncSGTerm(Tzx);
 
     // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
@@ -403,60 +403,14 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
         }
     }
 
-    //if (mesh.rankData.rank == 2) std::cout << "2 Before \t" << Txx->F.F(blitz::Range(60, blitz::toEnd), 5, 5) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 Before \t" << Txx->F.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
-
     // Synchronize the sub-grid stress tensor field data across MPI processors
-    Txx->syncData();
-    Tyy->syncData();
-    Tzz->syncData();
-    Txy->syncData();
-    Tyz->syncData();
-    Tzx->syncData();
-
-    // Although the sub-grid stress tensors have been synchronized,
-    // the values at the shared points across MPI sub-domains are undefined.
-    // Set those values using linear interpolation.
-
-    Txx->F.F(Txx->F.shift(0, Txx->F.fWalls(0),  1)) = (Txx->F.F(Txx->F.fWalls(0)) + Txx->F.F(Txx->F.shift(0, Txx->F.fWalls(0),  2)))*0.5;
-    Txx->F.F(Txx->F.shift(0, Txx->F.fWalls(1), -1)) = (Txx->F.F(Txx->F.fWalls(1)) + Txx->F.F(Txx->F.shift(0, Txx->F.fWalls(1), -2)))*0.5;
-    Txx->F.F(Txx->F.shift(1, Txx->F.fWalls(2),  1)) = (Txx->F.F(Txx->F.fWalls(2)) + Txx->F.F(Txx->F.shift(1, Txx->F.fWalls(2),  2)))*0.5;
-    Txx->F.F(Txx->F.shift(1, Txx->F.fWalls(3), -1)) = (Txx->F.F(Txx->F.fWalls(3)) + Txx->F.F(Txx->F.shift(1, Txx->F.fWalls(3), -2)))*0.5;
-
-    Tyy->F.F(Tyy->F.shift(0, Tyy->F.fWalls(0),  1)) = (Tyy->F.F(Tyy->F.fWalls(0)) + Tyy->F.F(Tyy->F.shift(0, Tyy->F.fWalls(0),  2)))*0.5;
-    Tyy->F.F(Tyy->F.shift(0, Tyy->F.fWalls(1), -1)) = (Tyy->F.F(Tyy->F.fWalls(1)) + Tyy->F.F(Tyy->F.shift(0, Tyy->F.fWalls(1), -2)))*0.5;
-    Tyy->F.F(Tyy->F.shift(1, Tyy->F.fWalls(2),  1)) = (Tyy->F.F(Tyy->F.fWalls(2)) + Tyy->F.F(Tyy->F.shift(1, Tyy->F.fWalls(2),  2)))*0.5;
-    Tyy->F.F(Tyy->F.shift(1, Tyy->F.fWalls(3), -1)) = (Tyy->F.F(Tyy->F.fWalls(3)) + Tyy->F.F(Tyy->F.shift(1, Tyy->F.fWalls(3), -2)))*0.5;
-
-    Tzz->F.F(Tzz->F.shift(0, Tzz->F.fWalls(0),  1)) = (Tzz->F.F(Tzz->F.fWalls(0)) + Tzz->F.F(Tzz->F.shift(0, Tzz->F.fWalls(0),  2)))*0.5;
-    Tzz->F.F(Tzz->F.shift(0, Tzz->F.fWalls(1), -1)) = (Tzz->F.F(Tzz->F.fWalls(1)) + Tzz->F.F(Tzz->F.shift(0, Tzz->F.fWalls(1), -2)))*0.5;
-    Tzz->F.F(Tzz->F.shift(1, Tzz->F.fWalls(2),  1)) = (Tzz->F.F(Tzz->F.fWalls(2)) + Tzz->F.F(Tzz->F.shift(1, Tzz->F.fWalls(2),  2)))*0.5;
-    Tzz->F.F(Tzz->F.shift(1, Tzz->F.fWalls(3), -1)) = (Tzz->F.F(Tzz->F.fWalls(3)) + Tzz->F.F(Tzz->F.shift(1, Tzz->F.fWalls(3), -2)))*0.5;
-
-    Txy->F.F(Txy->F.shift(0, Txy->F.fWalls(0),  1)) = (Txy->F.F(Txy->F.fWalls(0)) + Txy->F.F(Txy->F.shift(0, Txy->F.fWalls(0),  2)))*0.5;
-    Txy->F.F(Txy->F.shift(0, Txy->F.fWalls(1), -1)) = (Txy->F.F(Txy->F.fWalls(1)) + Txy->F.F(Txy->F.shift(0, Txy->F.fWalls(1), -2)))*0.5;
-    Txy->F.F(Txy->F.shift(1, Txy->F.fWalls(2),  1)) = (Txy->F.F(Txy->F.fWalls(2)) + Txy->F.F(Txy->F.shift(1, Txy->F.fWalls(2),  2)))*0.5;
-    Txy->F.F(Txy->F.shift(1, Txy->F.fWalls(3), -1)) = (Txy->F.F(Txy->F.fWalls(3)) + Txy->F.F(Txy->F.shift(1, Txy->F.fWalls(3), -2)))*0.5;
-
-    Tyz->F.F(Tyz->F.shift(0, Tyz->F.fWalls(0),  1)) = (Tyz->F.F(Tyz->F.fWalls(0)) + Tyz->F.F(Tyz->F.shift(0, Tyz->F.fWalls(0),  2)))*0.5;
-    Tyz->F.F(Tyz->F.shift(0, Tyz->F.fWalls(1), -1)) = (Tyz->F.F(Tyz->F.fWalls(1)) + Tyz->F.F(Tyz->F.shift(0, Tyz->F.fWalls(1), -2)))*0.5;
-    Tyz->F.F(Tyz->F.shift(1, Tyz->F.fWalls(2),  1)) = (Tyz->F.F(Tyz->F.fWalls(2)) + Tyz->F.F(Tyz->F.shift(1, Tyz->F.fWalls(2),  2)))*0.5;
-    Tyz->F.F(Tyz->F.shift(1, Tyz->F.fWalls(3), -1)) = (Tyz->F.F(Tyz->F.fWalls(3)) + Tyz->F.F(Tyz->F.shift(1, Tyz->F.fWalls(3), -2)))*0.5;
-
-    Tzx->F.F(Tzx->F.shift(0, Tzx->F.fWalls(0),  1)) = (Tzx->F.F(Tzx->F.fWalls(0)) + Tzx->F.F(Tzx->F.shift(0, Tzx->F.fWalls(0),  2)))*0.5;
-    Tzx->F.F(Tzx->F.shift(0, Tzx->F.fWalls(1), -1)) = (Tzx->F.F(Tzx->F.fWalls(1)) + Tzx->F.F(Tzx->F.shift(0, Tzx->F.fWalls(1), -2)))*0.5;
-    Tzx->F.F(Tzx->F.shift(1, Tzx->F.fWalls(2),  1)) = (Tzx->F.F(Tzx->F.fWalls(2)) + Tzx->F.F(Tzx->F.shift(1, Tzx->F.fWalls(2),  2)))*0.5;
-    Tzx->F.F(Tzx->F.shift(1, Tzx->F.fWalls(3), -1)) = (Tzx->F.F(Tzx->F.fWalls(3)) + Tzx->F.F(Tzx->F.shift(1, Tzx->F.fWalls(3), -2)))*0.5;
-
-    //if (mesh.rankData.rank == 3) std::cout << Txx->F.F(Txx->F.shift(0, Txx->F.fWalls(0), 1)) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
-
-    //if (mesh.rankData.rank == 2) std::cout << "2 After \t" << Txx->F.F(blitz::Range(60, blitz::toEnd), 5, 5) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 After \t" << Txx->F.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
-
-    //MPI_Finalize();
-    //exit(0);
+    // and fill in the values at shared points along sub-domain boundaries
+    syncSGTerm(Txx);
+    syncSGTerm(Tyy);
+    syncSGTerm(Tzz);
+    syncSGTerm(Txy);
+    syncSGTerm(Tyz);
+    syncSGTerm(Tzx);
 
     // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
@@ -513,40 +467,34 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     }
 
     // Synchronize the sub-grid scalar flux vector field data across MPI processors
-    qX->syncData();
-    qY->syncData();
-    qZ->syncData();
-
-    qX->F.F(qX->F.shift(0, qX->F.fWalls(0),  1)) = (qX->F.F(qX->F.fWalls(0)) + qX->F.F(qX->F.shift(0, qX->F.fWalls(0),  2)))*0.5;
-    qX->F.F(qX->F.shift(0, qX->F.fWalls(1), -1)) = (qX->F.F(qX->F.fWalls(1)) + qX->F.F(qX->F.shift(0, qX->F.fWalls(1), -2)))*0.5;
-    qX->F.F(qX->F.shift(1, qX->F.fWalls(2),  1)) = (qX->F.F(qX->F.fWalls(2)) + qX->F.F(qX->F.shift(1, qX->F.fWalls(2),  2)))*0.5;
-    qX->F.F(qX->F.shift(1, qX->F.fWalls(3), -1)) = (qX->F.F(qX->F.fWalls(3)) + qX->F.F(qX->F.shift(1, qX->F.fWalls(3), -2)))*0.5;
-
-    qY->F.F(qY->F.shift(0, qY->F.fWalls(0),  1)) = (qY->F.F(qY->F.fWalls(0)) + qY->F.F(qY->F.shift(0, qY->F.fWalls(0),  2)))*0.5;
-    qY->F.F(qY->F.shift(0, qY->F.fWalls(1), -1)) = (qY->F.F(qY->F.fWalls(1)) + qY->F.F(qY->F.shift(0, qY->F.fWalls(1), -2)))*0.5;
-    qY->F.F(qY->F.shift(1, qY->F.fWalls(2),  1)) = (qY->F.F(qY->F.fWalls(2)) + qY->F.F(qY->F.shift(1, qY->F.fWalls(2),  2)))*0.5;
-    qY->F.F(qY->F.shift(1, qY->F.fWalls(3), -1)) = (qY->F.F(qY->F.fWalls(3)) + qY->F.F(qY->F.shift(1, qY->F.fWalls(3), -2)))*0.5;
-
-    qZ->F.F(qZ->F.shift(0, qZ->F.fWalls(0),  1)) = (qZ->F.F(qZ->F.fWalls(0)) + qZ->F.F(qZ->F.shift(0, qZ->F.fWalls(0),  2)))*0.5;
-    qZ->F.F(qZ->F.shift(0, qZ->F.fWalls(1), -1)) = (qZ->F.F(qZ->F.fWalls(1)) + qZ->F.F(qZ->F.shift(0, qZ->F.fWalls(1), -2)))*0.5;
-    qZ->F.F(qZ->F.shift(1, qZ->F.fWalls(2),  1)) = (qZ->F.F(qZ->F.fWalls(2)) + qZ->F.F(qZ->F.shift(1, qZ->F.fWalls(2),  2)))*0.5;
-    qZ->F.F(qZ->F.shift(1, qZ->F.fWalls(3), -1)) = (qZ->F.F(qZ->F.fWalls(3)) + qZ->F.F(qZ->F.shift(1, qZ->F.fWalls(3), -2)))*0.5;
+    // and fill in the values at shared points along sub-domain boundaries
+    syncSGTerm(qX);
+    syncSGTerm(qY);
+    syncSGTerm(qZ);
 
     // Compute the components of the divergence of sub-grid scalar flux vector field
     qX->derS.calcDerivative1_x(B1);
     qY->derS.calcDerivative1_y(B2);
     qZ->derS.calcDerivative1_z(B3);
 
-    //if (mesh.rankData.rank == 2) std::cout << "2 Before \t" << B1(blitz::Range(26, blitz::toEnd), 10, 10) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 Before \t" << B1(blitz::Range(blitz::fromStart, 6), 10, 10) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
+    //if (mesh.rankData.rank == 2) std::cout << "2 Before \t" << tmpRHS.F(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
+    //if (mesh.rankData.rank == 3) std::cout << "3 Before \t" << tmpRHS.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
 
     // Sum the components to get the divergence of scalar flux, and add its contribution
     // to the RHS of the temperature field equation provided as argument to the function
-    xS = T.F.fCore.lbound(0) + 1;       xE = T.F.fCore.ubound(0) - 1;
-    yS = T.F.fCore.lbound(1) + 1;       yE = T.F.fCore.ubound(1) - 1;
-    zS = T.F.fCore.lbound(2) + 1;       zE = T.F.fCore.ubound(2) - 1;
+    xS = T.F.fCore.lbound(0);       xE = T.F.fCore.ubound(0);
+    yS = T.F.fCore.lbound(1);       yE = T.F.fCore.ubound(1);
+    zS = T.F.fCore.lbound(2);       zE = T.F.fCore.ubound(2);
+
+    // Adjust limits for boundaries of the full domain
+    if (mesh.rankData.xRank == 0) xS += 1;
+    if (mesh.rankData.xRank == mesh.rankData.npX - 1) xE -= 1;
+
+    if (mesh.rankData.yRank == 0) yS += 1;
+    if (mesh.rankData.yRank == mesh.rankData.npY - 1) yE -= 1;
+
+    zS += 1;        zE -= 1;
+
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -554,6 +502,9 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
             }
         }
     }
+
+    //if (mesh.rankData.rank == 2) std::cout << "2 After \t" << tmpRHS.F(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
+    //if (mesh.rankData.rank == 3) std::cout << "3 After \t" << tmpRHS.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
 }
 
 
@@ -842,4 +793,68 @@ blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     }
 
     return eigvec;
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to update the pads of given cell-centered scalar field
+ *
+ *          The terms of the SG stress tensor and SG scalar flux vector are treated as instances of
+ *          scalar fields (sfield), which are cell-centered.
+ *          As a result, the arrays have a shared point across MPI sub-domains, which does not
+ *          get updated, since the SG calculations happen in the bulk of the domains.
+ *          This function updates the pad points and appropriately interpolates the values
+ *          at the shared points.
+ *
+ ********************************************************************************************************************************************
+ */
+void spiral::syncSGTerm(sfield *sgTerm) {
+    // First update the ghost points of the SGS term
+    sgTerm->syncData();
+
+    // Now update the values at the shared points through interpolation
+    if (mesh.inputParams.xPer) {
+        // Interpolate data for all sub-domains
+        sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(0)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  2)))*0.5;
+        sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(1)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -2)))*0.5;
+    } else {
+        if (mesh.rankData.xRank > 0) {
+            // Interpolate data only for interior sub-domain boundaries
+            sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(0)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  2)))*0.5;
+        } else {
+            // Extrapolate data at the exterior domain boundary
+            sgTerm->F.F(sgTerm->F.fWalls(0)) = sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  1));
+        }
+
+        if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
+            // Interpolate data only for interior sub-domain boundaries
+            sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(1)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -2)))*0.5;
+        } else {
+            // Extrapolate data at the exterior domain boundary
+            sgTerm->F.F(sgTerm->F.fWalls(1)) = sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -1));
+        }
+    }
+
+    if (mesh.inputParams.yPer) {
+        // Interpolate data for all sub-domains
+        sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(2)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  2)))*0.5;
+        sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(3)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -2)))*0.5;
+    } else {
+        if (mesh.rankData.yRank > 0) {
+            // Interpolate data only for interior sub-domain boundaries
+            sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(2)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  2)))*0.5;
+        } else {
+            // Extrapolate data at the exterior domain boundary
+            sgTerm->F.F(sgTerm->F.fWalls(2)) = sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  1));
+        }
+
+        if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
+            // Interpolate data only for interior sub-domain boundaries
+            sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(3)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -2)))*0.5;
+        } else {
+            // Extrapolate data at the exterior domain boundary
+            sgTerm->F.F(sgTerm->F.fWalls(3)) = sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1));
+        }
+    }
 }

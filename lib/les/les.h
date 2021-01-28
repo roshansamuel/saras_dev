@@ -153,6 +153,8 @@ class spiral: public les {
         real eigenvalueSymm();
 
         blitz::TinyVector<real, 3> eigenvectorSymm(real eigval);
+
+        void syncSGTerm(sfield *sgsTerm);
 };
 
 /**
