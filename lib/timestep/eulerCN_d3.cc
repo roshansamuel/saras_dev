@@ -314,7 +314,7 @@ void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
 
         tempVx(V.Vx.fBulk) = abs(tempVx(V.Vx.fBulk) - nseRHS.Vx(V.Vx.fBulk));
 
-        locMax = blitz::max(tempVx);
+        locMax = blitz::max(tempVx(V.Vx.fBulk));
         MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (gloMax < mesh.inputParams.cnTolerance) {
             break;
@@ -384,7 +384,7 @@ void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
 
         tempVy(V.Vy.fBulk) = abs(tempVy(V.Vy.fBulk) - nseRHS.Vy(V.Vy.fBulk));
 
-        locMax = blitz::max(tempVy);
+        locMax = blitz::max(tempVy(V.Vy.fBulk));
         MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (gloMax < mesh.inputParams.cnTolerance) {
             break;
@@ -454,7 +454,7 @@ void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
 
         tempVz(V.Vz.fBulk) = abs(tempVz(V.Vz.fBulk) - nseRHS.Vz(V.Vz.fBulk));
 
-        locMax = blitz::max(tempVz);
+        locMax = blitz::max(tempVz(V.Vz.fBulk));
         MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (gloMax < mesh.inputParams.cnTolerance) {
             break;

@@ -316,7 +316,6 @@ void mpidata::syncData() {
         dataField(padX1) = recvDataX1(blitz::Range(1, pSize(0)), all, all);
 
         // AVERAGING OF DATA FOR SHARED POINTS
-        /*
         if (xsPer) {
             dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
             dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
@@ -324,7 +323,6 @@ void mpidata::syncData() {
             if (rankData.xRank > 0) dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
             if (rankData.xRank < rankData.npX - 1) dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
         }
-        */
     }
 
     if (ysFlag) {
@@ -332,7 +330,6 @@ void mpidata::syncData() {
         dataField(padY1) = recvDataY1(all, blitz::Range(1, pSize(1)), all);
 
         // AVERAGING OF DATA FOR SHARED POINTS
-        /*
         if (ysPer) {
             dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
             dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
@@ -340,6 +337,5 @@ void mpidata::syncData() {
             if (rankData.yRank > 0) dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
             if (rankData.yRank < rankData.npY - 1) dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
         }
-        */
     }
 }

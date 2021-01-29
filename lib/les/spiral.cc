@@ -498,9 +498,6 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
             }
         }
     }
-
-    //if (mesh.rankData.rank == 2) std::cout << "2 After \t" << tmpRHS.F(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 After \t" << tmpRHS.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
 }
 
 

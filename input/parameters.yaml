@@ -50,7 +50,7 @@
     # Non-dimensional parameters
     "Reynolds Number": 2000
     "Rossby Number": 12
-    "Rayleigh Number": 1.0e8
+    "Rayleigh Number": 1.0e7
     "Prandtl Number": 1.0
     "Taylor Number": 0.0
 
@@ -91,9 +91,9 @@
 
     # Stretching factor to be used for tangent-hyperbolic grids.
     # This option is considered only when tangent-hyperbolic stretching is specified in the Mesh Type
-    "X Beta": 1.4
-    "Y Beta": 1.4
-    "Z Beta": 1.4
+    "X Beta": 1.5
+    "Y Beta": 1.5
+    "Z Beta": 1.5
 
     # Choose the grid sizes (for the staggered grid) as indices from the list below
     # These sizes are set to allow multigrid operations on the staggered grid
@@ -129,17 +129,17 @@
 
     # Set below flag to true if restarting from a solution file
     # If flag is true, solver will read the last written solution file in output directory for restart
-    "Restart Run": true
+    "Restart Run": false
 
     # Set below flag to true for adaptive time-stepping based on Courant number
     "Use CFL Condition": true
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
-    "Time-Step": 0.0005
-    "Final Time": 150.05
+    "Time-Step": 0.005
+    "Final Time": 10.0
 
     # Number of iterations to display output to standard I/O
-    "I/O Count": 1
+    "I/O Count": 20
 
     # Select the format in which solution data must be written at each solution write interval
     # 1 = Write a single HDF5 file inside ./output/, containing all the variables - Vx, Vy, P, etc.
