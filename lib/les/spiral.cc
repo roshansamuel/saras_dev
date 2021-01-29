@@ -168,12 +168,12 @@ void spiral::computeSG(plainvf &nseRHS) {
 
     // Set the array limits when looping over the domain to compute SG contribution.
     // Use only the cell centers like a collocated grid and compute T tensor.
-    // Since interpolated U, V, and W data is available only in the core of the domain,
-    // adjust the loop limits so that the boundary points are excluded
-    // to compute derivatives and structure functions correctly.
-    xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
-    yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
-    zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
+    // Since interpolated U, V, and W data is available only in the core,
+    // the limits of fBulk are used so that the boundary points are excluded
+    // while computing derivatives and structure functions.
+    xS = P.F.fBulk.lbound(0);       xE = P.F.fBulk.ubound(0);
+    yS = P.F.fBulk.lbound(1);       yE = P.F.fBulk.ubound(1);
+    zS = P.F.fBulk.lbound(2);       zE = P.F.fBulk.ubound(2);
 
     for (int iX = xS; iX <= xE; iX++) {
         real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
@@ -220,12 +220,12 @@ void spiral::computeSG(plainvf &nseRHS) {
     }
 
     // Synchronize the sub-grid stress tensor field data across MPI processors
-    syncSGTerm(Txx);
-    syncSGTerm(Tyy);
-    syncSGTerm(Tzz);
-    syncSGTerm(Txy);
-    syncSGTerm(Tyz);
-    syncSGTerm(Tzx);
+    Txx->syncData();
+    Tyy->syncData();
+    Tzz->syncData();
+    Txy->syncData();
+    Tyz->syncData();
+    Tzx->syncData();
 
     // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
@@ -321,9 +321,6 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     }
     Vzcc->F.F /= P.F.VzIntSlices.size();
 
-    //if (mesh.rankData.rank == 2) std::cout << "2 Before \t" << Vxcc->F.F(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 Before \t" << Vxcc->F.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
-
     Vxcc->F.syncData();
     Vycc->F.syncData();
     Vzcc->F.syncData();
@@ -341,9 +338,6 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     Vzcc->derS.calcDerivative1_y(A32);
     Vzcc->derS.calcDerivative1_z(A33);
 
-    //if (mesh.rankData.rank == 2) std::cout << "2 After \t" << A11(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 After \t" << A11(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
-
     // Compute the x, y and z derivatives of the temperature field and store them into
     // the arrays B1, B2, and B3. These arrays will be later accessed when constructing
     // the temperature gradient tensor at each point in the domain.
@@ -354,20 +348,11 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     // Set the array limits when looping over the domain to compute SG contribution.
     // Use only the cell centers like a collocated grid and compute T tensor.
     // Since interpolated U, V, and W data is available only in the core,
-    // Adjust the loop limits so that the boundary points are excluded
+    // the limits of fBulk are used so that the boundary points are excluded
     // to compute derivatives and structure functions correctly.
-    xS = P.F.fCore.lbound(0);       xE = P.F.fCore.ubound(0);
-    yS = P.F.fCore.lbound(1);       yE = P.F.fCore.ubound(1);
-    zS = P.F.fCore.lbound(2);       zE = P.F.fCore.ubound(2);
-
-    // Adjust limits for boundaries of the full domain
-    if (mesh.rankData.xRank == 0) xS += 1;
-    if (mesh.rankData.xRank == mesh.rankData.npX - 1) xE -= 1;
-
-    if (mesh.rankData.yRank == 0) yS += 1;
-    if (mesh.rankData.yRank == mesh.rankData.npY - 1) yE -= 1;
-
-    zS += 1;        zE -= 1;
+    xS = P.F.fBulk.lbound(0);       xE = P.F.fBulk.ubound(0);
+    yS = P.F.fBulk.lbound(1);       yE = P.F.fBulk.ubound(1);
+    zS = P.F.fBulk.lbound(2);       zE = P.F.fBulk.ubound(2);
 
     for (int iX = xS; iX <= xE; iX++) {
         real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
@@ -429,13 +414,12 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     }
 
     // Synchronize the sub-grid stress tensor field data across MPI processors
-    // and fill in the values at shared points along sub-domain boundaries
-    syncSGTerm(Txx);
-    syncSGTerm(Tyy);
-    syncSGTerm(Tzz);
-    syncSGTerm(Txy);
-    syncSGTerm(Tyz);
-    syncSGTerm(Tzx);
+    Txx->syncData();
+    Tyy->syncData();
+    Tzz->syncData();
+    Txy->syncData();
+    Tyz->syncData();
+    Tzx->syncData();
 
     // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
@@ -492,10 +476,9 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     }
 
     // Synchronize the sub-grid scalar flux vector field data across MPI processors
-    // and fill in the values at shared points along sub-domain boundaries
-    syncSGTerm(qX);
-    syncSGTerm(qY);
-    syncSGTerm(qZ);
+    qX->syncData();
+    qY->syncData();
+    qZ->syncData();
 
     // Compute the components of the divergence of sub-grid scalar flux vector field
     qX->derS.calcDerivative1_x(B1);
@@ -504,18 +487,9 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
 
     // Sum the components to get the divergence of scalar flux, and add its contribution
     // to the RHS of the temperature field equation provided as argument to the function
-    xS = T.F.fCore.lbound(0);       xE = T.F.fCore.ubound(0);
-    yS = T.F.fCore.lbound(1);       yE = T.F.fCore.ubound(1);
-    zS = T.F.fCore.lbound(2);       zE = T.F.fCore.ubound(2);
-
-    // Adjust limits for boundaries of the full domain
-    if (mesh.rankData.xRank == 0) xS += 1;
-    if (mesh.rankData.xRank == mesh.rankData.npX - 1) xE -= 1;
-
-    if (mesh.rankData.yRank == 0) yS += 1;
-    if (mesh.rankData.yRank == mesh.rankData.npY - 1) yE -= 1;
-
-    zS += 1;        zE -= 1;
+    xS = T.F.fBulk.lbound(0);       xE = T.F.fBulk.ubound(0);
+    yS = T.F.fBulk.lbound(1);       yE = T.F.fBulk.ubound(1);
+    zS = T.F.fBulk.lbound(2);       zE = T.F.fBulk.ubound(2);
 
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
@@ -777,17 +751,24 @@ real spiral::eigenvalueSymm() {
 blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     blitz::TinyVector<real, 3> eigvec;
 
-    // There are problems with this unscaled check for zero.
-    // A better one would be to check the zero against the det(S), for instance.
-    //if (fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
-    //        + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
-    //        + Szx * (Sxy * Syz - (Syy - eigval) * Szx)) > EPS) {
-    //    if (mesh.rankData.rank == 0) {
-    //        std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;
-    //    }
-    //    MPI_Finalize();
-    //    exit(0);
-    //}
+    /*
+    // Frobenius norm
+    real fNorm = std::sqrt(Sxx*Sxx + Syy*Syy + Szz*Szz +
+                           Sxy*Sxy + Syz*Syz + Szx*Szx);
+
+    // The original unscaled check for zero had problems.
+    // A below version normalized by Frobenius norm was obtained
+    // from the version provided by Wan Cheng at KAUST.
+    if (fabs((Sxx - eigval) * ((Syy - eigval) * (Szz - eigval) - Syz * Syz)
+            + Sxy * (Syz * Szx - Sxy * (Szz - eigval))
+            + Szx * (Sxy * Syz - (Syy - eigval) * Szx))/fabs(fNorm) > EPS) {
+        if (mesh.rankData.rank == 0) {
+            std::cout << "Invalid eigenvalue in Spiral Eigenvector calculation. Aborting" << std::endl;
+        }
+        MPI_Finalize();
+        exit(0);
+    }
+    */
     // The above section had to be commented since the spiral LES solver kept failing with this check
     // for almost every input velocity field given to it.
 
@@ -815,70 +796,4 @@ blitz::TinyVector<real, 3> spiral::eigenvectorSymm(real eigval) {
     }
 
     return eigvec;
-}
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to update the pads of given cell-centered scalar field
- *
- *          The terms of the SG stress tensor and SG scalar flux vector are treated as instances of
- *          scalar fields (sfield), which are cell-centered.
- *          As a result, the arrays have a shared point across MPI sub-domains, which does not
- *          get updated, since the SG calculations happen in the bulk of the domains.
- *          This function updates the pad points and appropriately interpolates the values
- *          at the shared points.
- *
- ********************************************************************************************************************************************
- */
-void spiral::syncSGTerm(sfield *sgTerm) {
-    // First update the ghost points of the SGS term
-    sgTerm->syncData();
-
-    /*
-    // Now update the values at the shared points through interpolation
-    if (mesh.inputParams.xPer) {
-        // Interpolate data for all sub-domains
-        sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(0)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  2)))*0.5;
-        sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(1)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -2)))*0.5;
-    } else {
-        if (mesh.rankData.xRank > 0) {
-            // Interpolate data only for interior sub-domain boundaries
-            sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(0)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  2)))*0.5;
-        } else {
-            // Extrapolate data at the exterior domain boundary
-            sgTerm->F.F(sgTerm->F.fWalls(0)) = sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(0),  1));
-        }
-
-        if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
-            // Interpolate data only for interior sub-domain boundaries
-            sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(1)) + sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -2)))*0.5;
-        } else {
-            // Extrapolate data at the exterior domain boundary
-            sgTerm->F.F(sgTerm->F.fWalls(1)) = sgTerm->F.F(sgTerm->F.shift(0, sgTerm->F.fWalls(1), -1));
-        }
-    }
-
-    if (mesh.inputParams.yPer) {
-        // Interpolate data for all sub-domains
-        sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(2)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  2)))*0.5;
-        sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(3)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -2)))*0.5;
-    } else {
-        if (mesh.rankData.yRank > 0) {
-            // Interpolate data only for interior sub-domain boundaries
-            sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  1)) = (sgTerm->F.F(sgTerm->F.fWalls(2)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  2)))*0.5;
-        } else {
-            // Extrapolate data at the exterior domain boundary
-            sgTerm->F.F(sgTerm->F.fWalls(2)) = sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(2),  1));
-        }
-
-        if (mesh.rankData.yRank < mesh.rankData.npY - 1) {
-            // Interpolate data only for interior sub-domain boundaries
-            sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1)) = (sgTerm->F.F(sgTerm->F.fWalls(3)) + sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -2)))*0.5;
-        } else {
-            // Extrapolate data at the exterior domain boundary
-            sgTerm->F.F(sgTerm->F.fWalls(3)) = sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1));
-        }
-    }
-    */
 }
