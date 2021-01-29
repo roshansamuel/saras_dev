@@ -511,7 +511,7 @@ void eulerCN_d3::solveT(sfield &T, plainsf &tmpRHS) {
 
         tempT(T.F.fBulk) = abs(tempT(T.F.fBulk) - tmpRHS.F(T.F.fBulk));
 
-        locMax = blitz::max(tempT);
+        locMax = blitz::max(tempT(T.F.fBulk));
         MPI_Allreduce(&locMax, &gloMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
         if (gloMax < mesh.inputParams.cnTolerance) {
             break;

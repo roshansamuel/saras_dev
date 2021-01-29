@@ -149,6 +149,10 @@ void spiral::computeSG(plainvf &nseRHS) {
     }
     Vzcc->F.F /= P.F.VzIntSlices.size();
 
+    Vxcc->F.syncData();
+    Vycc->F.syncData();
+    Vzcc->F.syncData();
+
     // Compute the x, y and z derivatives of the interpolated velocity field and store them into
     // the arrays A11, A12, A13, ... A33. These arrays will be later accessed when constructing
     // the velocity gradient tensor at each point in the domain.
@@ -317,6 +321,13 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     }
     Vzcc->F.F /= P.F.VzIntSlices.size();
 
+    //if (mesh.rankData.rank == 2) std::cout << "2 Before \t" << Vxcc->F.F(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
+    //if (mesh.rankData.rank == 3) std::cout << "3 Before \t" << Vxcc->F.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
+
+    Vxcc->F.syncData();
+    Vycc->F.syncData();
+    Vzcc->F.syncData();
+
     // Compute the x, y and z derivatives of the interpolated velocity field and store them into
     // the arrays A11, A12, A13, ... A33. These arrays will be later accessed when constructing
     // the velocity gradient tensor at each point in the domain.
@@ -330,6 +341,9 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     Vzcc->derS.calcDerivative1_y(A32);
     Vzcc->derS.calcDerivative1_z(A33);
 
+    //if (mesh.rankData.rank == 2) std::cout << "2 After \t" << A11(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
+    //if (mesh.rankData.rank == 3) std::cout << "3 After \t" << A11(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
+
     // Compute the x, y and z derivatives of the temperature field and store them into
     // the arrays B1, B2, and B3. These arrays will be later accessed when constructing
     // the temperature gradient tensor at each point in the domain.
@@ -342,9 +356,18 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     // Since interpolated U, V, and W data is available only in the core,
     // Adjust the loop limits so that the boundary points are excluded
     // to compute derivatives and structure functions correctly.
-    xS = P.F.fCore.lbound(0) + 1; xE = P.F.fCore.ubound(0) - 1;
-    yS = P.F.fCore.lbound(1) + 1; yE = P.F.fCore.ubound(1) - 1;
-    zS = P.F.fCore.lbound(2) + 1; zE = P.F.fCore.ubound(2) - 1;
+    xS = P.F.fCore.lbound(0);       xE = P.F.fCore.ubound(0);
+    yS = P.F.fCore.lbound(1);       yE = P.F.fCore.ubound(1);
+    zS = P.F.fCore.lbound(2);       zE = P.F.fCore.ubound(2);
+
+    // Adjust limits for boundaries of the full domain
+    if (mesh.rankData.xRank == 0) xS += 1;
+    if (mesh.rankData.xRank == mesh.rankData.npX - 1) xE -= 1;
+
+    if (mesh.rankData.yRank == 0) yS += 1;
+    if (mesh.rankData.yRank == mesh.rankData.npY - 1) yE -= 1;
+
+    zS += 1;        zE -= 1;
 
     for (int iX = xS; iX <= xE; iX++) {
         real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
@@ -365,6 +388,8 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+
+                //if (mesh.rankData.rank == 0) std::cout << u << v << w << std::endl;
 
                 // 3. The x, y and z coordinates of the 3 x 3 x 3 points over which u, v and w have been specified
                 x = mesh.xStaggr(blitz::Range(iX-1, iX+1));
@@ -477,9 +502,6 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     qY->derS.calcDerivative1_y(B2);
     qZ->derS.calcDerivative1_z(B3);
 
-    //if (mesh.rankData.rank == 2) std::cout << "2 Before \t" << tmpRHS.F(blitz::Range(27, blitz::toEnd), 5, 5) << std::endl;
-    //if (mesh.rankData.rank == 3) std::cout << "3 Before \t" << tmpRHS.F(blitz::Range(blitz::fromStart, 6), 5, 5) << std::endl;
-
     // Sum the components to get the divergence of scalar flux, and add its contribution
     // to the RHS of the temperature field equation provided as argument to the function
     xS = T.F.fCore.lbound(0);       xE = T.F.fCore.ubound(0);
@@ -498,7 +520,7 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
-                tmpRHS.F(iX, iY, iZ) = (B1(iX, iY, iX) + B2(iX, iY, iX) + B3(iX, iY, iX));
+                tmpRHS.F(iX, iY, iZ) += (B1(iX, iY, iX) + B2(iX, iY, iX) + B3(iX, iY, iX));
             }
         }
     }
@@ -813,6 +835,7 @@ void spiral::syncSGTerm(sfield *sgTerm) {
     // First update the ghost points of the SGS term
     sgTerm->syncData();
 
+    /*
     // Now update the values at the shared points through interpolation
     if (mesh.inputParams.xPer) {
         // Interpolate data for all sub-domains
@@ -857,4 +880,5 @@ void spiral::syncSGTerm(sfield *sgTerm) {
             sgTerm->F.F(sgTerm->F.fWalls(3)) = sgTerm->F.F(sgTerm->F.shift(1, sgTerm->F.fWalls(3), -1));
         }
     }
+    */
 }
