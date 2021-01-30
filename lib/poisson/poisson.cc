@@ -98,14 +98,10 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
     // RESIZE AND INITIALIZE NECESSARY DATA-STRUCTURES
     initializeArrays();
 
-    // SET allNeumann FLAG APPROPRIATELY
-    allNeumann = false;
-    // CHECK IF ALL WALLS ARE NON-PERIODIC
-    if ((not inputParams.xPer) and (not inputParams.yPer) and (not inputParams.zPer)) {
-        allNeumann = true;
-
-        if (mesh.rankData.rank == 0) std::cout << "Neumann BC on all walls - imposing compatibility condition in multi-grid solver\n" << std::endl;
-    }
+    // THE allNeumann FLAG IMPOSES AN ADDITIONAL COMPATIBILITY CONDITION
+    // SINCE ALL THE BOUNDARIES ARE ASSUMED TO HAVE NEUMANN BC WHEN 
+    // SOLVING THE PRESSURE CORRECTION EQUATION.
+    allNeumann = true;
 }
 
 

@@ -188,7 +188,7 @@ void spiral::computeSG(plainvf &nseRHS) {
 
                 // The required quantities are:
                 // 1. Cutoff wavelength
-                del = std::cbrt(dx*dy*dz);
+                del = std::pow(dx*dy*dz, 1.0/3.0);
 
                 // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
@@ -367,7 +367,7 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
 
                 // The required quantities are:
                 // 1. Cutoff wavelength
-                del = std::cbrt(dx*dy*dz);
+                del = std::pow(dx*dy*dz, 1.0/3.0);
 
                 // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
