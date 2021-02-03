@@ -238,6 +238,8 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     V.divergence(mgRHS, P);
     mgRHS *= 1.0/dt;
 
+    //if (mesh.rankData.rank == 0) std::cout << "Before\t" << Pp.F(30, 30, 1) << std::endl;
+
     // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
     mgSolver.mgSolve(Pp, mgRHS);
 
@@ -260,6 +262,24 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
 
     // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();
+
+    MPI_Finalize();
+    exit(0);
+
+    /*
+    //bool serialRun = true;
+    bool serialRun = false;
+    if (serialRun) {
+        std::cout << P.F.F(30, 30, 1) << std::endl;
+        //std::cout << mesh.xStaggr(blitz::Range::all()) << std::endl;
+    } else {
+        if (mesh.rankData.rank == 0) std::cout << P.F.F(30, 30, 1) << std::endl;
+        //for (int i=0; i<4; i++) {
+        //    if (mesh.rankData.rank == i) std::cout << i << "\t" << P.F.F(blitz::Range::all(), 3, 1) << mesh.xStaggr(blitz::Range::all()) << std::endl;
+        //    MPI_Barrier(MPI_COMM_WORLD);
+        //}
+    }
+    */
 }
 
 

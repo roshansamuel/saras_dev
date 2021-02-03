@@ -59,9 +59,9 @@ int main() {
     parallel mpi(inputParams);
 
     // WRITE CONTENTS OF THE INPUT YAML FILE TO THE STANDARD I/O
-    if (mpi.rank == 0) {
-        inputParams.writeParams();
-    }
+    //if (mpi.rank == 0) {
+    //    inputParams.writeParams();
+    //}
 
     // INITIALIZE GRID DATA
     grid gridData(inputParams, mpi);

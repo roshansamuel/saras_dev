@@ -56,6 +56,7 @@
 plainvf::plainvf(const grid &gridData, const vfield &refV): gridData(gridData) {
     Vx.resize(refV.Vx.fSize);
     Vx.reindexSelf(refV.Vx.flBound);
+    Vx = 0.0;
 
     mpiVxData = new mpidata(Vx, gridData.rankData);
     mpiVxData->createSubarrays(refV.Vx.fSize, refV.Vx.cuBound + 1, gridData.padWidths, refV.Vx.xStag, refV.Vx.yStag,
@@ -63,6 +64,7 @@ plainvf::plainvf(const grid &gridData, const vfield &refV): gridData(gridData) {
 
     Vy.resize(refV.Vy.fSize);
     Vy.reindexSelf(refV.Vy.flBound);
+    Vx = 0.0;
 
     mpiVyData = new mpidata(Vy, gridData.rankData);
     mpiVyData->createSubarrays(refV.Vy.fSize, refV.Vy.cuBound + 1, gridData.padWidths, refV.Vy.xStag, refV.Vy.yStag,
@@ -70,6 +72,7 @@ plainvf::plainvf(const grid &gridData, const vfield &refV): gridData(gridData) {
 
     Vz.resize(refV.Vz.fSize);
     Vz.reindexSelf(refV.Vz.flBound);
+    Vx = 0.0;
 
     mpiVzData = new mpidata(Vz, gridData.rankData);
     mpiVzData->createSubarrays(refV.Vz.fSize, refV.Vz.cuBound + 1, gridData.padWidths, refV.Vz.xStag, refV.Vz.yStag,

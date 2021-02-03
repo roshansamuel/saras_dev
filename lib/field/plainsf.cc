@@ -60,6 +60,7 @@
 plainsf::plainsf(const grid &gridData, const sfield &refF): gridData(gridData) {
     F.resize(refF.F.fSize);
     F.reindexSelf(refF.F.flBound);
+    F = 0.0;
 
     xColl = blitz::Range(gridData.collocCoreDomain.lbound(0), gridData.collocCoreDomain.ubound(0));
     yColl = blitz::Range(gridData.collocCoreDomain.lbound(1), gridData.collocCoreDomain.ubound(1));
