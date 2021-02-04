@@ -75,6 +75,7 @@ class poisson {
         blitz::Array<blitz::RectDomain<3>, 1> stagFull;
         blitz::Array<blitz::RectDomain<3>, 1> stagCore;
         blitz::Array<int, 1> xEnd, yEnd, zEnd;
+        blitz::RectDomain<3> meanCore;
 
         blitz::Array<int, 1> mgSizeArray;
         blitz::Array<int, 1> strideValues;
@@ -98,8 +99,17 @@ class poisson {
         blitz::Array<MPI_Datatype, 1> yMGArray;
         blitz::Array<MPI_Datatype, 1> zMGArray;
 
-        blitz::Array<blitz::Array<real, 3>, 1> lcFace, rcFace, fcFace, bcFace;
-        blitz::Array<blitz::Array<real, 1>, 1> lfEdge, lbEdge, rfEdge, rbEdge;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendLft, mgSendRgt;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvLft, mgRecvRgt;
+
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendFrn, mgSendBak;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvFrn, mgRecvBak;
+
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendLftFrn, mgSendRgtBak;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvLftFrn, mgRecvRgtBak;
+
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgSendRgtFrn, mgSendLftBak;
+        blitz::Array<blitz::TinyVector<int, 3>, 1> mgRecvRgtFrn, mgRecvLftBak;
 
         static inline bool isOdd(int x) { return x % 2; };
 

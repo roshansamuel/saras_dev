@@ -334,39 +334,27 @@ real multigrid_d2::computeError(const int normOrder) {
 
 
 void multigrid_d2::createMGSubArrays() {
-    int count, length, stride;
+    int count;
 
     recvStatus.resize(2);
     recvRequest.resize(2);
 
     xMGArray.resize(inputParams.vcDepth + 1);
-    zMGArray.resize(inputParams.vcDepth + 1);
-
-    lcFace.resize(inputParams.vcDepth + 1);
-    rcFace.resize(inputParams.vcDepth + 1);
+    mgSendLft.resize(inputParams.vcDepth + 1);        mgSendRgt.resize(inputParams.vcDepth + 1);
+    mgRecvLft.resize(inputParams.vcDepth + 1);        mgRecvRgt.resize(inputParams.vcDepth + 1);
 
     for(int n=0; n<=inputParams.vcDepth; ++n) {
         // CREATE X_MG_ARRAY DATATYPE
-        count = 2;
-        length = stagFull(n).ubound(2) + 2;
-        stride = (stagFull(n).ubound(2) + 2)*(stagFull(n).ubound(1) + 2);
+        count = stagFull(n).ubound(2) + 2;
 
-        MPI_Type_vector(count, length, stride, MPI_FP_REAL, &xMGArray(n));
+        MPI_Type_contiguous(count, MPI_FP_REAL, &xMGArray(n));
         MPI_Type_commit(&xMGArray(n));
 
-        // CREATE Z_MG_ARRAY DATATYPE - FOR RECEIVING SENT DATA
-        count = (stagFull(n).ubound(2) + 2)*2;
-
-        MPI_Type_contiguous(count, MPI_FP_REAL, &zMGArray(n));
-        MPI_Type_commit(&zMGArray(n));
-
-        lcFace(n).resize(2, 1, stagFull(n).ubound(2) + 2);
-        lcFace(n).reindexSelf(blitz::TinyVector<int, 3>(0, 0, -1));
-
-        rcFace(n).resize(2, 1, stagFull(n).ubound(2) + 2);
-        rcFace(n).reindexSelf(blitz::TinyVector<int, 3>(0, 0, -1));
-
-        lcFace(n) = 0.0; rcFace(n) = 0.0;
+        // SET STARTING INDICES OF MEMORY LOCATIONS FROM WHERE TO READ (SEND) AND WRITE (RECEIVE) DATA
+        mgSendLft(n) =  1, 0, -1;
+        mgRecvLft(n) = -1, 0, -1;
+        mgSendRgt(n) = stagCore(n).ubound(0) - 1, 0, -1;
+        mgRecvRgt(n) = stagCore(n).ubound(0) + 1, 0, -1;
     }
 }
 
@@ -505,35 +493,13 @@ void multigrid_d2::updatePads(blitz::Array<blitz::Array<real, 3>, 1> &data) {
     recvRequest = MPI_REQUEST_NULL;
 
     // TRANSFER DATA FROM NEIGHBOURING CELL TO IMPOSE SUB-DOMAIN BOUNDARY CONDITIONS
-    MPI_Irecv(&(lcFace(vLevel)(0, 0, -1)), 1, zMGArray(vLevel), mesh.rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-    MPI_Irecv(&(rcFace(vLevel)(0, 0, -1)), 1, zMGArray(vLevel), mesh.rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(&(data(vLevel)(mgRecvLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(&(data(vLevel)(mgRecvRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
 
-    MPI_Send(&(data(vLevel)(0, 0, -1)),                1, xMGArray(vLevel), mesh.rankData.faceRanks(0), 2, MPI_COMM_WORLD);
-    MPI_Send(&(data(vLevel)(xEnd(vLevel) - 1, 0, -1)), 1, xMGArray(vLevel), mesh.rankData.faceRanks(1), 1, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendLft(vLevel))), 1, xMGArray(vLevel), mesh.rankData.faceRanks(0), 2, MPI_COMM_WORLD);
+    MPI_Send(&(data(vLevel)(mgSendRgt(vLevel))), 1, xMGArray(vLevel), mesh.rankData.faceRanks(1), 1, MPI_COMM_WORLD);
 
     MPI_Waitall(2, recvRequest.dataFirst(), recvStatus.dataFirst());
-
-    if (inputParams.xPer) {
-        // COPY DATA INTO PAD REGIONS
-        data(vLevel)(-1, 0, all) = lcFace(vLevel)(0, 0, all);
-        data(vLevel)(xEnd(vLevel) + 1, 0, all) = rcFace(vLevel)(1, 0, all);
-
-        // AVERAGE DATA AT THE SHARED POINTS ACROSS SUB-DOMAINS
-        data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all))*0.5;
-        data(vLevel)(xEnd(vLevel), 0, all) = (data(vLevel)(xEnd(vLevel), 0, all) + rcFace(vLevel)(0, 0, all))*0.5;
-
-    } else {
-        // IF THE DOMAIN IS NOT PERIODIC, THE ABOVE 2 STEPS ARE DONE ONLY
-        // FOR THE INTERIOR SUB-DOMAINS AND NOT AT THE BOUNDARIES
-        if (mesh.rankData.xRank > 0) {
-            data(vLevel)(-1, 0, all) = lcFace(vLevel)(0, 0, all);
-            data(vLevel)(0, 0, all) = (data(vLevel)(0, 0, all) + lcFace(vLevel)(1, 0, all))*0.5;
-        }
-        if (mesh.rankData.xRank < mesh.rankData.npX - 1) {
-            data(vLevel)(xEnd(vLevel) + 1, 0, all) = rcFace(vLevel)(1, 0, all);
-            data(vLevel)(xEnd(vLevel), 0, all) = (data(vLevel)(xEnd(vLevel), 0, all) + rcFace(vLevel)(0, 0, all))*0.5;
-        }
-    }
 }
 
 

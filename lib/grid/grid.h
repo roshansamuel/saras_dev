@@ -91,6 +91,9 @@ class grid {
         /** A const reference to the global variables stored in the parallel class to access MPI related parameters */
         const parallel &rankData;
 
+        /** Total number of points (cell-centers) in the full global domain */
+        int totalPoints;
+
         /** The sizes of the core of MPI decomposed sub-domains without the pads (collocated points) - localNx, localNy, localNz */
         blitz::TinyVector<int, 3> collocCoreSize;
 

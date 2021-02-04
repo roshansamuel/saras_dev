@@ -238,8 +238,6 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     V.divergence(mgRHS, P);
     mgRHS *= 1.0/dt;
 
-    //if (mesh.rankData.rank == 0) std::cout << "Before\t" << Pp.F(30, 30, 1) << std::endl;
-
     // Using the calculated mgRHS, evaluate pressure correction (Pp) using multi-grid method
     mgSolver.mgSolve(Pp, mgRHS);
 
@@ -263,8 +261,14 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();
 
-    MPI_Finalize();
-    exit(0);
+    if (mesh.rankData.rank == 0) std::cout << "Before\t" << std::fixed << std::setprecision(14) <<  P.F.F(32, 32, 1) << std::endl;
+    if (mesh.rankData.rank == 0) std::cout << "Before\t" << std::fixed << std::setprecision(14) <<  T.F.F(32, 32, 1) << std::endl;
+    if (mesh.rankData.rank == 0) std::cout << "Before\t" << std::fixed << std::setprecision(14) << V.Vx.F(32, 32, 1) << std::endl;
+    if (mesh.rankData.rank == 0) std::cout << "Before\t" << std::fixed << std::setprecision(14) << V.Vy.F(32, 32, 1) << std::endl;
+    if (mesh.rankData.rank == 0) std::cout << "Before\t" << std::fixed << std::setprecision(14) << V.Vz.F(32, 32, 1) << std::endl;
+
+    //MPI_Finalize();
+    //exit(0);
 
     /*
     //bool serialRun = true;

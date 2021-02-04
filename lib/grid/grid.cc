@@ -76,6 +76,11 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
 
     sizeIndex = inputParams.xInd, inputParams.yInd, inputParams.zInd;
     globalSize = sizeArray(sizeIndex(0)), sizeArray(sizeIndex(1)), sizeArray(sizeIndex(2));
+#ifdef PLANAR
+    totalPoints = globalSize(0)*globalSize(2);
+#else
+    totalPoints = globalSize(0)*globalSize(1)*globalSize(2);
+#endif
 
     xLen = inputParams.Lx;
     yLen = inputParams.Ly;
