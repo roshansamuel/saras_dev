@@ -75,10 +75,6 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
 
     mgSizeArray(0) = 1;
 
-    //std::cout << mgSizeArray << mesh.sizeArray << std::endl;
-    //MPI_Finalize();
-    //exit(0);
-
     strideValues.resize(inputParams.vcDepth + 1);
     for (int i=0; i<=inputParams.vcDepth; i++) {
         strideValues(i) = int(pow(2, i));
@@ -209,12 +205,6 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
 #endif
     }
 
-    //if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel).shape() << pressureData(vLevel).ubound() << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::setprecision(16) << pressureData(0)(blitz::Range(30, 33), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
-
-    //if (mesh.rankData.rank == 0) std::cout << std::setprecision(16) << pressureData(0)(blitz::Range(31, 34), blitz::Range(31, 34), blitz::Range(125, 128)) << std::endl;
-    //if (mesh.rankData.rank == 5) std::cout << std::fixed << std::setprecision(16) << pressureData(0)(blitz::Range(-1, 2), blitz::Range(-1, 2), blitz::Range(125, 128)) << std::endl;
-
 #ifndef TEST_POISSON
     if (allNeumann) {
         // WHEN USING NEUMANN BC ON ALL SIDES, THERE ARE INFINTELY MANY SOLUTIONS.
@@ -224,60 +214,10 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         real globalAvg = 0.0;
 
         MPI_Allreduce(&localMean, &globalAvg, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
-        //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(16) << globalAvg << std::endl;
-        
-        // Commented for debugging. Uncomment later
-        //globalAvg /= mesh.totalPoints;
-
-        //std::cout << mesh.globalSize << std::endl;
-
-        //blitz::RectDomain<3> trDom = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), blitz::TinyVector<int, 3>(31, 31, 128));
-        //if (mesh.rankData.rank == 0) std::cout << blitz::mean(pressureData(0)(trDom)) << std::endl;
-        //blitz::RectDomain<3> trDom = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(4, 4, 4), blitz::TinyVector<int, 3>(6, 6, 6));
-        //std::cout << pressureData(0)(trDom) << blitz::mean(pressureData(0)(trDom)) << std::endl;
-
-        /*
-        for (int i=0; i<16; i++) {
-            if (mesh.rankData.rank == i) std::cout << mesh.rankData.rank << "\t" << std::fixed << std::setprecision(16) << blitz::sum(pressureData(0)(meanCore)) << std::endl;
-            MPI_Barrier(MPI_COMM_WORLD);
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-        if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(16) << globalAvg << std::endl;
-        */
-
-        //===================
-
-
-        /*
-        blitz::Array<blitz::RectDomain<3>, 1> srChunk;
-        srChunk.resize(16);
-    for (int j=0; j<4; j++) {
-        for (int i=0; i<4; i++) {
-            int xe = i < 3? 31: 32;
-            int ye = j < 3? 31: 32;
-            srChunk(4*j + i) = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(i*32, j*32, 0), blitz::TinyVector<int, 3>(i*32 + xe, j*32 + ye, 128));
-        }
-    }
-    real sumMean = 0.0;
-    for (int i=0; i<16; i++) {
-        real meanVal = blitz::sum(pressureData(0)(srChunk(i)));
-        std::cout << i << "\t" << std::fixed << std::setprecision(16) << meanVal << std::endl;
-        //std::cout << i << "\t" << srChunk(i).ubound() << "\t" << srChunk(i).lbound() << "\t" << blitz::mean(pressureData(0)(srChunk(i))) << std::endl;
-        sumMean += meanVal;
-    }
-    //for (int i=0; i<16; i++) pressureData(0)(srChunk(i)) -= pressureData(0)(srChunk(i));
-    //std::cout << std::fixed << std::setprecision(16) << blitz::max(pressureData(0)(meanCore)) << std::endl;
-        std::cout << std::fixed << std::setprecision(16) << sumMean << std::endl;
-        */
-
-        //===================
 
         pressureData(0) -= globalAvg;
     }
 #endif
-    //if (mesh.rankData.rank == 0) std::cout << vLevel << "\t" << std::setprecision(16) << pressureData(vLevel)(blitz::Range(30, 33), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
 
     // RETURN CALCULATED PRESSURE DATA
     inFn.F(stagFull(0)) = pressureData(0)(stagFull(0));
@@ -321,8 +261,6 @@ void poisson::vCycle() {
 
     // From now on, homogeneous Dirichlet BCs are used till end of V-Cycle
     zeroBC = true;
-
-    //if (mesh.rankData.rank == 0) std::cout << "Before\t" << pressureData(0)(1, 1, 1) << std::endl;
 
     // RESTRICTION OPERATIONS DOWN TO COARSEST MESH
     for (int i=0; i<inputParams.vcDepth; i++) {
@@ -455,8 +393,8 @@ void poisson::setStagBounds() {
     MPI_Allreduce(&locPoints, &pointCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     // SET THE VIEW OF THE ARRAYS SUCH THAT COMMON POINTS AT SUB-DOMAIN BOUNDARIES
-    // ARE COUNTED ONLY IN ONE DOMAIN - THIS IS USED WHEN COMPUTING MEAN SO THAT
-    // POINTS ARE NOT DOUBLE-COUNTED
+    // ARE COUNTED ONLY IN ONE DOMAIN - THIS IS USED WHEN COMPUTING MEAN FOR THE
+    // COMPATIBILITY CONDITION, SO THAT POINTS ARE NOT DOUBLE-COUNTED
     int mcUBx = xEnd(0);
     int mcUBy = yEnd(0);
     if (mesh.rankData.xRank < mesh.rankData.npX - 1) --mcUBx;
@@ -465,13 +403,6 @@ void poisson::setStagBounds() {
     loBound = 0, 0, 0;
     upBound = mcUBx, mcUBy, zEnd(0);
     meanCore = blitz::RectDomain<3>(loBound, upBound);
-
-    //for (int i=0; i<mesh.rankData.nProc; i++) {
-    //    if (mesh.rankData.rank == i) std::cout << i << "\t" << mesh.rankData.xRank << "\t" << mesh.rankData.yRank << "\t" << xEnd(0) << "\t" << yEnd(0) << "\t" << mcUBx << "\t" << mcUBy << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //}
-    //MPI_Finalize();
-    //exit(0);
 };
 
 

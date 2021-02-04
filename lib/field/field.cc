@@ -95,8 +95,7 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
 
     setInterpolationSlices();
 
-    mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths, xStag, yStag,
-                               gridData.inputParams.xPer, gridData.inputParams.yPer);
+    mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths, xStag, yStag);
 
     F = 0.0;
 }

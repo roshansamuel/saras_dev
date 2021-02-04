@@ -89,17 +89,13 @@ void multigrid_d3::computeResidual() {
         }
     }
 
-    //if (mesh.rankData.rank == 0) std::cout << tmpDataArray(vLevel).ubound() << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << vLevel << "\t" << std::setprecision(16) << tmpDataArray(vLevel)(blitz::Range(30, 33), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
     updatePads(tmpDataArray);
-    //if (mesh.rankData.rank == 0) std::cout << vLevel << "\t" << std::setprecision(16) << tmpDataArray(vLevel)(blitz::Range(30, 33), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
 }
 
 
 void multigrid_d3::smooth(const int smoothCount) {
     tmpDataArray(vLevel) = 0.0;
 
-    //if (vLevel == 1) if (mesh.rankData.rank == 0) std::cout << residualData(vLevel)(blitz::Range(14, 16), blitz::Range(14, 16), blitz::Range(14, 16)) << std::endl;
     for(int n=0; n<smoothCount; ++n) {
         imposeBC();
 
@@ -144,7 +140,6 @@ void multigrid_d3::smooth(const int smoothCount) {
     }
 
     imposeBC();
-    //if (vLevel == 1) if (mesh.rankData.rank == 0) std::cout << pressureData(vLevel)(blitz::Range(14, 16), blitz::Range(14, 16), blitz::Range(14, 16)) << std::endl;
 }
 
 
@@ -536,7 +531,7 @@ void multigrid_d3::createMGSubArrays() {
         mgSendBak(n) = -1, stagCore(n).ubound(1) - 1, -1;
         mgRecvBak(n) = -1, stagCore(n).ubound(1) + 1, -1;
 
-        mgSendLftFrn(n) =  1, 1, -1;
+        mgSendLftFrn(n) =  1,  1, -1;
         mgRecvLftFrn(n) = -1, -1, -1;
         mgSendRgtBak(n) = stagCore(n).ubound(0) - 1, stagCore(n).ubound(1) - 1, -1;
         mgRecvRgtBak(n) = stagCore(n).ubound(0) + 1, stagCore(n).ubound(1) + 1, -1;

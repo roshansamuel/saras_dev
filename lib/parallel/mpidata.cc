@@ -57,8 +57,6 @@
 mpidata::mpidata(blitz::Array<real, 3> inputArray, const parallel &parallelData): dataField(inputArray), rankData(parallelData) {
     recvStatus.resize(4);
     recvRequest.resize(4);
-
-    all = blitz::Range::all();
 }
 
 /**
@@ -84,10 +82,7 @@ mpidata::mpidata(blitz::Array<real, 3> inputArray, const parallel &parallelData)
 void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
                               const blitz::TinyVector<int, 3> coreSize,
                               const blitz::TinyVector<int, 3> padWidth,
-                              const bool xStag, const bool yStag,
-                              const bool xPer, const bool yPer) {
-    int count;
-
+                              const bool xStag, const bool yStag) {
     /** The <B>loclSize</B> variable holds the local size of the sub-array slice to be sent/received within the sub-domain. */
     blitz::TinyVector<int, 3> loclSize;
 
@@ -97,15 +92,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     /** The <B>globCopy</B> variable holds a copy of the global size of the sub-domain. This keeps the original array safe*/
     blitz::TinyVector<int, 3> globCopy;
 
-    cSize = coreSize;
-    pSize = padWidth;
     globCopy = globSize;
-
-    xsFlag = xStag;
-    ysFlag = yStag;
-
-    xsPer = xPer;
-    ysPer = yPer;
 
     // CREATING SUBARRAYS FOR TRANSFER ACROSS THE 4 FACES OF EACH SUB-DOMAIN
 
@@ -120,75 +107,40 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     saStarts = padWidth;
     loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES.
-    // THE DATA ON THIS POINT IS AVERAGED FROM THE VALUES IN BOTH SUB-DOMAINS.
-    // HENCE, THE SHARED POINT AND ONE INTERIOR POINT ARE SENT.
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     if (xStag) {
-        loclSize(0) += 1;
+        saStarts(0) += 1;
     }
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0);
     MPI_Type_commit(&sendSubarrayX0);
 
     // RECEIVE SUB-ARRAY ON LEFT SIDE
-    // FOR FACE-CENTERED (STAGGERED) DATA, THE RECEIVED DATA IS WRITTEN
-    // INTO A TEMPORARY ARRAY, AND HENCE USES A DIFFERENT MPI DATATYPE
-    if (xStag) {
-        count = loclSize(0)*loclSize(1)*loclSize(2);
+    saStarts = padWidth;            saStarts(0) = 0;
+    loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-        MPI_Type_contiguous(count, MPI_FP_REAL, &recvSubarrayX0);
-
-        recvDataX0.resize(loclSize);
-
-        padX0 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(-pSize(0), 0, 0),
-                                     blitz::TinyVector<int, 3>(-1, cSize(1) - 1, cSize(2) - 1));
-        wallX0 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0),
-                                      blitz::TinyVector<int, 3>(0, cSize(1) - 1, cSize(2) - 1));
-    } else {
-        saStarts = padWidth;            saStarts(0) = 0;
-        loclSize = coreSize;            loclSize(0) = padWidth(0);
-
-        MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX0);
-    }
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX0);
     MPI_Type_commit(&recvSubarrayX0);
-
 
     // SEND SUB-ARRAY ON RIGHT SIDE
     saStarts = padWidth;            saStarts(0) = coreSize(0);
     loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES.
-    // THE DATA ON THIS POINT IS AVERAGED FROM THE VALUES IN BOTH SUB-DOMAINS.
-    // HENCE, THE SHARED POINT AND ONE INTERIOR POINT ARE SENT.
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     if (xStag) {
         saStarts(0) -= 1;
-        loclSize(0) += 1;
     }
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1);
     MPI_Type_commit(&sendSubarrayX1);
 
     // RECEIVE SUB-ARRAY ON RIGHT SIDE
-    // FOR FACE-CENTERED (STAGGERED) DATA, THE RECEIVED DATA IS WRITTEN
-    // INTO A TEMPORARY ARRAY, AND HENCE USES A DIFFERENT MPI DATATYPE
-    if (xStag) {
-        count = loclSize(0)*loclSize(1)*loclSize(2);
+    saStarts = padWidth;            saStarts(0) = coreSize(0) + padWidth(0);
+    loclSize = coreSize;            loclSize(0) = padWidth(0);
 
-        MPI_Type_contiguous(count, MPI_FP_REAL, &recvSubarrayX1);
-
-        recvDataX1.resize(loclSize);
-
-        padX1 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(cSize(0), 0, 0),
-                                     blitz::TinyVector<int, 3>(cSize(0) + pSize(0) - 1, cSize(1) - 1, cSize(2) - 1));
-
-        wallX1 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(cSize(0) - 1, 0, 0),
-                                      blitz::TinyVector<int, 3>(cSize(0) - 1, cSize(1) - 1, cSize(2) - 1));
-    } else {
-        saStarts = padWidth;            saStarts(0) = coreSize(0) + padWidth(0);
-        loclSize = coreSize;            loclSize(0) = padWidth(0);
-
-        MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX1);
-    }
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX1);
     MPI_Type_commit(&recvSubarrayX1);
 
 
@@ -197,76 +149,40 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     saStarts = padWidth;
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES.
-    // THE DATA ON THIS POINT IS AVERAGED FROM THE VALUES IN BOTH SUB-DOMAINS.
-    // HENCE, THE SHARED POINT AND ONE INTERIOR POINT ARE SENT.
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     if (yStag) {
-        loclSize(1) += 1;
+        saStarts(1) += 1;
     }
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY0);
     MPI_Type_commit(&sendSubarrayY0);
 
     // RECEIVE SUB-ARRAY ON FRONT SIDE
-    // FOR FACE-CENTERED (STAGGERED) DATA, THE RECEIVED DATA IS WRITTEN
-    // INTO A TEMPORARY ARRAY, AND HENCE USES A DIFFERENT MPI DATATYPE
-    if (yStag) {
-        count = loclSize(0)*loclSize(1)*loclSize(2);
+    saStarts = padWidth;            saStarts(1) = 0;
+    loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-        MPI_Type_contiguous(count, MPI_FP_REAL, &recvSubarrayY0);
-
-        recvDataY0.resize(loclSize);
-
-        padY0 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, -pSize(1), 0),
-                                     blitz::TinyVector<int, 3>(cSize(0) - 1, -1, cSize(2) - 1));
-
-        wallY0 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0),
-                                      blitz::TinyVector<int, 3>(cSize(0) - 1, 0, cSize(2) - 1));
-    } else {
-        saStarts = padWidth;            saStarts(1) = 0;
-        loclSize = coreSize;            loclSize(1) = padWidth(1);
-
-        MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY0);
-    }
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY0);
     MPI_Type_commit(&recvSubarrayY0);
-
 
     // SEND SUB-ARRAY ON REAR SIDE
     saStarts = padWidth;            saStarts(1) = coreSize(1);
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES.
-    // THE DATA ON THIS POINT IS AVERAGED FROM THE VALUES IN BOTH SUB-DOMAINS.
-    // HENCE, THE SHARED POINT AND ONE INTERIOR POINT ARE SENT.
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     if (yStag) {
         saStarts(1) -= 1;
-        loclSize(1) += 1;
     }
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY1);
     MPI_Type_commit(&sendSubarrayY1);
 
     // RECEIVE SUB-ARRAY ON REAR SIDE
-    // FOR FACE-CENTERED (STAGGERED) DATA, THE RECEIVED DATA IS WRITTEN
-    // INTO A TEMPORARY ARRAY, AND HENCE USES A DIFFERENT MPI DATATYPE
-    if (yStag) {
-        count = loclSize(0)*loclSize(1)*loclSize(2);
+    saStarts = padWidth;            saStarts(1) = coreSize(1) + padWidth(1);
+    loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-        MPI_Type_contiguous(count, MPI_FP_REAL, &recvSubarrayY1);
-
-        recvDataY1.resize(loclSize);
-
-        padY1 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, cSize(1), 0),
-                                     blitz::TinyVector<int, 3>(cSize(0) - 1, cSize(1) + pSize(1) - 1, cSize(2) - 1));
-
-        wallY1 = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, cSize(1) - 1, 0),
-                                      blitz::TinyVector<int, 3>(cSize(0) - 1, cSize(1) - 1, cSize(2) - 1));
-    } else {
-        saStarts = padWidth;            saStarts(1) = coreSize(1) + padWidth(1);
-        loclSize = coreSize;            loclSize(1) = padWidth(1);
-
-        MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY1);
-    }
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY1);
     MPI_Type_commit(&recvSubarrayY1);
 }
 
@@ -288,21 +204,10 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 void mpidata::syncData() {
     recvRequest = MPI_REQUEST_NULL;
 
-    if (xsFlag) {
-        MPI_Irecv(recvDataX0.dataFirst(), 1, recvSubarrayX0, rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-        MPI_Irecv(recvDataX1.dataFirst(), 1, recvSubarrayX1, rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    } else {
-        MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0, rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
-        MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1, rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
-    }
-
-    if (ysFlag) {
-        MPI_Irecv(recvDataY0.dataFirst(), 1, recvSubarrayY0, rankData.faceRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-        MPI_Irecv(recvDataY1.dataFirst(), 1, recvSubarrayY1, rankData.faceRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
-    } else {
-        MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY0, rankData.faceRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
-        MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY1, rankData.faceRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
-    }
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0, rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1, rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY0, rankData.faceRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY1, rankData.faceRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
 
     MPI_Send(dataField.dataFirst(), 1, sendSubarrayX0, rankData.faceRanks(0), 2, MPI_COMM_WORLD);
     MPI_Send(dataField.dataFirst(), 1, sendSubarrayX1, rankData.faceRanks(1), 1, MPI_COMM_WORLD);
@@ -310,32 +215,4 @@ void mpidata::syncData() {
     MPI_Send(dataField.dataFirst(), 1, sendSubarrayY1, rankData.faceRanks(3), 3, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
-
-    if (xsFlag) {
-        dataField(padX0) = recvDataX0(blitz::Range(0, pSize(0) - 1), all, all);
-        dataField(padX1) = recvDataX1(blitz::Range(1, pSize(0)), all, all);
-
-        // AVERAGING OF DATA FOR SHARED POINTS
-        if (xsPer) {
-            dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
-            dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
-        } else {
-            if (rankData.xRank > 0) dataField(wallX0) = (dataField(wallX0) + recvDataX0(blitz::Range(pSize(0), pSize(0)), all, all))*0.5;
-            if (rankData.xRank < rankData.npX - 1) dataField(wallX1) = (dataField(wallX1) + recvDataX1(blitz::Range(0, 0), all, all))*0.5;
-        }
-    }
-
-    if (ysFlag) {
-        dataField(padY0) = recvDataY0(all, blitz::Range(0, pSize(1) - 1), all);
-        dataField(padY1) = recvDataY1(all, blitz::Range(1, pSize(1)), all);
-
-        // AVERAGING OF DATA FOR SHARED POINTS
-        if (ysPer) {
-            dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
-            dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
-        } else {
-            if (rankData.yRank > 0) dataField(wallY0) = (dataField(wallY0) + recvDataY0(all, blitz::Range(pSize(1), pSize(1)), all))*0.5;
-            if (rankData.yRank < rankData.npY - 1) dataField(wallY1) = (dataField(wallY1) + recvDataY1(all, blitz::Range(0, 0), all))*0.5;
-        }
-    }
 }

@@ -741,8 +741,8 @@ void grid::checkAnisotropy() {
 
     localMax = 0.0;
 #ifdef PLANAR
-    for (int i = 0; i < collocCoreSize.ubound(0); i++) {
-        for (int k = 0; k < collocCoreSize.ubound(0); k++) {
+    for (int i = 0; i <= collocCoreDomain.ubound(0) + 1; i++) {
+        for (int k = 0; k <= collocCoreDomain.ubound(2) + 1; k++) {
             xWidth = xColloc(i-1) - xColloc(i);
             zWidth = zColloc(k-1) - zColloc(k);
             cellMaxAR = std::max(xWidth/zWidth, zWidth/xWidth);
@@ -751,9 +751,9 @@ void grid::checkAnisotropy() {
         }
     }
 #else
-    for (int i = 0; i < collocCoreSize.ubound(0); i++) {
-        for (int j = 0; j < collocCoreSize.ubound(0); j++) {
-            for (int k = 0; k < collocCoreSize.ubound(0); k++) {
+    for (int i = 0; i <= collocCoreDomain.ubound(0) + 1; i++) {
+        for (int j = 0; j <= collocCoreDomain.ubound(1) + 1; j++) {
+            for (int k = 0; k <= collocCoreDomain.ubound(2) + 1; k++) {
                 xWidth = xColloc(i-1) - xColloc(i);
                 yWidth = yColloc(j-1) - yColloc(j);
                 zWidth = zColloc(k-1) - zColloc(k);
@@ -772,7 +772,7 @@ void grid::checkAnisotropy() {
     MPI_Allreduce(&localMax, &globalMax, 1, MPI_FP_REAL, MPI_MAX, MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD);
-    if (globalMax > 5.0) {
+    if (globalMax > 7.0) {
         if (rankData.rank == 0) std::cout << "\nWARNING: Grid anisotropy exceeds limits. Finite-difference calculations will be inaccurate" << std::endl;
     } else {
         if (rankData.rank == 0) std::cout << "\nMaximum grid anisotropy is " << globalMax << std::endl;

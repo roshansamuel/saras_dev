@@ -77,27 +77,6 @@ class mpidata {
         /** Blitz array of the data field which needs to be synchronised across processors. */
         blitz::Array<real, 3> dataField;
 
-        /** RectDomains denoting the pad regions of sub-domains - used only for staggered points */
-        blitz::RectDomain<3> padX0, padX1, padY0, padY1;
-
-        /** RectDomains denoting the shared points across sub-domains for staggered points */
-        blitz::RectDomain<3> wallX0, wallX1, wallY0, wallY1;
-
-        /** Blitz arrays used to store data temporarily for face-centered grids for averaging data on shared points */
-        blitz::Array<real, 3> recvDataX0, recvDataY0, recvDataX1, recvDataY1;
-
-        /** Copies of the core size and pad widths of the data field */
-        blitz::TinyVector<int, 3> cSize, pSize;
-
-        /** Copies of flags denoting cell-centered/face-centered positions of data in field */
-        bool xsFlag, ysFlag;
-
-        /** Copies of flags to check whether domain is periodic in X and Y directions */
-        bool xsPer, ysPer;
-
-        /** Blitz Range object to denote the full extent along a dimension */
-        blitz::Range all;
-
     public:
         /** A const reference to the global variables stored in the parallel class to access rank data */
         const parallel &rankData;
@@ -107,8 +86,7 @@ class mpidata {
         void createSubarrays(const blitz::TinyVector<int, 3> globSize,
                              const blitz::TinyVector<int, 3> coreSize,
                              const blitz::TinyVector<int, 3> padWidth,
-                             const bool xStag, const bool yStag,
-                             const bool xPer, const bool yPer);
+                             const bool xStag, const bool yStag);
 
         void syncData();
 };
