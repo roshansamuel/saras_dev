@@ -168,7 +168,7 @@
     # Number of restriction/prolongation steps in each V-Cycle
     "V-Cycle Depth": 4
     # Number of V-Cycles to be performed
-    "V-Cycle Count": 2
+    "V-Cycle Count": 20
 
     # Set the flag to true if the solver should solve at coarsest level instead of just smoothing
     "Solve Coarsest": false
@@ -178,7 +178,7 @@
     # Iterative method to be used for smoothing
     # 0 = Jacobi iteration
     # 1 = Gauss-Seidel iteration
-    "Smoothing Method": 0
+    "Smoothing Method": 1
 
     # Number of smoothing iterations to be performed after restriction operations
     "Pre-Smoothing Count": 6

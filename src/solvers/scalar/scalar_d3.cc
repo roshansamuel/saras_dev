@@ -105,19 +105,6 @@ scalar_d3::scalar_d3(const grid &mesh, const parser &solParam, parallel &mpiPara
     P.imposeBCs();
     T.imposeBCs();
 
-    //if (mesh.rankData.rank == 5) std::cout << std::setprecision(16) << T.F.F(blitz::Range(-1,  2), blitz::Range(-1,  2), blitz::Range(30, 33)) << std::endl;
-    //if (mesh.rankData.rank == 5) std::cout << std::setprecision(16) << T.F.F(blitz::Range(-1,  2), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
-    //if (mesh.rankData.rank == 5) std::cout << std::setprecision(16) << T.F.F(blitz::Range(30, 33), blitz::Range(-1,  2), blitz::Range(30, 33)) << std::endl;
-    //if (mesh.rankData.rank == 5) std::cout << std::setprecision(16) << T.F.F(blitz::Range(30, 33), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
-
-    //if (mesh.rankData.rank == 0) std::cout << std::setprecision(16) << T.F.F(blitz::Range(31, 34), blitz::Range(31, 34), blitz::Range(30, 33)) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::setprecision(16) << T.F.F(blitz::Range(31, 34), blitz::Range(62, 65), blitz::Range(30, 33)) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::setprecision(16) << T.F.F(blitz::Range(62, 65), blitz::Range(31, 34), blitz::Range(30, 33)) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::setprecision(16) << T.F.F(blitz::Range(62, 65), blitz::Range(62, 65), blitz::Range(30, 33)) << std::endl;
-
-    //MPI_Finalize();
-    //exit(0);
-
     // Initialize semi-implicit Euler-CN time-stepping method
     ivpSolver = new eulerCN_d3(mesh, time, dt, V, P);
 }

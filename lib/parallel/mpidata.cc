@@ -278,6 +278,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 void mpidata::syncData() {
     recvRequest = MPI_REQUEST_NULL;
 
+    // FIRST PERFORM DATA TRANSFER ACROSS THE FOUR FACES
     MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0, rankData.faceRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1, rankData.faceRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
     MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayY0, rankData.faceRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
@@ -290,6 +291,7 @@ void mpidata::syncData() {
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 
+    // NEXT PERFORM DATA TRANSFER ACROSS THE FOUR EDGES
     MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0Y0, rankData.edgeRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
     MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0Y1, rankData.edgeRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
     MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1Y0, rankData.edgeRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));

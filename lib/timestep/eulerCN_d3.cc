@@ -260,16 +260,6 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
 
     // Impose boundary conditions on the updated temperature field, T
     T.imposeBCs();
-
-    //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(14) <<  P.F.F(32, 32, 1) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(14) <<  T.F.F(32, 32, 1) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(14) << V.Vx.F(32, 32, 1) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(14) << V.Vy.F(32, 32, 1) << std::endl;
-    //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(14) << V.Vz.F(32, 32, 1) << std::endl;
-
-    //if (mesh.rankData.rank == 0) std::cout << std::fixed << std::setprecision(14) <<  P.F.F(blitz::Range(30, 33), blitz::Range(30, 33), blitz::Range(30, 33)) << std::endl;
-    //MPI_Finalize();
-    //exit(0);
 }
 
 
