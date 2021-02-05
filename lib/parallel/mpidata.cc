@@ -94,13 +94,13 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     globCopy = globSize;
 
-    // CREATING SUBARRAYS FOR TRANSFER ACROSS THE 4 FACES OF EACH SUB-DOMAIN
-
     /************************************************************** NOTE ************************************************************\
      * MPI Subarrays assume that the starting index of arrays is 0, 0, 0                                                            *
      * But the arrays used here through Blitz start with the index (-padX, -padY, -padZ)                                            *
      * Hence the saStarts variable is shifted accordingly                                                                           *
     \********************************************************************************************************************************/
+
+    // CREATING SUBARRAYS FOR TRANSFER ACROSS THE 4 FACES OF EACH SUB-DOMAIN
 
     //*****************************************************! ALONG XI-DIRECTION !***************************************************//
     // SEND SUB-ARRAY ON LEFT SIDE
@@ -109,9 +109,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) {
-        saStarts(0) += 1;
-    }
+    if (xStag) saStarts(0) += 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0);
     MPI_Type_commit(&sendSubarrayX0);
@@ -129,9 +127,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) {
-        saStarts(0) -= 1;
-    }
+    if (xStag) saStarts(0) -= 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1);
     MPI_Type_commit(&sendSubarrayX1);
@@ -151,9 +147,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (yStag) {
-        saStarts(1) += 1;
-    }
+    if (yStag) saStarts(1) += 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY0);
     MPI_Type_commit(&sendSubarrayY0);
@@ -171,9 +165,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (yStag) {
-        saStarts(1) -= 1;
-    }
+    if (yStag) saStarts(1) -= 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY1);
     MPI_Type_commit(&sendSubarrayY1);
@@ -184,6 +176,88 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayY1);
     MPI_Type_commit(&recvSubarrayY1);
+
+
+    // CREATING SUBARRAYS FOR TRANSFER ACROSS THE 4 EDGES OF EACH SUB-DOMAIN
+
+    //*****************************************************! ALONG LEFT-FACE !***************************************************//
+    // SEND SUB-ARRAY ON LEFT-FRONT SIDE
+    saStarts = padWidth;
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
+    if (xStag) saStarts(0) += 1;
+    if (yStag) saStarts(1) += 1;
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0Y0);
+    MPI_Type_commit(&sendSubarrayX0Y0);
+
+    // RECEIVE SUB-ARRAY ON LEFT-FRONT SIDE
+    saStarts = 0, 0, 0;             saStarts(2) = padWidth(2);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX0Y0);
+    MPI_Type_commit(&recvSubarrayX0Y0);
+
+    // SEND SUB-ARRAY ON LEFT-BACK SIDE
+    saStarts = padWidth;            saStarts(1) = coreSize(1);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
+    if (xStag) saStarts(0) += 1;
+    if (yStag) saStarts(1) -= 1;
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0Y1);
+    MPI_Type_commit(&sendSubarrayX0Y1);
+
+    // RECEIVE SUB-ARRAY ON LEFT-BACK SIDE
+    saStarts = 0, 0, 0;             saStarts(1) = coreSize(1) + padWidth(1);            saStarts(2) = padWidth(2);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX0Y1);
+    MPI_Type_commit(&recvSubarrayX0Y1);
+
+
+    //****************************************************! ALONG RIGHT-FACE !***************************************************//
+    // SEND SUB-ARRAY ON RIGHT-FRONT SIDE
+    saStarts = padWidth;            saStarts(0) = coreSize(0);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
+    if (xStag) saStarts(0) -= 1;
+    if (yStag) saStarts(1) += 1;
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1Y0);
+    MPI_Type_commit(&sendSubarrayX1Y0);
+
+    // RECEIVE SUB-ARRAY ON RIGHT-FRONT SIDE
+    saStarts = 0, 0, 0;             saStarts(0) = coreSize(0) + padWidth(0);            saStarts(2) = padWidth(2);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX1Y0);
+    MPI_Type_commit(&recvSubarrayX1Y0);
+
+    // SEND SUB-ARRAY ON RIGHT-BACK SIDE
+    saStarts = coreSize;            saStarts(2) = padWidth(2);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES
+    // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
+    if (xStag) saStarts(0) -= 1;
+    if (yStag) saStarts(1) -= 1;
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1Y1);
+    MPI_Type_commit(&sendSubarrayX1Y1);
+
+    // RECEIVE SUB-ARRAY ON RIGHT-BACK SIDE
+    saStarts = coreSize + padWidth; saStarts(2) = padWidth(2);
+    loclSize = padWidth;            loclSize(2) = coreSize(2);
+
+    MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &recvSubarrayX1Y1);
+    MPI_Type_commit(&recvSubarrayX1Y1);
 }
 
 /**
@@ -213,6 +287,18 @@ void mpidata::syncData() {
     MPI_Send(dataField.dataFirst(), 1, sendSubarrayX1, rankData.faceRanks(1), 1, MPI_COMM_WORLD);
     MPI_Send(dataField.dataFirst(), 1, sendSubarrayY0, rankData.faceRanks(2), 4, MPI_COMM_WORLD);
     MPI_Send(dataField.dataFirst(), 1, sendSubarrayY1, rankData.faceRanks(3), 3, MPI_COMM_WORLD);
+
+    MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
+
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0Y0, rankData.edgeRanks(0), 1, MPI_COMM_WORLD, &recvRequest(0));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX0Y1, rankData.edgeRanks(1), 2, MPI_COMM_WORLD, &recvRequest(1));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1Y0, rankData.edgeRanks(2), 3, MPI_COMM_WORLD, &recvRequest(2));
+    MPI_Irecv(dataField.dataFirst(), 1, recvSubarrayX1Y1, rankData.edgeRanks(3), 4, MPI_COMM_WORLD, &recvRequest(3));
+
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX0Y0, rankData.edgeRanks(0), 4, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX0Y1, rankData.edgeRanks(1), 3, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX1Y0, rankData.edgeRanks(2), 2, MPI_COMM_WORLD);
+    MPI_Send(dataField.dataFirst(), 1, sendSubarrayX1Y1, rankData.edgeRanks(3), 1, MPI_COMM_WORLD);
 
     MPI_Waitall(4, recvRequest.dataFirst(), recvStatus.dataFirst());
 }

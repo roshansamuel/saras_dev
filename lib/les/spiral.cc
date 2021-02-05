@@ -246,9 +246,9 @@ void spiral::computeSG(plainvf &nseRHS) {
     // Interpolate the computed divergence and add its contribution to the RHS 
     // of the NSE provided as argument to the function
     // Contribution to the X-component of NSE
-    xS = V.Vx.fCore.lbound(0) + 2; xE = V.Vx.fCore.ubound(0) - 2;
-    yS = V.Vx.fCore.lbound(1) + 2; yE = V.Vx.fCore.ubound(1) - 2;
-    zS = V.Vx.fCore.lbound(2) + 2; zE = V.Vx.fCore.ubound(2) - 2;
+    xS = V.Vx.fCore.lbound(0);      xE = V.Vx.fCore.ubound(0);
+    yS = V.Vx.fCore.lbound(1);      yE = V.Vx.fCore.ubound(1);
+    zS = V.Vx.fCore.lbound(2);      zE = V.Vx.fCore.ubound(2);
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -258,9 +258,9 @@ void spiral::computeSG(plainvf &nseRHS) {
     }
 
     // Contribution to the Y-component of NSE
-    xS = V.Vy.fCore.lbound(0) + 2; xE = V.Vy.fCore.ubound(0) - 2;
-    yS = V.Vy.fCore.lbound(1) + 2; yE = V.Vy.fCore.ubound(1) - 2;
-    zS = V.Vy.fCore.lbound(2) + 2; zE = V.Vy.fCore.ubound(2) - 2;
+    xS = V.Vy.fCore.lbound(0);      xE = V.Vy.fCore.ubound(0);
+    yS = V.Vy.fCore.lbound(1);      yE = V.Vy.fCore.ubound(1);
+    zS = V.Vy.fCore.lbound(2);      zE = V.Vy.fCore.ubound(2);
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {
@@ -270,9 +270,9 @@ void spiral::computeSG(plainvf &nseRHS) {
     }
 
     // Contribution to the Z-component of NSE
-    xS = V.Vz.fCore.lbound(0) + 2; xE = V.Vz.fCore.ubound(0) - 2;
-    yS = V.Vz.fCore.lbound(1) + 2; yE = V.Vz.fCore.ubound(1) - 2;
-    zS = V.Vz.fCore.lbound(2) + 2; zE = V.Vz.fCore.ubound(2) - 2;
+    xS = V.Vz.fCore.lbound(0);      xE = V.Vz.fCore.ubound(0);
+    yS = V.Vz.fCore.lbound(1);      yE = V.Vz.fCore.ubound(1);
+    zS = V.Vz.fCore.lbound(2);      zE = V.Vz.fCore.ubound(2);
     for (int iX = xS; iX <= xE; iX++) {
         for (int iY = yS; iY <= yE; iY++) {
             for (int iZ = zS; iZ <= zE; iZ++) {

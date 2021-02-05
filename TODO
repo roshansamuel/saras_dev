@@ -1,6 +1,5 @@
 Measure the memory footprints of all the arrays
 Calculation of nu and kappa for scalar runs is taking place both in timestep.cc as well as scalar.cc - this redundancy must be removed.
-After noting discontinuities in pressure correction contours at MPI sub-domain boundaries, edge transfers were added for averaging. This slows down the code. Check if this edge transfer can be avoided.
 The computation of non-linear terms may require some extra interpolation weights when performed on non-uniform grid. This must be rigorously checked.
 In the iterative solvers for U, V, W and T, it might be better (and faster) to compare with previous solution rather than RHS for convergence.
 The Doxygen documentation in many of the older libraries (esp field) is very outdated and mentions the use of pointers where references are being used now. The docs must be updated.
