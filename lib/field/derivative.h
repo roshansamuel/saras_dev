@@ -33,7 +33,7 @@
  *
  *  \brief Class declaration of derivative
  *
- *  \author Ali Asad, Roshan Samuel
+ *  \author Roshan Samuel, Ali Asad
  *  \date Nov 2019
  *  \copyright New BSD License
  *
@@ -99,8 +99,11 @@ class derivative {
  *  \class derivative derivative.h "lib/derivative.h"
  *  \brief Derivative class to perform finite difference operations on the data stored in field
  *
- *  It contains functions to perform the finite difference operations with constant grid spacing.
- *  For many classes of this solver, empty destructors are removed. Refer reference [3] of General Articles in README for more details.
+ *  It contains functions to perform the finite difference operations on fields.
+ *  For fields on non-uniform grids, the derivatives are transformed with appropriate
+ *  grid derivatives taken from the grid class.
+ *  For many classes of SARAS, empty destructors were removed.
+ *  Refer reference [3] of General Articles in README for more details.
  ********************************************************************************************************************************************
  */
 

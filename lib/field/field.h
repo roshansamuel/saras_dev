@@ -130,7 +130,8 @@ class field {
  *
  *  The class stores the base data of both scalar and vector fields as blitz arrays.
  *  The data is stored with a uniform grid spacing as in the transformed plane.
- *  The limits of the full domain and its core are also stored in a set of RectDomain and TinyVector objects.
+ *  The limits and views of the full, core and bulk domains are also stored in a set
+ *  of TinyVector and RectDomain objects respectively.
  ********************************************************************************************************************************************
  */
 

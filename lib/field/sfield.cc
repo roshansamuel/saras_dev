@@ -78,7 +78,7 @@ sfield::sfield(const grid &gridData, std::string fieldName):
  *          It is assumed that the velocity is specified at face-centers, as required by the \ref sfield#computeNLin
  *          "computeNLin" function of sfield.
  *
- * \param   H is a pointer to a scalar field (sfield) to which the output of the function is to be written
+ * \param   H is a reference to the plain scalar field (plainsf) to which the output will be written
  ********************************************************************************************************************************************
  */
 void sfield::computeDiff(plainsf &H) {
@@ -101,11 +101,11 @@ void sfield::computeDiff(plainsf &H) {
  ********************************************************************************************************************************************
  * \brief   Function to compute the convective derivative of the scalar field
  *
- *          The function computes for the operator \f$ (\mathbf{u}.\nabla)f \f$ at the grid nodes of the scalar field f.
+ *          The function calculates \f$ (\mathbf{u}.\nabla)f \f$ at the grid nodes of the scalar field f.
  *          To do so, the function needs the vector field (vfield) of velocity. It is assumed that the velocity is always
  *          specified at face-centers, and is interpolated accordingly to the scalar field grid points.
  *
- * \param   V is a const reference to a vector field (vfield) that specifies the convection velocity at each point
+ * \param   V is a const reference to a vector field (vfield) that specifies the convection velocity
  ********************************************************************************************************************************************
  */
 void sfield::computeNLin(const vfield &V, plainsf &H) {
@@ -143,8 +143,7 @@ void sfield::computeNLin(const vfield &V, plainsf &H) {
  ********************************************************************************************************************************************
  * \brief   Operator to compute the gradient of the scalar field
  *
- *          The gradient operator computes the gradient of the cell centered scalar field, and stores it into a face-centered staggered
- *          plain vector field as defined by the tensor operation:
+ *          The function computes the gradient of the cell centered scalar field, and stores it into a face-centered plainvf:
  *          \f$ \nabla f = \frac{\partial f}{\partial x}i + \frac{\partial f}{\partial y}j + \frac{\partial f}{\partial z}k \f$.
  *
  * \param   gradF is a reference to a plain vector field (plainvf) into which the computed gradient must be written.
@@ -173,8 +172,8 @@ void sfield::gradient(plainvf &gradF, const vfield &V) {
  ********************************************************************************************************************************************
  * \brief   Function to synchronise data across all processors when performing parallel computations
  *
- *          This function calls the \ref mpidata#syncData "syncData" function of mpidata class to perform perform data-transfer and thus update
- *          the sub-domain boundary pads.
+ *          This function calls the \ref mpidata#syncData "syncData" function of mpidata class to
+ *          perform data-transfer and thus update the sub-domain boundary pads.
  ********************************************************************************************************************************************
  */
 void sfield::syncData() {
@@ -212,7 +211,7 @@ void sfield::imposeBCs() {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to add a given plain scalar field
  *
- *          The unary operator += adds a given plain scalar field to the entire field stored as sfield and returns
+ *          The unary operator += adds a given plain scalar field to the sfield and returns
  *          a pointer to itself.
  *
  * \param   a is a reference to a plainsf to be added to the member field
@@ -230,10 +229,10 @@ sfield& sfield::operator += (plainsf &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to subtract a given plain scalar field
  *
- *          The unary operator -= subtracts a given plain scalar field from the entire field stored as sfield and returns
+ *          The unary operator -= subtracts a given plain scalar field from the sfield and returns
  *          a pointer to itself.
  *
- * \param   a is a reference to a plainsf to be deducted from the member field
+ * \param   a is a reference to a plainsf to be subtracted from the member field
  *
  * \return  A pointer to itself is returned by the scalar field class to which the operator belongs
  ********************************************************************************************************************************************
@@ -248,7 +247,7 @@ sfield& sfield::operator -= (plainsf &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to add a given scalar field
  *
- *          The unary operator += adds a given scalar field to the entire field stored as sfield and returns
+ *          The unary operator += adds a given scalar field to the sfield and returns
  *          a pointer to itself.
  *
  * \param   a is a reference to another sfield to be added to the member field
@@ -266,10 +265,10 @@ sfield& sfield::operator += (sfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to subtract a given scalar field
  *
- *          The unary operator -= subtracts a given scalar field from the entire field stored as sfield and returns
+ *          The unary operator -= subtracts a given scalar field from the sfield and returns
  *          a pointer to itself.
  *
- * \param   a is a reference to another sfield to be deducted from the member field
+ * \param   a is a reference to another sfield to be subtracted from the member field
  *
  * \return  A pointer to itself is returned by the scalar field class to which the operator belongs
  ********************************************************************************************************************************************
@@ -284,7 +283,7 @@ sfield& sfield::operator -= (sfield &a) {
  ********************************************************************************************************************************************
  * \brief   Overloaded operator to multiply a scalar value to the scalar field
  *
- *          The unary operator *= multiplies a real value to the entire field stored as sfield and returns
+ *          The unary operator *= multiplies a real value to the sfield and returns
  *          a pointer to itself.
  *
  * \param   a is a real number to be multiplied to the scalar field

@@ -46,17 +46,21 @@
  ********************************************************************************************************************************************
  * \brief   Constructor of the field class
  *
- *          The field class decides the limits necessary for a 3D array to store the data as per the specified grid staggering details.
- *          It initializes and stores necessary RectDomain objects for getting the core slice and various offset slices for performing
- *          finite difference operations.
- *          The upper and lower bounds necessary for the array are also calculated depending on the directions along which the mesh is
- *          staggered and those along which it is collocated.
- *          Finally, a blitz array to store the data of the field is resized according to the limits and initialized to 0.
+ *          The field class decides the limits necessary for a 3D array to store the
+ *          data as per the specified grid staggering details.
+ *          It initializes and stores necessary RectDomain objects for getting the
+ *          core slice and bulk slice.
+ *          Moreover, various offset slices of both core and bulk, used for performing
+ *          finite difference operations, are also defined in this class.
+ *          The upper and lower bounds of the array are calculated based on the directions
+ *          along which the variable is staggered (or half-indexed).
+ *          Finally, a blitz array to store the data of the field is resized according
+ *          to the limits and initialized to 0.
  *
- * \param   gridData is a const reference to the global data contained in the grid class
- * \param   xStag is a const boolean value that is <B>true</B> when the grid is staggered along the x-direction and <B>false</B> when it is not
- * \param   yStag is a const boolean value that is <B>true</B> when the grid is staggered along the y-direction and <B>false</B> when it is not
- * \param   zStag is a const boolean value that is <B>true</B> when the grid is staggered along the z-direction and <B>false</B> when it is not
+ * \param   gridData is a const reference to the global data in the grid class
+ * \param   xStag is a const boolean value that is <B>true</B> when F is staggered (half-indexed) along x-direction
+ * \param   yStag is a const boolean value that is <B>true</B> when F is staggered (half-indexed) along y-direction
+ * \param   zStag is a const boolean value that is <B>true</B> when F is staggered (half-indexed) along z-direction
  ********************************************************************************************************************************************
  */
 field::field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag):
@@ -102,7 +106,7 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to shift a blitz RectDomain object a specified number of steps in specified dimension.
+ * \brief   Function to shift a blitz RectDomain object by a given number of steps along a specified dimension.
  *
  *          The RectDomain objects offer a view of the blitz arrays on which the shift function operates.
  *          These objects are shifted along the dimension specified in the argument, by <B>dim</B>, through a number of steps,
@@ -148,13 +152,6 @@ void field::setCoreSlice() {
         cuBound(2) = gridData.staggrCoreDomain.ubound()(2);
     }
 
-    // Following lines taken from Aether to correct periodic BCs for channel flow - test it thoroughly
-    // They need to be commented when using Method 3 in setBulkSlice function below
-    // Pushing the last point at the end of the domain inside by one unit of grid spacing for periodic domains
-    //if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and gridData.inputParams.xPer) cuBound(0) -= 1;
-    //if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1 and gridData.inputParams.yPer) cuBound(1) -= 1;
-    //if (zStag and gridData.inputParams.zPer) cuBound(2) -= 1;
-
     fCore = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), cuBound);
 
     // As of Dec 2019, the below slices are used only in the divergence calculation of vfield and gradient calculation of sfield and plainsf
@@ -174,7 +171,7 @@ void field::setCoreSlice() {
  *
  *          The bulk and wall slices of the field differentiates the domain into the bulk of the fluid and the walls of the domain.
  *          The bulk slice is used in two places - i) to set wall slices - walls are considered to be the points just outside bulk,
- *                                                ii) the limits of all iterative solvers in src are set to bulk limits.
+ *                                                ii) the limits of all iterative solvers are set to bulk limits.
  *
  ********************************************************************************************************************************************
  */
@@ -231,12 +228,20 @@ void field::setBulkSlice() {
  ********************************************************************************************************************************************
  * \brief   Function to create the wall slices for the sub-domains
  *
- *          The wall slices of the sub-domain are for imposing the full-domain boundary conditions and hence are of importance
- *          only for the near-boundary sub-domains in parallel computations.
- *          Moreover, only the collocated grid has points on the boundary.
- *          The staggered grid points lie on either side of the domain boundaries.
- *          As a result the wall slices are defined only for those fields for which at least one of \ref field#xStag "xStag",
- *          \ref field#yStag "yStag" or \ref field#zStag "zStag" is false
+ *          The wall slices of the sub-domain are used for imposing the boundary conditions.
+ *          Hence they are important only for the near-boundary sub-domains in parallel computations.
+ *          Moreover, only the staggered (half-indexed) grid has points on the boundary.
+ *          In this regard, SARAS uses a slightly unconventional approach where the boundary of the
+ *          full-domain passes through the cell-centers of the boundary cells.
+ *          This has two advantages: i) no-slip BC is strictly enforced for two face centered velocity
+ *          components, while only no-penetration BC is enforced through averaging,
+ *          ii) there will be equal number of staggered (half-indexed) and collocated (full-indexed)
+ *          points in all the MPI sub-domains, such that geometric multigrid operations, as well as
+ *          computations in the PDE solver are load-balanced.
+ *
+ *          The collocated (full-indexed) grid points lie on either side of the domain boundaries.
+ *          As a result the wall slices are defined only for those fields for which at least one
+ *          of \ref field#xStag "xStag", \ref field#yStag "yStag" or \ref field#zStag "zStag" is false
  ********************************************************************************************************************************************
  */
 void field::setWallSlices() {
@@ -286,7 +291,18 @@ void field::setWallSlices() {
  ********************************************************************************************************************************************
  * \brief   Function to create the slices for interpolation while computing convective derivative
  *
- *          This function must be called before using the values contained in the arrays d2F_dx2, d2F_dy2 and d2F_dz2.
+ *          One of the core functions of field is to seamlessly interpolate its values between
+ *          cell-centered, face-centered, vertex-centered, and edge-centered points.
+ *          This is important whenever there is coupling between variables that are placed at
+ *          different locations in a cell, and also for computing the non-linear term of NSE.
+ *          This function resizes an array of views (RectDomain objects), and shifts each view
+ *          appropriately, so that this array of views can be used to get snapshots of the field,
+ *          summed, and divided by the number of views.
+ *          This is equivalent to first-order linear interpolation.
+ *          The only issue to note here is that on non-uniform grids, weights may be needed to
+ *          perform this interpolation.
+ *          This feature is *not* implemented yet, and the cost being paid for this lack is not yet
+ *          ascertained.
  ********************************************************************************************************************************************
  */
 void field::setInterpolationSlices() {
@@ -562,8 +578,8 @@ void field::setInterpolationSlices() {
  ********************************************************************************************************************************************
  * \brief   Function to synchronise data across all processors when performing parallel computations
  *
- *          This function calls the \ref mpidata#syncData "syncData" function of mpidata class to perform perform data-transfer and thus update
- *          the sub-domain boundary pads.
+ *          This function calls the \ref mpidata#syncData "syncData" function of mpidata class to
+ *          perform data-transfer and thus update the sub-domain boundary pads.
  ********************************************************************************************************************************************
  */
 void field::syncData() {
