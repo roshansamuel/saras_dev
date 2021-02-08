@@ -3,3 +3,6 @@ Calculation of nu and kappa for scalar runs is taking place both in timestep.cc 
 The computation of non-linear terms may require some extra interpolation weights when performed on non-uniform grid. This must be rigorously checked.
 In the iterative solvers for U, V, W and T, it might be better (and faster) to compare with previous solution rather than RHS for convergence.
 The Doxygen documentation in many of the older libraries (esp field) is very outdated and mentions the use of pointers where references are being used now. The docs must be updated.
+Enforce check for presence of restart file if restart flag is true
+Query grid size in restart file and throw an error is it doesn't match the numbers in the parameters
+Parallelize spiral LES code

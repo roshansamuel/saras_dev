@@ -63,7 +63,7 @@ les::les(const grid &mesh, const vfield &solverV, const sfield &solverP): mesh(m
  * \param   nseRHS is a reference to the plain vector field which holds the RHS terms of the NSE
  ********************************************************************************************************************************************
  */
-void les::computeSG(plainvf &nseRHS) { };
+real les::computeSG(plainvf &nseRHS) { return 0; };
 
 /**
  ********************************************************************************************************************************************
@@ -77,4 +77,4 @@ void les::computeSG(plainvf &nseRHS) { };
  * \param   T is a const reference to the temperature scalar field
  ********************************************************************************************************************************************
  */
-void les::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) { };
+real les::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) { return 0; };

@@ -128,7 +128,9 @@ spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, c
  * \param   nseRHS is a reference to the plain vector field denoting the RHS of the NSE
  ********************************************************************************************************************************************
  */
-void spiral::computeSG(plainvf &nseRHS) {
+real spiral::computeSG(plainvf &nseRHS) {
+    real localSGKE, totalSGKE;
+
     // First interpolate all velocities to cell centers
     // Then U, V and W data are available at all cell centers except ghost points
     Vxcc->F.F = 0.0;
@@ -175,6 +177,7 @@ void spiral::computeSG(plainvf &nseRHS) {
     yS = P.F.fBulk.lbound(1);       yE = P.F.fBulk.ubound(1);
     zS = P.F.fBulk.lbound(2);       zE = P.F.fBulk.ubound(2);
 
+    localSGKE = 0.0;
     for (int iX = xS; iX <= xE; iX++) {
         real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
         for (int iY = yS; iY <= yE; iY++) {
@@ -215,9 +218,13 @@ void spiral::computeSG(plainvf &nseRHS) {
                 Txy->F.F(iX, iY, iZ) = sTxy;
                 Tyz->F.F(iX, iY, iZ) = sTyz;
                 Tzx->F.F(iX, iY, iZ) = sTzx;
+
+                localSGKE += abs(K)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
+
+    MPI_Allreduce(&localSGKE, &totalSGKE, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
     // Synchronize the sub-grid stress tensor field data across MPI processors
     Txx->syncData();
@@ -280,6 +287,8 @@ void spiral::computeSG(plainvf &nseRHS) {
             }
         }
     }
+
+    return totalSGKE;
 }
 
 
@@ -298,7 +307,8 @@ void spiral::computeSG(plainvf &nseRHS) {
  * \param   T is a reference the scalar field denoting the scalar equation
  ********************************************************************************************************************************************
  */
-void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
+real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
+    real localSGKE, totalSGKE;
     real sQx, sQy, sQz;
 
     // First interpolate all velocities to cell centers
@@ -354,6 +364,7 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     yS = P.F.fBulk.lbound(1);       yE = P.F.fBulk.ubound(1);
     zS = P.F.fBulk.lbound(2);       zE = P.F.fBulk.ubound(2);
 
+    localSGKE = 0.0;
     for (int iX = xS; iX <= xE; iX++) {
         real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
         for (int iY = yS; iY <= yE; iY++) {
@@ -373,8 +384,6 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
                 w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
-
-                //if (mesh.rankData.rank == 0) std::cout << u << v << w << std::endl;
 
                 // 3. The x, y and z coordinates of the 3 x 3 x 3 points over which u, v and w have been specified
                 x = mesh.xStaggr(blitz::Range(iX-1, iX+1));
@@ -409,9 +418,13 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 qX->F.F(iX, iY, iZ) = sQx;
                 qY->F.F(iX, iY, iZ) = sQy;
                 qZ->F.F(iX, iY, iZ) = sQz;
+
+                localSGKE += abs(K)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
+
+    MPI_Allreduce(&localSGKE, &totalSGKE, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
 
     // Synchronize the sub-grid stress tensor field data across MPI processors
     Txx->syncData();
@@ -498,6 +511,8 @@ void spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
             }
         }
     }
+
+    return totalSGKE;
 }
 
 

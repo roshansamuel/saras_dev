@@ -56,12 +56,13 @@
  * \param   P is a reference to the pressure field and is used merely to initialize local objects
  ********************************************************************************************************************************************
  */
-timestep::timestep(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P):
+timestep::timestep(const grid &mesh, const real &sTime, const real &dt, tseries &tsIO, vfield &V, sfield &P):
     solTime(sTime),
     dt(dt),
     mesh(mesh),
     Pp(mesh, P),
     mgRHS(mesh, P),
+    tsWriter(tsIO),
     pressureGradient(mesh, V)
 {
     // Below flags may be turned on for debugging/dignostic runs only

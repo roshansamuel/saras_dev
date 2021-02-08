@@ -46,6 +46,7 @@
 #include <blitz/array.h>
 
 #include "poisson.h"
+#include "tseries.h"
 #include "force.h"
 #include "les.h"
 
@@ -53,7 +54,7 @@ class timestep {
     public:
         real nu, kappa;
 
-        timestep(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P);
+        timestep(const grid &mesh, const real &sTime, const real &dt, tseries &tsIO, vfield &V, sfield &P);
 
         virtual void timeAdvance(vfield &V, sfield &P);
         virtual void timeAdvance(vfield &V, sfield &P, sfield &T);
@@ -70,6 +71,9 @@ class timestep {
         /** Plain scalar field into which the RHS for pressure Poisson equation is written and passed to the Poisson solver */
         plainsf mgRHS;
 
+        /** A reference to the time-series I/O object to which relevant data to be written to I/O can be sent */
+        tseries &tsWriter;
+
         /** Plain vector field which stores the pressure gradient term. */
         plainvf pressureGradient;
 };
@@ -84,7 +88,7 @@ class timestep {
 
 class eulerCN_d2: public timestep {
     public:
-        eulerCN_d2(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P);
+        eulerCN_d2(const grid &mesh, const real &sTime, const real &dt, tseries &tsIO, vfield &V, sfield &P);
 
         void timeAdvance(vfield &V, sfield &P);
         void timeAdvance(vfield &V, sfield &P, sfield &T);
@@ -115,7 +119,7 @@ class eulerCN_d2: public timestep {
 
 class eulerCN_d3: public timestep {
     public:
-        eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P);
+        eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, tseries &tsIO, vfield &V, sfield &P);
 
         void timeAdvance(vfield &V, sfield &P);
         void timeAdvance(vfield &V, sfield &P, sfield &T);

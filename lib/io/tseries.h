@@ -52,8 +52,12 @@
 
 class tseries {
     public:
+        /** The real value for sub-grid energy computed by LES model is used only when LES switch is on */
+        real subgridEnergy;
+
         tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const real &solverTime, const real &timeStep);
 
+        void writeTSHeader();
         void writeTSData();
         void writeTSData(const sfield &T, const real nu, const real kappa);
 

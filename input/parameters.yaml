@@ -45,12 +45,12 @@
     # Enable/Disable LES by choosing LES Model
     # 0 = Disable LES
     # 1 = Stretched Spiral Vortex LES
-    "LES Model": 0
+    "LES Model": 1
 
     # Non-dimensional parameters
     "Reynolds Number": 2000
     "Rossby Number": 12
-    "Rayleigh Number": 1.0e5
+    "Rayleigh Number": 1.0e8
     "Prandtl Number": 1.0
     "Taylor Number": 0.0
 
@@ -108,8 +108,8 @@
 # Parellelization parameters
 "Parallel":
     "Number of OMP threads": 1
-    "X Number of Procs": 1
-    "Y Number of Procs": 1
+    "X Number of Procs": 4
+    "Y Number of Procs": 4
 
 
 # Solver parameters

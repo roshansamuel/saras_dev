@@ -48,8 +48,6 @@
  * \brief   Constructor of the tseries class
  *
  *          The constructor initializes the variables and parameters for writing time-series data
- *          The header for the time-series data file is also written here.
- *          Depending on whether the run is for a scalar solver or hydro solver, the appropriate header is written.
  *
  * \param   mesh is a const reference to the global data contained in the grid class
  * \param   solverV is a reference to the velocity vector field whose data is used in calculating global quantities
@@ -76,13 +74,17 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
     zLow = P.F.fCore.lbound(2);        zTop = P.F.fCore.ubound(2);
 
     // STAGGERED GRIDS HAVE SHARED POINT ACROSS MPI-SUBDOMAINS - ACCORDINGLY DECREASE LIMITS
-    if (mesh.rankData.xRank > 0) {
+    if (mesh.inputParams.xPer) {
         xLow += 1;
+    } else {
+        if (mesh.rankData.xRank > 0) xLow += 1;
     }
 
 #ifndef PLANAR
-    if (mesh.rankData.yRank > 0) {
+    if (mesh.inputParams.yPer) {
         yLow += 1;
+    } else {
+        if (mesh.rankData.yRank > 0) yLow += 1;
     }
 #endif
 
@@ -112,29 +114,67 @@ tseries::tseries(const grid &mesh, vfield &solverV, const sfield &solverP, const
     //MPI_Finalize();
     //exit(0);
 
-    // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
-    if (mesh.rankData.rank == 0) {
-        if (mesh.inputParams.probType <= 4) {
-            std::cout << std::fixed << std::setw(6)  << "Time" << "\t" << std::setw(16) <<
-                                                        "Total KE" << "\t" <<
-                                                        "Divergence" << std::endl;
-
-            ofFile << "#VARIABLES = Time, Total KE, U_rms, Divergence, dt\n";
-        } else {
-            std::cout << std::fixed << std::setw(6)  << "Time" << "\t" << std::setw(16) << 
-                                                        "Re (Urms)" << "\t" <<
-                                                        "Nusselt No" << "\t" <<
-                                                        "Divergence" << std::endl;
-
-            ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, dt\n";
-        }
-    }
-
     // This switch decides if mean or maximum of divergence has to be printed.
     // Ideally maximum has to be tracked, but mean is a less strict metric.
     // By default, the mean is computed. To enable a stricter check, the below flag
     // must be turned on.
     maxSwitch = true;
+
+    if (mesh.inputParams.lesModel) subgridEnergy = 0.0;
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to write the the headers for time-series data.
+ *
+ *          The header for the time-series file, as well as for the I/O are written
+ *          by this function.
+ *          This was originally a part of the constructor, but was later shifted to
+ *          a separate function so that the tseries object can be passed to other
+ *          functions which need to write to the I/O before the header is printed.
+ *          Only the root rank (rank 0) writes the output.
+ *          One line is written to the standard I/O, while another is written to the time series dat file.
+ *
+ ********************************************************************************************************************************************
+ */
+void tseries::writeTSHeader() {
+    // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
+    if (mesh.rankData.rank == 0) {
+        if (mesh.inputParams.probType <= 4) {
+            if (mesh.inputParams.lesModel) {
+                std::cout << std::setw(9)  << "Time" <<
+                             std::setw(20) << "Total KE" <<
+                             std::setw(20) << "Divergence" <<
+                             std::setw(20) << "Subgrid KE" << std::endl;
+
+                ofFile << "#VARIABLES = Time, Total KE, U_rms, Divergence, Subgrid KE, dt\n";
+            } else {
+                std::cout << std::setw(9)  << "Time" <<
+                             std::setw(20) << "Total KE" <<
+                             std::setw(20) << "Divergence" << std::endl;
+
+                ofFile << "#VARIABLES = Time, Total KE, U_rms, Divergence, dt\n";
+            }
+        } else {
+            if (mesh.inputParams.lesModel) {
+                std::cout << std::setw(9)  << "Time" <<
+                             std::setw(20) << "Re (Urms)" <<
+                             std::setw(20) << "Nusselt No" <<
+                             std::setw(20) << "Divergence" <<
+                             std::setw(20) << "Subgrid KE" << std::endl;
+
+                ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, Subgrid KE, dt\n";
+            } else {
+                std::cout << std::setw(9)  << "Time" <<
+                             std::setw(20) << "Re (Urms)" <<
+                             std::setw(20) << "Nusselt No" <<
+                             std::setw(20) << "Divergence" << std::endl;
+
+                ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, dt\n";
+            }
+        }
+    }
 }
 
 
@@ -181,17 +221,32 @@ void tseries::writeTSData() {
 #endif
     MPI_Allreduce(&localKineticEnergy, &totalKineticEnergy, 1, MPI_FP_REAL, MPI_SUM, MPI_COMM_WORLD);
     totalKineticEnergy /= totalVol;
+    if (mesh.inputParams.lesModel) subgridEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
-        std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                   std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
-                                                                            divValue << std::endl;
+        if (mesh.inputParams.lesModel) {
+            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                       std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
+                                                               std::setw(20) << divValue <<
+                                                               std::setw(20) << subgridEnergy << std::endl;
 
-        ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << totalKineticEnergy << "\t" <<
-                                                                         sqrt(2.0*totalKineticEnergy) << "\t" <<
-                                                                         divValue << "\t" <<
-                                                                         tStp << std::endl;
+            ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                    std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
+                                                            std::setw(20) << sqrt(2.0*totalKineticEnergy) <<
+                                                            std::setw(20) << divValue <<
+                                                            std::setw(20) << subgridEnergy <<
+                                                            std::setw(20) << tStp << std::endl;
+        } else {
+            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                       std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
+                                                               std::setw(20) << divValue << std::endl;
+
+            ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                    std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
+                                                            std::setw(20) << sqrt(2.0*totalKineticEnergy) <<
+                                                            std::setw(20) << divValue <<
+                                                            std::setw(20) << tStp << std::endl;
+        }
     }
 }
 
@@ -270,20 +325,38 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     totalThermalEnergy /= totalVol;
     NusseltNo = 1.0 + (totalUzT/totalVol)/kappa;
     ReynoldsNo = sqrt(2.0*totalKineticEnergy)/nu;
+    if (mesh.inputParams.lesModel) subgridEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
-        std::cout << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                   std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
-                                                                            NusseltNo << "\t" <<
-                                                                            divValue << std::endl;
+        if (mesh.inputParams.lesModel) {
+            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                       std::setprecision(8) << std::setw(20) << ReynoldsNo <<
+                                                               std::setw(20) << NusseltNo <<
+                                                               std::setw(20) << divValue <<
+                                                               std::setw(20) << subgridEnergy << std::endl;
 
-        ofFile << std::fixed << std::setw(6)  << std::setprecision(4) << time << "\t" <<
-                                std::setw(16) << std::setprecision(8) << ReynoldsNo << "\t" <<
-                                                                         NusseltNo << "\t" <<
-                                                                         totalKineticEnergy << "\t" <<
-                                                                         totalThermalEnergy << "\t" <<
-                                                                         divValue << "\t" <<
-                                                                         tStp << std::endl;
+            ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                    std::setprecision(8) << std::setw(20) << ReynoldsNo <<
+                                                            std::setw(20) << NusseltNo <<
+                                                            std::setw(20) << totalKineticEnergy <<
+                                                            std::setw(20) << totalThermalEnergy <<
+                                                            std::setw(20) << divValue <<
+                                                            std::setw(20) << subgridEnergy <<
+                                                            std::setw(20) << tStp << std::endl;
+        } else {
+            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                       std::setprecision(8) << std::setw(20) << ReynoldsNo <<
+                                                               std::setw(20) << NusseltNo <<
+                                                               std::setw(20) << divValue << std::endl;
+
+            ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                    std::setprecision(8) << std::setw(20) << ReynoldsNo <<
+                                                            std::setw(20) << NusseltNo <<
+                                                            std::setw(20) << totalKineticEnergy <<
+                                                            std::setw(20) << totalThermalEnergy <<
+                                                            std::setw(20) << divValue <<
+                                                            std::setw(20) << tStp << std::endl;
+        }
     }
 }
 

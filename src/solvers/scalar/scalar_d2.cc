@@ -103,9 +103,6 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
     V.imposeBCs();
     P.imposeBCs();
     T.imposeBCs();
-
-    // Initialize semi-implicit Euler-CN time-stepping method
-    ivpSolver = new eulerCN_d2(mesh, time, dt, V, P);
 }
 
 
@@ -132,8 +129,11 @@ void scalar_d2::solvePDE() {
         dataProbe = new probes(mesh, writeFields);
     }
 
-    // Output file containing the time series of various variables
+    // Output file and I/O writer to write time-series of various variables
     tseries tsWriter(mesh, V, P, time, dt);
+
+    // Initialize semi-implicit Euler-CN time-stepping method
+    ivpSolver = new eulerCN_d2(mesh, time, dt, tsWriter, V, P);
 
     // FILE WRITING TIME
     fwTime = time;
@@ -145,6 +145,9 @@ void scalar_d2::solvePDE() {
     rsTime = time;
 
     timeStepCount = 0;
+
+    // WRITE THE HEADERS FOR TIME-SERIES IN I/O AND IN FILE
+    tsWriter.writeTSHeader();
 
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     tsWriter.writeTSData(T, nu, kappa);

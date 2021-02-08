@@ -121,9 +121,6 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
     // Impose boundary conditions on velocity and pressure fields
     V.imposeBCs();
     P.imposeBCs();
-
-    // Initialize semi-implicit Euler-CN time-stepping method
-    ivpSolver = new eulerCN_d3(mesh, time, dt, V, P);
 }
 
 
@@ -150,8 +147,11 @@ void hydro_d3::solvePDE() {
         dataProbe = new probes(mesh, writeFields);
     }
 
-    // Output file containing the time series of various variables
+    // Output file and I/O writer to write time-series of various variables
     tseries tsWriter(mesh, V, P, time, dt);
+
+    // Initialize semi-implicit Euler-CN time-stepping method
+    ivpSolver = new eulerCN_d3(mesh, time, dt, tsWriter, V, P);
 
     // FILE WRITING TIME
     fwTime = time;
@@ -163,6 +163,9 @@ void hydro_d3::solvePDE() {
     rsTime = time;
 
     timeStepCount = 0;
+
+    // WRITE THE HEADERS FOR TIME-SERIES IN I/O AND IN FILE
+    tsWriter.writeTSHeader();
 
     // COMPUTE ENERGY AND DIVERGENCE FOR THE INITIAL CONDITION
     tsWriter.writeTSData();

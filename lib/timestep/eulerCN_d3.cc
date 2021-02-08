@@ -55,8 +55,8 @@
  * \param   mesh is a const reference to the global data contained in the grid class.
  ********************************************************************************************************************************************
  */
-eulerCN_d3::eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, vfield &V, sfield &P):
-    timestep(mesh, sTime, dt, V, P),
+eulerCN_d3::eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, tseries &tsIO, vfield &V, sfield &P):
+    timestep(mesh, sTime, dt, tsIO, V, P),
     mgSolver(mesh, mesh.inputParams)
 {
     setCoefficients();
@@ -93,6 +93,7 @@ eulerCN_d3::eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, vfie
  */
 void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
     static plainvf nseRHS(mesh, V);
+    real subgridKE;
 
     nseRHS = 0.0;
 
@@ -108,7 +109,8 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 
     // Add sub-grid stress contribution from LES Model, if enabled
     if (mesh.inputParams.lesModel and solTime > 5*mesh.inputParams.tStp) {
-        sgsLES->computeSG(nseRHS);
+        subgridKE = sgsLES->computeSG(nseRHS);
+        tsWriter.subgridEnergy = subgridKE;
     }
 
     // Subtract the pressure gradient term
@@ -180,6 +182,7 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     static plainvf nseRHS(mesh, V);
     static plainsf tmpRHS(mesh, T);
+    real subgridKE;
 
     nseRHS = 0.0;
     tmpRHS = 0.0;
@@ -206,7 +209,8 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
 
     // Add sub-grid stress contribution from LES Model, if enabled
     if (mesh.inputParams.lesModel and solTime > 5*mesh.inputParams.tStp) {
-        sgsLES->computeSG(nseRHS, tmpRHS, T);
+        subgridKE = sgsLES->computeSG(nseRHS, tmpRHS, T);
+        tsWriter.subgridEnergy = subgridKE;
     }
 
     // Subtract the pressure gradient term from momentum equation
