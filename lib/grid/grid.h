@@ -55,19 +55,15 @@ class grid {
         /** Grid stretching parameter for tangent-hyperbolic function along x, y and z directions */
         blitz::TinyVector<real, 3> thBeta;
 
-        /** Array of the local values of \f$ \xi \f$ within the MPI-decomposed sub-domains in the transformed plane */
-        blitz::Array<real, 1> xi;
-        /** Array of the local values of \f$ \eta \f$ within the MPI-decomposed sub-domains in the transformed plane */
-        blitz::Array<real, 1> et;
-        /** Array of the local values of \f$ \zeta \f$ within the MPI-decomposed sub-domains in the transformed plane */
-        blitz::Array<real, 1> zt;
+        /** Arrays of the local values of \f$ \xi \f$, \f$ \eta \f$ and \f$ \zeta \f$ within sub-domains in the transformed plane */
+        //@{
+        blitz::Array<real, 1> xi, et, zt;
+        //@}
 
-        /** Array of the global values of \f$ \xi \f$ within the full domain in the transformed plane */
-        blitz::Array<real, 1> xiGlo;
-        /** Array of the global values of \f$ \eta \f$ within the full domain in the transformed plane */
-        blitz::Array<real, 1> etGlo;
-        /** Array of the global values of \f$ \zeta \f$ within the full domain in the transformed plane */
-        blitz::Array<real, 1> ztGlo;
+        /** Arrays of the global values of \f$ \xi \f$, \f$ \eta \f$ and \f$ \zeta \f$ within the full domain in the transformed plane */
+        //@{
+        blitz::Array<real, 1> xiGlo, etGlo, ztGlo;
+        //@}
 
         void resizeGrid();
         void makeSizeArray();
@@ -81,6 +77,7 @@ class grid {
 
         void checkAnisotropy();
         void gatherGlobal();
+        void initWeights();
 
         void computeGlobalLimits();
 
@@ -118,23 +115,15 @@ class grid {
         /** The start indices of the MPI decomposed sub-domains within the global indexing of the full staggered grid - ztSt, etSt, xiSt */
         blitz::TinyVector<int, 3> subarrayStarts;
 
-        /** Grid spacing in the transformed plane along the \f$ \xi \f$ direction */
-        real dXi;
+        /** Grid spacings in the transformed plane along the \f$ \xi \f$, \f$ \eta \f$ and \f$ \zeta \f$ directions */
+        //@{
+        real dXi, dEt, dZt;
+        //@}
 
-        /** Grid spacing in the transformed plane along the \f$ \eta \f$ direction */
-        real dEt;
-
-        /** Grid spacing in the transformed plane along the \f$ \zeta \f$ direction */
-        real dZt;
-
-        /** Length of the physical computational domain along the x direction */
-        real xLen;
-
-        /** Length of the physical computational domain along the y direction */
-        real yLen;
-
-        /** Length of the physical computational domain along the z direction */
-        real zLen;
+        /** Lengths of the physical computational domain along the x, y and z directions */
+        //@{
+        real xLen, yLen, zLen;
+        //@}
 
         /** Array of collocated grid sizes such that the corresponding staggered grid will be multi-grid compatible */
         blitz::Array<int, 1> sizeArray;
@@ -156,103 +145,55 @@ class grid {
 
         /*****************************************************************************************************************************************************/
 
-        /** Collocated grid along the x-direction defined locally within MPI decomposed sub-domains */
-        blitz::Array<real, 1> xColloc;
+        /** Collocated grids along the x, y and z directions defined locally within MPI decomposed sub-domains */
+        //@{
+        blitz::Array<real, 1> xColloc, yColloc, zColloc;
+        //@}
 
-        /** Collocated grid along the y-direction defined locally within MPI decomposed sub-domains */
-        blitz::Array<real, 1> yColloc;
-
-        /** Collocated grid along the z-direction defined locally within MPI decomposed sub-domains */
-        blitz::Array<real, 1> zColloc;
-
-        /** Staggered grid along the x-direction defined locally within MPI decomposed sub-domains */
-        blitz::Array<real, 1> xStaggr;
-
-        /** Staggered grid along the y-direction defined locally within MPI decomposed sub-domains */
-        blitz::Array<real, 1> yStaggr;
-
-        /** Staggered grid along the z-direction defined locally within MPI decomposed sub-domains */
-        blitz::Array<real, 1> zStaggr;
+        /** Staggered grids along the x, y and z directions defined locally within MPI decomposed sub-domains */
+        //@{
+        blitz::Array<real, 1> xStaggr, yStaggr, zStaggr;
+        //@}
 
         /*****************************************************************************************************************************************************/
 
-        /** Collocated grid along the x-direction for the full global domain */
-        blitz::Array<real, 1> xCollocGlobal;
+        /** Collocated grids along the x, y and z directions for the full global domain */
+        //@{
+        blitz::Array<real, 1> xCollocGlobal, yCollocGlobal, zCollocGlobal;
+        //@}
 
-        /** Collocated grid along the y-direction for the full global domain */
-        blitz::Array<real, 1> yCollocGlobal;
-
-        /** Collocated grid along the z-direction for the full global domain */
-        blitz::Array<real, 1> zCollocGlobal;
-
-        /** Staggered grid along the x-direction for the full global domain */
-        blitz::Array<real, 1> xStaggrGlobal;
-
-        /** Staggered grid along the y-direction for the full global domain */
-        blitz::Array<real, 1> yStaggrGlobal;
-
-        /** Staggered grid along the z-direction for the full global domain */
-        blitz::Array<real, 1> zStaggrGlobal;
+        /** Staggered grids along the x, y and z directions for the full global domain */
+        //@{
+        blitz::Array<real, 1> xStaggrGlobal, yStaggrGlobal, zStaggrGlobal;
+        //@}
 
         /*****************************************************************************************************************************************************/
 
-        /** Array of the grid derivatives \f$ \frac{\partial\xi}{\partial x} \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> xi_xColloc;
+        /** Arrays of grid derivative terms along \f$ \xi \f$ direction for both collocated and staggered points, local to each sub-domain. */
+        //@{
+        blitz::Array<real, 1> xi_xColloc, xi_xStaggr, xixxColloc, xixxStaggr, xix2Colloc, xix2Staggr;
+        //@}
 
-        /** Array of the grid derivatives \f$ \frac{\partial\xi}{\partial x} \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> xi_xStaggr;
+        /** Arrays of grid derivative terms along \f$ \eta \f$ direction for both collocated and staggered points, local to each sub-domain. */
+        //@{
+        blitz::Array<real, 1> et_yColloc, et_yStaggr, etyyColloc, etyyStaggr, ety2Colloc, ety2Staggr;
+        //@}
 
-        /** Array of the grid derivatives \f$ \frac{\partial^2 \xi}{\partial x^2} \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> xixxColloc;
-
-        /** Array of the grid derivatives \f$ \frac{\partial^2 \xi}{\partial x^2} \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> xixxStaggr;
-
-        /** Array of the grid derivatives \f$ \left(\frac{\partial\xi}{\partial x}\right)^2 \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> xix2Colloc;
-
-        /** Array of the grid derivatives \f$ \left(\frac{\partial\xi}{\partial x}\right)^2 \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> xix2Staggr;
+        /** Arrays of grid derivative terms along \f$ \zeta \f$ direction for both collocated and staggered points, local to each sub-domain. */
+        //@{
+        blitz::Array<real, 1> zt_zColloc, zt_zStaggr, ztzzColloc, ztzzStaggr, ztz2Colloc, ztz2Staggr;
+        //@}
 
         /*****************************************************************************************************************************************************/
 
-        /** Array of the grid derivatives \f$ \frac{\partial\eta}{\partial y} \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> et_yColloc;
-
-        /** Array of the grid derivatives \f$ \frac{\partial\eta}{\partial y} \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> et_yStaggr;
-
-        /** Array of the grid derivatives \f$ \frac{\partial^2 \eta}{\partial y^2} \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> etyyColloc;
-
-        /** Array of the grid derivatives \f$ \frac{\partial^2 \eta}{\partial y^2} \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> etyyStaggr;
-
-        /** Array of the grid derivatives \f$ \left(\frac{\partial\eta}{\partial y}\right)^2 \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> ety2Colloc;
-
-        /** Array of the grid derivatives \f$ \left(\frac{\partial\eta}{\partial y}\right)^2 \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> ety2Staggr;
+        /** Arrays of weights for linear interpolation when transferring data from face-centers to cell-centers */
+        //@{
+        blitz::Array<real, 1> lftWgt, rgtWgt;
+        blitz::Array<real, 1> frnWgt, bakWgt;
+        blitz::Array<real, 1> botWgt, topWgt;
+        //@}
 
         /*****************************************************************************************************************************************************/
-
-        /** Array of the grid derivatives \f$ \frac{\partial\zeta}{\partial z} \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> zt_zColloc;
-
-        /** Array of the grid derivatives \f$ \frac{\partial\zeta}{\partial z} \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> zt_zStaggr;
-
-        /** Array of the grid derivatives \f$ \frac{\partial^2 \zeta}{\partial z^2} \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> ztzzColloc;
-
-        /** Array of the grid derivatives \f$ \frac{\partial^2 \zeta}{\partial z^2} \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> ztzzStaggr;
-
-        /** Array of the grid derivatives \f$ \left(\frac{\partial\zeta}{\partial z}\right)^2 \f$ at collocated grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> ztz2Colloc;
-
-        /** Array of the grid derivatives \f$ \left(\frac{\partial\zeta}{\partial z}\right)^2 \f$ at staggered grid points, defined locally within each sub-domain. */
-        blitz::Array<real, 1> ztz2Staggr;
 
         grid(const parser &solParam, parallel &parallelData);
 

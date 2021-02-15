@@ -143,6 +143,9 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     if (gridCheck) checkAnisotropy();
 
     gatherGlobal();
+
+    /** Initialize the weights for linear interpolation if using non-uniform grid */
+    initWeights();
 }
 
 
@@ -867,5 +870,73 @@ void grid::gatherGlobal() {
     // GLOBAL AND LOCAL COLLOCATED GRIDS ALONG Z-DIRECTION ARE SAME FOR ALL RANKS
     for (i = -padWidths(2); i < globalSize(2) + padWidths(2) - 1; i++) {
         zCollocGlobal(i) = zColloc(i);
+    }
+}
+
+
+/**
+ ********************************************************************************************************************************************
+ * \brief   Function to generate weights for linear interpolation
+ *
+ *          The solution files are written with all points interpolated to cell-centers.
+ *          For uniform grids, averaging of points is done.
+ *          However, for non-uniform grids, linear interpolation has to be performed.
+ *          This function generates the weights for linear interpolation and stores them,
+ *          so that the weights don't have to recalculated during every call to write solution.
+ ********************************************************************************************************************************************
+ */
+void grid::initWeights() {
+    real cellLength;
+
+    lftWgt.resize(xStaggr.size());
+    lftWgt.reindexSelf(xStaggr.lbound());
+    lftWgt = 0.5;
+
+    rgtWgt.resize(xStaggr.size());
+    rgtWgt.reindexSelf(xStaggr.lbound());
+    rgtWgt = 0.5;
+
+#ifndef PLANAR
+    frnWgt.resize(yStaggr.size());
+    frnWgt.reindexSelf(yStaggr.lbound());
+    frnWgt = 0.5;
+
+    bakWgt.resize(yStaggr.size());
+    bakWgt.reindexSelf(yStaggr.lbound());
+    bakWgt = 0.5;
+#endif
+
+    botWgt.resize(zStaggr.size());
+    botWgt.reindexSelf(zStaggr.lbound());
+    botWgt = 0.5;
+
+    topWgt.resize(zStaggr.size());
+    topWgt.reindexSelf(zStaggr.lbound());
+    topWgt = 0.5;
+
+    if (inputParams.xGrid) {
+        for (int i=0; i<=xStaggr.ubound(0)-1; i++) {
+            cellLength = xColloc(i) - xColloc(i-1);
+            lftWgt(i) = (xColloc(i) - xStaggr(i))/cellLength;
+            rgtWgt(i) = (xStaggr(i) - xColloc(i-1))/cellLength;
+        }
+    }
+
+#ifndef PLANAR
+    if (inputParams.yGrid) {
+        for (int i=0; i<=yStaggr.ubound(0)-1; i++) {
+            cellLength = yColloc(i) - yColloc(i-1);
+            frnWgt(i) = (yColloc(i) - yStaggr(i))/cellLength;
+            bakWgt(i) = (yStaggr(i) - yColloc(i-1))/cellLength;
+        }
+    }
+#endif
+
+    if (inputParams.zGrid) {
+        for (int i=0; i<=zStaggr.ubound(0)-1; i++) {
+            cellLength = zColloc(i) - zColloc(i-1);
+            botWgt(i) = (zColloc(i) - zStaggr(i))/cellLength;
+            topWgt(i) = (zStaggr(i) - zColloc(i-1))/cellLength;
+        }
     }
 }

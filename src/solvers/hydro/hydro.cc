@@ -68,7 +68,7 @@ hydro::hydro(const grid &mesh, const parser &solParam, parallel &mpiParam):
  *          The NSE are integrated in time from within this function by calling \ref hydro#timeAdvance in a loop.
  *          The function keeps track of the non-dimensional time with \ref time and number of iterations with \ref iterCount.
  *          Both these values are continuously incremented from within the loop, and finally, when \ref time has reached the
- *          user-ser value in \ref parser#tMax "tMax", the time-integration loop is broken and the program exits.
+ *          user-set value in \ref parser#tMax "tMax", the time-integration loop is broken and the program exits.
  ********************************************************************************************************************************************
  */
 void hydro::solvePDE() { };

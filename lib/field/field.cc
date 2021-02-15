@@ -306,7 +306,7 @@ void field::setWallSlices() {
  ********************************************************************************************************************************************
  */
 void field::setInterpolationSlices() {
-    // INTERPOLATION SLICES FOR INTERPOLATING VALUES OF Vx FROM THE vfield
+    // INTERPOLATION SLICES FOR INTERPOLATING VALUES OF VARIOUS FIELDS
     // In all the below slices, we are considering interpolations between the following 8 variables
     //
     // Vx, Vy, Vz - these are face centered variables sitting on X, Y and Z planes respectively (like velocity)

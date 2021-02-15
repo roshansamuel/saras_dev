@@ -226,6 +226,7 @@ void writer::initLimits() {
     timeDSpace = H5Screate(H5S_SCALAR);
 }
 
+
 /**
  ********************************************************************************************************************************************
  * \brief   Function to create output folder if it does not exist
@@ -594,13 +595,13 @@ void writer::interpolateData(field &outField) {
     if (not outField.xStag) {
         for (int i=0; i < fieldData.shape()[0]; i++) {
             for (int k=0; k < fieldData.shape()[2]; k++) {
-                fieldData(i, k) = (outField.F(i-1, 0, k) + outField.F(i, 0, k))*0.5;
+                fieldData(i, k) = mesh.lftWgt(i)*outField.F(i-1, 0, k) + mesh.rgtWgt(i)*outField.F(i, 0, k);
             }
         }
     } else if (not outField.zStag) {
         for (int i=0; i < fieldData.shape()[0]; i++) {
             for (int k=0; k < fieldData.shape()[2]; k++) {
-                fieldData(i, k) = (outField.F(i, 0, k-1) + outField.F(i, 0, k))*0.5;
+                fieldData(i, k) = mesh.botWgt(k)*outField.F(i, 0, k-1) + mesh.topWgt(k)*outField.F(i, 0, k);
             }
         }
     } else {
@@ -612,30 +613,34 @@ void writer::interpolateData(field &outField) {
     }
 #else
     if (not outField.xStag) {
+        // FIELD IS COLLOCATED ALONG X-DIRECTION - X-VELOCITY
         for (int i=0; i < fieldData.shape()[0]; i++) {
             for (int j=0; j < fieldData.shape()[1]; j++) {
                 for (int k=0; k < fieldData.shape()[2]; k++) {
-                    fieldData(i, j, k) = (outField.F(i-1, j, k) + outField.F(i, j, k))*0.5;
+                    fieldData(i, j, k) = mesh.lftWgt(i)*outField.F(i-1, j, k) + mesh.rgtWgt(i)*outField.F(i, j, k);
                 }
             }
         }
     } else if (not outField.yStag) {
+        // FIELD IS COLLOCATED ALONG Y-DIRECTION - Y-VELOCITY
         for (int i=0; i < fieldData.shape()[0]; i++) {
             for (int j=0; j < fieldData.shape()[1]; j++) {
                 for (int k=0; k < fieldData.shape()[2]; k++) {
-                    fieldData(i, j, k) = (outField.F(i, j-1, k) + outField.F(i, j, k))*0.5;
+                    fieldData(i, j, k) = mesh.frnWgt(j)*outField.F(i, j-1, k) + mesh.bakWgt(j)*outField.F(i, j, k);
                 }
             }
         }
     } else if (not outField.zStag) {
+        // FIELD IS COLLOCATED ALONG Z-DIRECTION - Z-VELOCITY
         for (int i=0; i < fieldData.shape()[0]; i++) {
             for (int j=0; j < fieldData.shape()[1]; j++) {
                 for (int k=0; k < fieldData.shape()[2]; k++) {
-                    fieldData(i, j, k) = (outField.F(i, j, k-1) + outField.F(i, j, k))*0.5;
+                    fieldData(i, j, k) = mesh.botWgt(k)*outField.F(i, j, k-1) + mesh.topWgt(k)*outField.F(i, j, k);
                 }
             }
         }
     } else {
+        // FIELD IS NOT COLLOCATED ALONG ANY DIRECTION - PRESSURE, TEMPERATURE
         for (int i=0; i < fieldData.shape()[0]; i++) {
             for (int j=0; j < fieldData.shape()[1]; j++) {
                 for (int k=0; k < fieldData.shape()[2]; k++) {

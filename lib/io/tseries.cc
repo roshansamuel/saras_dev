@@ -142,35 +142,24 @@ void tseries::writeTSHeader() {
     // WRITE THE HEADERS FOR BOTH STANDARD I/O AS WELL AS THE OUTPUT TIME-SERIES FILE
     if (mesh.rankData.rank == 0) {
         if (mesh.inputParams.probType <= 4) {
-            if (mesh.inputParams.lesModel) {
-                std::cout << std::setw(9)  << "Time" <<
-                             std::setw(20) << "Total KE" <<
-                             std::setw(20) << "Divergence" <<
-                             std::setw(20) << "Subgrid KE" << std::endl;
+            std::cout << std::setw(9)  << "Time" <<
+                         std::setw(20) << "Total KE" <<
+                         std::setw(20) << "Divergence" << std::endl;
 
+            if (mesh.inputParams.lesModel) {
                 ofFile << "#VARIABLES = Time, Total KE, U_rms, Divergence, Subgrid KE, dt\n";
             } else {
-                std::cout << std::setw(9)  << "Time" <<
-                             std::setw(20) << "Total KE" <<
-                             std::setw(20) << "Divergence" << std::endl;
-
                 ofFile << "#VARIABLES = Time, Total KE, U_rms, Divergence, dt\n";
             }
         } else {
-            if (mesh.inputParams.lesModel) {
-                std::cout << std::setw(9)  << "Time" <<
-                             std::setw(20) << "Re (Urms)" <<
-                             std::setw(20) << "Nusselt No" <<
-                             std::setw(20) << "Divergence" <<
-                             std::setw(20) << "Subgrid KE" << std::endl;
+            std::cout << std::setw(9)  << "Time" <<
+                         std::setw(20) << "Re (Urms)" <<
+                         std::setw(20) << "Nusselt No" <<
+                         std::setw(20) << "Divergence" << std::endl;
 
+            if (mesh.inputParams.lesModel) {
                 ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, Subgrid KE, dt\n";
             } else {
-                std::cout << std::setw(9)  << "Time" <<
-                             std::setw(20) << "Re (Urms)" <<
-                             std::setw(20) << "Nusselt No" <<
-                             std::setw(20) << "Divergence" << std::endl;
-
                 ofFile << "#VARIABLES = Time, Reynolds No., Nusselt No., Total KE, Total TE, Divergence, dt\n";
             }
         }
@@ -204,17 +193,17 @@ void tseries::writeTSData() {
     int iY = 0;
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
-            localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                   pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
+                                   pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iY = yLow; iY <= yTop; iY++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
-                localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                       pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                       pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
+                                       pow(mesh.frnWgt(iY)*V.Vy.F(iX, iY-1, iZ) + mesh.bakWgt(iY)*V.Vy.F(iX, iY, iZ), 2.0) +
+                                       pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
@@ -224,12 +213,11 @@ void tseries::writeTSData() {
     if (mesh.inputParams.lesModel) subgridEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
-        if (mesh.inputParams.lesModel) {
-            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
-                                       std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
-                                                               std::setw(20) << divValue <<
-                                                               std::setw(20) << subgridEnergy << std::endl;
+        std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                   std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
+                                                           std::setw(20) << divValue << std::endl;
 
+        if (mesh.inputParams.lesModel) {
             ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
                                     std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
                                                             std::setw(20) << sqrt(2.0*totalKineticEnergy) <<
@@ -237,10 +225,6 @@ void tseries::writeTSData() {
                                                             std::setw(20) << subgridEnergy <<
                                                             std::setw(20) << tStp << std::endl;
         } else {
-            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
-                                       std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
-                                                               std::setw(20) << divValue << std::endl;
-
             ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
                                     std::setprecision(8) << std::setw(20) << totalKineticEnergy <<
                                                             std::setw(20) << sqrt(2.0*totalKineticEnergy) <<
@@ -292,12 +276,12 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
             theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
 
-            localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                   pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
+                                   pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
             localThermalEnergy += (pow(theta, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
-            localUzT += ((V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1))/2.0)*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localUzT += (mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ))*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
@@ -306,13 +290,13 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
                 theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
 
-                localKineticEnergy += (pow((V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ))/2.0, 2.0) +
-                                       pow((V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ))/2.0, 2.0) +
-                                       pow((V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))/2.0, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
+                                       pow(mesh.frnWgt(iY)*V.Vy.F(iX, iY-1, iZ) + mesh.bakWgt(iY)*V.Vy.F(iX, iY, iZ), 2.0) +
+                                       pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
                 localThermalEnergy += (pow(theta, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
-                localUzT += ((V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1))/2.0)*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localUzT += (mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ))*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
@@ -328,13 +312,12 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     if (mesh.inputParams.lesModel) subgridEnergy /= totalVol;
 
     if (mesh.rankData.rank == 0) {
-        if (mesh.inputParams.lesModel) {
-            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
-                                       std::setprecision(8) << std::setw(20) << ReynoldsNo <<
-                                                               std::setw(20) << NusseltNo <<
-                                                               std::setw(20) << divValue <<
-                                                               std::setw(20) << subgridEnergy << std::endl;
+        std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
+                                   std::setprecision(8) << std::setw(20) << ReynoldsNo <<
+                                                           std::setw(20) << NusseltNo <<
+                                                           std::setw(20) << divValue << std::endl;
 
+        if (mesh.inputParams.lesModel) {
             ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
                                     std::setprecision(8) << std::setw(20) << ReynoldsNo <<
                                                             std::setw(20) << NusseltNo <<
@@ -344,11 +327,6 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
                                                             std::setw(20) << subgridEnergy <<
                                                             std::setw(20) << tStp << std::endl;
         } else {
-            std::cout << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
-                                       std::setprecision(8) << std::setw(20) << ReynoldsNo <<
-                                                               std::setw(20) << NusseltNo <<
-                                                               std::setw(20) << divValue << std::endl;
-
             ofFile << std::fixed << std::setprecision(4) << std::setw(9)  << time <<
                                     std::setprecision(8) << std::setw(20) << ReynoldsNo <<
                                                             std::setw(20) << NusseltNo <<
