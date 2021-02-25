@@ -47,4 +47,5 @@ add_library (initial
              channelSine.cc
              uniformRandom.cc
              parabolicRandom.cc
+             temperatureProfiles.cc
 )

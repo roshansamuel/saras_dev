@@ -41,6 +41,7 @@
  */
 
 #include "scalar.h"
+#include "initial.h"
 
 /**
  ********************************************************************************************************************************************
@@ -83,9 +84,23 @@ scalar_d2::scalar_d2(const grid &mesh, const parser &solParam, parallel &mpiPara
             exit(0);
         }
     } else {
-        P = 1.0;
-        T = 0.0;
         time = 0.0;
+
+        // INITIALIZE PRESSURE TO 1.0 THROUGHOUT THE DOMAIN
+        P = 1.0;
+
+        // INITIALIZE SCALAR FIELD
+        initial *initCond;
+        switch (inputParams.icType) {
+            case 6: initCond = new linearProfile(mesh);
+                break;
+            case 7: initCond = new cosineProfile(mesh);
+                break;
+            case 8: initCond = new sineProfile(mesh);
+                break;
+            default: initCond = new zeroInitial(mesh);
+        }
+        initCond->initializeField(V, T);
     }
 
     checkPeriodic();

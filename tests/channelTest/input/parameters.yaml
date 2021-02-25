@@ -17,6 +17,9 @@
     # 3 = Uniform Random Perturbation (for Channel Flow)
     # 4 = Parabolic Random Perturbation (for Channel Flow)
     # 5 = Sinusoidal Random Perturbation (for Channel Flow)
+    # 6 = Linear Temperature Profile (for Scalar Flow)
+    # 7 = Cosine Temperature Profile (for Scalar Flow)
+    # 8 = Sine Temperature Profile (for Scalar Flow)
     "Initial Condition": 5
 
     # Mean flow velocity (for Channel Flow)

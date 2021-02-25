@@ -45,18 +45,6 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the initial class
- *
- *          The empty constructer merely initializes the local reference to the global mesh variable.
- *
- * \param   mesh is a const reference to the global data contained in the grid class
- ********************************************************************************************************************************************
- */
-channelSine::channelSine(const grid &mesh): initial(mesh) { }
-
-
-/**
- ********************************************************************************************************************************************
  * \brief   Function to generate sinusoidal perturbation for channel flow
  *
  *          The sinusoidal function is multiplied with the equation of a parabola in order to satisfy the channel flow BCs.

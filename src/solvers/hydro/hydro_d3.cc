@@ -89,7 +89,7 @@ hydro_d3::hydro_d3(const grid &mesh, const parser &solParam, parallel &mpiParam)
         // INITIALIZE PRESSURE TO 1.0 THROUGHOUT THE DOMAIN
         P = 1.0;
 
-        // INITIALIZE VARIABLES
+        // INITIALIZE VELOCITY FIELD
         initial *initCond;
         switch (inputParams.icType) {
             case 0: initCond = new zeroInitial(mesh);

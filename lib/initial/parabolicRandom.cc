@@ -46,18 +46,6 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the initial class
- *
- *          The empty constructer merely initializes the local reference to the global mesh variable.
- *
- * \param   mesh is a const reference to the global data contained in the grid class
- ********************************************************************************************************************************************
- */
-parabolicRandom::parabolicRandom(const grid &mesh): initial(mesh) { }
-
-
-/**
- ********************************************************************************************************************************************
  * \brief   Function to impose random initial condition for channel flow on the given input velocity field.
  *
  *          The function generates random values for the entire domain (with independent seeds for individual ranks).

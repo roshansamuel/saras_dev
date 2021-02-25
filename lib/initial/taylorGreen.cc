@@ -44,18 +44,6 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the initial class
- *
- *          The empty constructer merely initializes the local reference to the global mesh variable.
- *
- * \param   mesh is a const reference to the global data contained in the grid class.
- ********************************************************************************************************************************************
- */
-taylorGreen::taylorGreen(const grid &mesh): initial(mesh) { }
-
-
-/**
- ********************************************************************************************************************************************
  * \brief   Function to impose the Taylor Green Vortex initial condition on the given input velocity field
  *
  *          Depending on the preprocessor flag PLANAR, the function applies the Taylor Green vortex equation

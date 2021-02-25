@@ -46,6 +46,7 @@
 #include <blitz/array.h>
 
 #include "vfield.h"
+#include "sfield.h"
 #include "grid.h"
 
 class initial {
@@ -53,6 +54,7 @@ class initial {
         initial(const grid &mesh);
 
         virtual void initializeField(vfield &uField);
+        virtual void initializeField(vfield &uField, sfield &tField);
 
     protected:
         const grid &mesh;
@@ -68,7 +70,7 @@ class initial {
 
 class taylorGreen: public initial {
     public:
-        taylorGreen(const grid &mesh);
+        taylorGreen(const grid &mesh): initial(mesh) { };
 
         void initializeField(vfield &uField);
 };
@@ -83,7 +85,7 @@ class taylorGreen: public initial {
 
 class channelSine: public initial {
     public:
-        channelSine(const grid &mesh);
+        channelSine(const grid &mesh): initial(mesh) { };
 
         void initializeField(vfield &uField);
 };
@@ -98,7 +100,7 @@ class channelSine: public initial {
 
 class uniformRandom: public initial {
     public:
-        uniformRandom(const grid &mesh);
+        uniformRandom(const grid &mesh): initial(mesh) { };
 
         void initializeField(vfield &uField);
 };
@@ -113,7 +115,7 @@ class uniformRandom: public initial {
 
 class parabolicRandom: public initial {
     public:
-        parabolicRandom(const grid &mesh);
+        parabolicRandom(const grid &mesh): initial(mesh) { };
 
         void initializeField(vfield &uField);
 };
@@ -128,7 +130,7 @@ class parabolicRandom: public initial {
 
 class sineRandom: public initial {
     public:
-        sineRandom(const grid &mesh);
+        sineRandom(const grid &mesh): initial(mesh) { };
 
         void initializeField(vfield &uField);
 };
@@ -146,12 +148,58 @@ class zeroInitial: public initial {
         zeroInitial(const grid &mesh): initial(mesh) { };
 
         void initializeField(vfield &uField) {uField.Vx = 0.0; uField.Vy = 0.0; uField.Vz = 0.0;};
+        void initializeField(vfield &uField, sfield &tField) {uField.Vx = 0.0; uField.Vy = 0.0; uField.Vz = 0.0; tField.F = 0.0;};
 };
 
 /**
  ********************************************************************************************************************************************
  *  \class zeroInitial initial.h "lib/initial/initial.h"
  *  \brief The derived class from initial to impose the default condition of 0 velocity.
+ *
+ ********************************************************************************************************************************************
+ */
+
+class linearProfile: public initial {
+    public:
+        linearProfile(const grid &mesh): initial(mesh) { };
+
+        void initializeField(vfield &uField, sfield &tField);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class linearProfile initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose linear profile on temperature
+ *
+ ********************************************************************************************************************************************
+ */
+
+class cosineProfile: public initial {
+    public:
+        cosineProfile(const grid &mesh): initial(mesh) { };
+
+        void initializeField(vfield &uField, sfield &tField);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class cosineProfile initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose cosine profile on temperature
+ *
+ ********************************************************************************************************************************************
+ */
+
+class sineProfile: public initial {
+    public:
+        sineProfile(const grid &mesh): initial(mesh) { };
+
+        void initializeField(vfield &uField, sfield &tField);
+};
+
+/**
+ ********************************************************************************************************************************************
+ *  \class sineProfile initial.h "lib/initial/initial.h"
+ *  \brief The derived class from initial to impose sine profile on temperature
  *
  ********************************************************************************************************************************************
  */
