@@ -193,17 +193,17 @@ void tseries::writeTSData() {
     int iY = 0;
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
-            localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
-                                   pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localKineticEnergy += (pow(V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ), 2.0) +
+                                   pow(V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ), 2.0))*0.125*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iY = yLow; iY <= yTop; iY++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
-                localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
-                                       pow(mesh.frnWgt(iY)*V.Vy.F(iX, iY-1, iZ) + mesh.bakWgt(iY)*V.Vy.F(iX, iY, iZ), 2.0) +
-                                       pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localKineticEnergy += (pow(V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ), 2.0) +
+                                       pow(V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ), 2.0) +
+                                       pow(V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ), 2.0))*0.125*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
@@ -276,12 +276,12 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
             theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
 
-            localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
-                                   pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localKineticEnergy += (pow(V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ), 2.0) +
+                                   pow(V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ), 2.0))*0.125*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
             localThermalEnergy += (pow(theta, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
-            localUzT += (mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ))*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
+            localUzT += (V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))*0.5*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
         }
     }
 #else
@@ -290,13 +290,13 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
                 theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
 
-                localKineticEnergy += (pow(mesh.lftWgt(iX)*V.Vx.F(iX-1, iY, iZ) + mesh.rgtWgt(iX)*V.Vx.F(iX, iY, iZ), 2.0) +
-                                       pow(mesh.frnWgt(iY)*V.Vy.F(iX, iY-1, iZ) + mesh.bakWgt(iY)*V.Vy.F(iX, iY, iZ), 2.0) +
-                                       pow(mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ), 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localKineticEnergy += (pow(V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ), 2.0) +
+                                       pow(V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ), 2.0) +
+                                       pow(V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ), 2.0))*0.125*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
                 localThermalEnergy += (pow(theta, 2.0))*0.5*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
 
-                localUzT += (mesh.botWgt(iZ)*V.Vz.F(iX, iY, iZ-1) + mesh.topWgt(iZ)*V.Vz.F(iX, iY, iZ))*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localUzT += (V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ))*0.5*T.F.F(iX, iY, iZ)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
             }
         }
     }
