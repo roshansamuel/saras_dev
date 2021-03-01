@@ -185,7 +185,7 @@ void parser::checkData() {
     }
 #else
     if (yInd == 0) {
-        std::cout << "ERROR: Y Index parameter of YAML file is 0 for 3D simulation. ABORTING" << std::endl;
+        std::cout << "ERROR: Y Index parameter of YAML file is 0 for 3D simulation. Aborting" << std::endl;
         MPI_Finalize();
         exit(0);
     }
@@ -473,7 +473,7 @@ void parser::parseProbes() {
                 }
             }
         } else {
-            std::cout << "ERROR: Number of indices for the probe(s) [" << errorProbe << "] does not match dimensionality of problem. ABORTING" << std::endl;
+            std::cout << "ERROR: Number of indices for the probe(s) [" << errorProbe << "] does not match dimensionality of problem. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
         }
@@ -497,21 +497,21 @@ void parser::parseProbes() {
 void parser::testProbes() {
     for (unsigned int i = 0; i < probesList.size(); i++) {
         if (probesList[i][0] < 0 or probesList[i][0] > int(pow(2, xInd)) + 1) {
-            std::cout << "ERROR: The X index of the probe " << probesList[i] << " lies outside the bounds of the domain. ABORTING" << std::endl;
+            std::cout << "ERROR: The X index of the probe " << probesList[i] << " lies outside the bounds of the domain. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
         }
 
 #ifndef PLANAR
         if (probesList[i][1] < 0 or probesList[i][1] > int(pow(2, yInd)) + 1) {
-            std::cout << "ERROR: The Y index of the probe " << probesList[i] << " lies outside the bounds of the domain. ABORTING" << std::endl;
+            std::cout << "ERROR: The Y index of the probe " << probesList[i] << " lies outside the bounds of the domain. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
         }
 #endif
 
         if (probesList[i][2] < 0 or probesList[i][2] > int(pow(2, zInd)) + 1) {
-            std::cout << "ERROR: The Z index of the probe " << probesList[i] << " lies outside the bounds of the domain. ABORTING" << std::endl;
+            std::cout << "ERROR: The Z index of the probe " << probesList[i] << " lies outside the bounds of the domain. Aborting" << std::endl;
             MPI_Finalize();
             exit(0);
         }
