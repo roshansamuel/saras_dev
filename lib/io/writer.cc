@@ -213,15 +213,24 @@ void writer::initLimits() {
     hsize_t dimgs[1];
 
     dimgs[0] = mesh.xStaggrGlobal.size() - 2*mesh.padWidths(0);
-    xDSpace = H5Screate_simple(1, dimgs, NULL);
+    xsDSpace = H5Screate_simple(1, dimgs, NULL);
+
+    dimgs[0] = mesh.xCollocGlobal.size() - 2*mesh.padWidths(0);
+    xcDSpace = H5Screate_simple(1, dimgs, NULL);
 
 #ifndef PLANAR
     dimgs[0] = mesh.yStaggrGlobal.size() - 2*mesh.padWidths(1);
-    yDSpace = H5Screate_simple(1, dimgs, NULL);
+    ysDSpace = H5Screate_simple(1, dimgs, NULL);
+
+    dimgs[0] = mesh.yCollocGlobal.size() - 2*mesh.padWidths(1);
+    ycDSpace = H5Screate_simple(1, dimgs, NULL);
 #endif
 
     dimgs[0] = mesh.zStaggrGlobal.size() - 2*mesh.padWidths(2);
-    zDSpace = H5Screate_simple(1, dimgs, NULL);
+    zsDSpace = H5Screate_simple(1, dimgs, NULL);
+
+    dimgs[0] = mesh.zCollocGlobal.size() - 2*mesh.padWidths(2);
+    zcDSpace = H5Screate_simple(1, dimgs, NULL);
 
     timeDSpace = H5Screate(H5S_SCALAR);
 }
@@ -394,8 +403,14 @@ void writer::writeSolution(real time) {
 
     char* fileName;
 
-    // The last entry in wFields is P, which is cell centered. Hence the MPI-IO data-structures associated with this index is used for file writing
-    int pIndex = wFields.size() - 1;
+    // When this flag is true, the data will be interpolated to cell-centers
+    // before being written into the solution file.
+    // When the flag is false, the data is written as is, and the post-processing
+    // scripts will have to handle the staggered configuration of variables.
+    // This flag is a temporary fix to the problem of interpolating data accurately,
+    // especially on non-uniform grids.
+    bool writeCC = false;
+    int pIndex;
 
     // Create a property list for collectively opening a file by all processors
     plist_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -413,22 +428,57 @@ void writer::writeSolution(real time) {
     // Close the property list for later reuse
     H5Pclose(plist_id);
 
-    // Add the coordinates of the grid along X axis to the solution file
-    dataSet = H5Dcreate2(fileHandle, "X", H5T_NATIVE_REAL, xDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, xDSpace, xDSpace, H5P_DEFAULT, mesh.xStaggrGlobal.dataZero());
-    H5Dclose(dataSet);
+    if (writeCC) {
+        // Add the coordinates of the grid along X axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "X", H5T_NATIVE_REAL, xsDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, xsDSpace, xsDSpace, H5P_DEFAULT, mesh.xStaggrGlobal.dataZero());
+        H5Dclose(dataSet);
 
 #ifndef PLANAR
-    // Add the coordinates of the grid along Y axis to the solution file
-    dataSet = H5Dcreate2(fileHandle, "Y", H5T_NATIVE_REAL, yDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, yDSpace, yDSpace, H5P_DEFAULT, mesh.yStaggrGlobal.dataZero());
-    H5Dclose(dataSet);
+        // Add the coordinates of the grid along Y axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Y", H5T_NATIVE_REAL, ysDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, ysDSpace, ysDSpace, H5P_DEFAULT, mesh.yStaggrGlobal.dataZero());
+        H5Dclose(dataSet);
 #endif
 
-    // Add the coordinates of the grid along Z axis to the solution file
-    dataSet = H5Dcreate2(fileHandle, "Z", H5T_NATIVE_REAL, zDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    status = H5Dwrite(dataSet, H5T_NATIVE_REAL, zDSpace, zDSpace, H5P_DEFAULT, mesh.zStaggrGlobal.dataZero());
-    H5Dclose(dataSet);
+        // Add the coordinates of the grid along Z axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Z", H5T_NATIVE_REAL, zsDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, zsDSpace, zsDSpace, H5P_DEFAULT, mesh.zStaggrGlobal.dataZero());
+        H5Dclose(dataSet);
+
+    } else {
+        // Add the coordinates of the grid along X axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Xcc", H5T_NATIVE_REAL, xsDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, xsDSpace, xsDSpace, H5P_DEFAULT, mesh.xStaggrGlobal.dataZero());
+        H5Dclose(dataSet);
+
+        // Add the coordinates of the grid along X axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Xfc", H5T_NATIVE_REAL, xcDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, xcDSpace, xcDSpace, H5P_DEFAULT, mesh.xCollocGlobal.dataZero());
+        H5Dclose(dataSet);
+
+#ifndef PLANAR
+        // Add the coordinates of the grid along Y axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Ycc", H5T_NATIVE_REAL, ysDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, ysDSpace, ysDSpace, H5P_DEFAULT, mesh.yStaggrGlobal.dataZero());
+        H5Dclose(dataSet);
+
+        // Add the coordinates of the grid along Y axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Yfc", H5T_NATIVE_REAL, ycDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, ycDSpace, ycDSpace, H5P_DEFAULT, mesh.yCollocGlobal.dataZero());
+        H5Dclose(dataSet);
+#endif
+
+        // Add the coordinates of the grid along Z axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Zcc", H5T_NATIVE_REAL, zsDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, zsDSpace, zsDSpace, H5P_DEFAULT, mesh.zStaggrGlobal.dataZero());
+        H5Dclose(dataSet);
+
+        // Add the coordinates of the grid along Z axis to the solution file
+        dataSet = H5Dcreate2(fileHandle, "Zfc", H5T_NATIVE_REAL, zcDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        status = H5Dwrite(dataSet, H5T_NATIVE_REAL, zcDSpace, zcDSpace, H5P_DEFAULT, mesh.zCollocGlobal.dataZero());
+        H5Dclose(dataSet);
+    }
 
     // Add the scalar value of time to the solution file
     dataSet = H5Dcreate2(fileHandle, "Time", H5T_NATIVE_REAL, timeDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -440,6 +490,11 @@ void writer::writeSolution(real time) {
     H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
 
     for (unsigned int i=0; i < wFields.size(); i++) {
+        // The last entry in wFields is P, which is cell centered.
+        // Hence the MPI-IO data-structures associated with this index
+        // are used for file writing when interpolating data to cell-centers
+        pIndex = writeCC ? wFields.size() - 1 : i;
+
 #ifdef PLANAR
         fieldData.resize(blitz::TinyVector<int, 2>(localSize[pIndex](0), localSize[pIndex](2)));
 #else
@@ -447,7 +502,7 @@ void writer::writeSolution(real time) {
 #endif
 
         //Write data after first interpolating them to cell centers
-        interpolateData(wFields[i]);
+        writeCC ? interpolateData(wFields[i]) : copyData(wFields[i]);
 
         // Create the dataset *for the file*, linking it to the file handle.
         // Correspondingly, it will use the *core* dataspace, as only the core has to be written excluding the pads
@@ -467,6 +522,7 @@ void writer::writeSolution(real time) {
             exit(0);
         }
 
+        // Close dataset for reuse
         H5Dclose(dataSet);
     }
 
@@ -505,7 +561,7 @@ void writer::writeRestart(real time) {
     // Close the property list for later reuse
     H5Pclose(plist_id);
 
-    // Add a single scalar value containing the time in the restart file
+    // Add the scalar value of time to the solution file
     dataSet = H5Dcreate2(fileHandle, "Time", H5T_NATIVE_REAL, timeDSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     status = H5Dwrite(dataSet, H5T_NATIVE_REAL, timeDSpace, timeDSpace, H5P_DEFAULT, &time);
     H5Dclose(dataSet);

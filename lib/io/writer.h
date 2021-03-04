@@ -75,7 +75,9 @@ class writer {
         blitz::Array<real, 3> fieldData;
 #endif
 
-        hid_t xDSpace, yDSpace, zDSpace, timeDSpace;
+        hid_t timeDSpace;
+        hid_t xsDSpace, ysDSpace, zsDSpace;
+        hid_t xcDSpace, ycDSpace, zcDSpace;
 
         std::vector<hid_t> sourceDSpace, targetDSpace;
 
