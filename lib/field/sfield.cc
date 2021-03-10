@@ -59,13 +59,10 @@
  */
 sfield::sfield(const grid &gridData, std::string fieldName):
                gridData(gridData),
-               F(gridData, fieldName, true, true, true),
+               F(gridData, fieldName),
                derS(gridData, F)
 {
     this->fieldName = fieldName;
-
-    interTempF.resize(F.fSize);
-    interTempF.reindexSelf(F.flBound);
 
     derivTempF.resize(F.fSize);
     derivTempF.reindexSelf(F.flBound);
@@ -109,34 +106,19 @@ void sfield::computeDiff(plainsf &H) {
  ********************************************************************************************************************************************
  */
 void sfield::computeNLin(const vfield &V, plainsf &H) {
-    interTempF = 0.0;
-    for (unsigned int i=0; i < F.VxIntSlices.size(); i++) {
-        interTempF(F.fCore) += V.Vx.F(F.VxIntSlices(i));
-    }
-
     derivTempF = 0.0;
     derS.calcDerivative1_x(derivTempF);
-    H.F(F.fCore) -= interTempF(F.fCore)*derivTempF(F.fCore)/F.VxIntSlices.size();
+    H.F(F.fCore) -= V.Vx.F(F.fCore)*derivTempF(F.fCore);
 
 #ifndef PLANAR
-    interTempF = 0.0;
-    for (unsigned int i=0; i < F.VyIntSlices.size(); i++) {
-        interTempF(F.fCore) += V.Vy.F(F.VyIntSlices(i));
-    }
-
     derivTempF = 0.0;
     derS.calcDerivative1_y(derivTempF);
-    H.F(F.fCore) -= interTempF(F.fCore)*derivTempF(F.fCore)/F.VyIntSlices.size();
+    H.F(F.fCore) -= V.Vy.F(F.fCore)*derivTempF(F.fCore);
 #endif
-
-    interTempF = 0.0;
-    for (unsigned int i=0; i < F.VzIntSlices.size(); i++) {
-        interTempF(F.fCore) += V.Vz.F(F.VzIntSlices(i));
-    }
 
     derivTempF = 0.0;
     derS.calcDerivative1_z(derivTempF);
-    H.F(F.fCore) -= interTempF(F.fCore)*derivTempF(F.fCore)/F.VzIntSlices.size();
+    H.F(F.fCore) -= V.Vz.F(F.fCore)*derivTempF(F.fCore);
 }
 
 /**
@@ -151,21 +133,17 @@ void sfield::computeNLin(const vfield &V, plainsf &H) {
  ********************************************************************************************************************************************
  */
 void sfield::gradient(plainvf &gradF, const vfield &V) {
-    blitz::firstIndex i;
-    blitz::secondIndex j;
-    blitz::thirdIndex k;
-
-    blitz::Range xColl, yColl, zColl;
-
-    xColl = blitz::Range(gridData.collocCoreDomain.lbound(0), gridData.collocCoreDomain.ubound(0));
-    yColl = blitz::Range(gridData.collocCoreDomain.lbound(1), gridData.collocCoreDomain.ubound(1));
-    zColl = blitz::Range(gridData.collocCoreDomain.lbound(2), gridData.collocCoreDomain.ubound(2));
-
-    gradF.Vx(V.Vx.fCore) = gridData.xi_xColloc(xColl)(i)*(F.F(V.Vx.fCRgt) - F.F(V.Vx.fCore))/gridData.dXi;
+    derivTempF = 0.0;
+    derS.calcDerivative1_x(derivTempF);
+    gradF.Vx(V.Vx.fCore) = derivTempF(F.fCore);
 #ifndef PLANAR
-    gradF.Vy(V.Vy.fCore) = gridData.et_yColloc(yColl)(j)*(F.F(V.Vy.fCBak) - F.F(V.Vy.fCore))/gridData.dEt;
+    derivTempF = 0.0;
+    derS.calcDerivative1_y(derivTempF);
+    gradF.Vy(V.Vy.fCore) = derivTempF(F.fCore);
 #endif
-    gradF.Vz(V.Vz.fCore) = gridData.zt_zColloc(zColl)(k)*(F.F(V.Vz.fCTop) - F.F(V.Vz.fCore))/gridData.dZt;
+    derivTempF = 0.0;
+    derS.calcDerivative1_z(derivTempF);
+    gradF.Vz(V.Vz.fCore) = derivTempF(F.fCore);
 }
 
 /**

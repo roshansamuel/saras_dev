@@ -58,34 +58,15 @@
  *          to the limits and initialized to 0.
  *
  * \param   gridData is a const reference to the global data in the grid class
- * \param   xStag is a const boolean value that is <B>true</B> when F is staggered (half-indexed) along x-direction
- * \param   yStag is a const boolean value that is <B>true</B> when F is staggered (half-indexed) along y-direction
- * \param   zStag is a const boolean value that is <B>true</B> when F is staggered (half-indexed) along z-direction
  ********************************************************************************************************************************************
  */
-field::field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag):
-             gridData(gridData),
-             xStag(xStag), yStag(yStag), zStag(zStag)
+field::field(const grid &gridData, std::string fieldName):
+             gridData(gridData)
 {
     this->fieldName = fieldName;
 
-    fSize = gridData.collocFullSize;
-    flBound = gridData.collocFullDomain.lbound();
-
-    if (xStag) {
-        fSize(0) = gridData.staggrFullSize(0);
-        flBound(0) = gridData.staggrFullDomain.lbound()(0);
-    }    
-
-    if (yStag) {
-        fSize(1) = gridData.staggrFullSize(1);
-        flBound(1) = gridData.staggrFullDomain.lbound()(1);
-     }
-
-    if (zStag) {
-        fSize(2) = gridData.staggrFullSize(2);
-        flBound(2) = gridData.staggrFullDomain.lbound()(2);
-    }
+    fSize = gridData.fullSize;
+    flBound = gridData.fullDomain.lbound();
 
     F.resize(fSize);
     F.reindexSelf(flBound);
@@ -99,7 +80,7 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
 
     setInterpolationSlices();
 
-    mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths, xStag, yStag);
+    mpiHandle->createSubarrays(fSize, cuBound + 1, gridData.padWidths);
 
     F = 0.0;
 }
@@ -138,19 +119,7 @@ blitz::RectDomain<3> field::shift(int dim, blitz::RectDomain<3> core, int steps)
  ********************************************************************************************************************************************
  */
 void field::setCoreSlice() {
-    cuBound = gridData.collocCoreDomain.ubound();
-
-    if (xStag) {
-        cuBound(0) = gridData.staggrCoreDomain.ubound()(0);
-    }
-
-    if (yStag) {
-        cuBound(1) = gridData.staggrCoreDomain.ubound()(1);
-    }
-
-    if (zStag) {
-        cuBound(2) = gridData.staggrCoreDomain.ubound()(2);
-    }
+    cuBound = gridData.coreDomain.ubound();
 
     fCore = blitz::RectDomain<3>(blitz::TinyVector<int, 3>(0, 0, 0), cuBound);
 
@@ -179,41 +148,24 @@ void field::setBulkSlice() {
     blitz::TinyVector<int, 3> blBound;
     blitz::TinyVector<int, 3> buBound;
 
-    blBound = gridData.collocCoreDomain.lbound();
-    buBound = gridData.collocCoreDomain.ubound();
-
-    if (xStag) {
-        blBound(0) = gridData.staggrCoreDomain.lbound()(0);
-        buBound(0) = gridData.staggrCoreDomain.ubound()(0);
-    }
-
-    if (yStag) {
-        blBound(1) = gridData.staggrCoreDomain.lbound()(1);
-        buBound(1) = gridData.staggrCoreDomain.ubound()(1);
-    }
-
-    if (zStag) {
-        blBound(2) = gridData.staggrCoreDomain.lbound()(2);
-        buBound(2) = gridData.staggrCoreDomain.ubound()(2);
-    }
+    blBound = gridData.coreDomain.lbound();
+    buBound = gridData.coreDomain.ubound();
 
     // Bulk and core slices are different only for the boundary sub-domains.
     // That difference in limits is imposed in the following lines.
     // Only in the interior sub-domains, are the bulk and core slices identical.
     // However, in periodic problems, bulk and core slices are identical for all sub-domains.
-    if (xStag and gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
+    if (gridData.rankData.xRank == 0 and not gridData.inputParams.xPer) blBound(0) += 1;
 
-    if (xStag and gridData.rankData.xRank == gridData.rankData.npX - 1 and not gridData.inputParams.xPer) buBound(0) -= 1;
+    if (gridData.rankData.xRank == gridData.rankData.npX - 1 and not gridData.inputParams.xPer) buBound(0) -= 1;
 
-    if (yStag and gridData.rankData.yRank == 0 and not gridData.inputParams.yPer) blBound(1) += 1;
+    if (gridData.rankData.yRank == 0 and not gridData.inputParams.yPer) blBound(1) += 1;
 
-    if (yStag and gridData.rankData.yRank == gridData.rankData.npY - 1 and not gridData.inputParams.yPer) buBound(1) -= 1;
+    if (gridData.rankData.yRank == gridData.rankData.npY - 1 and not gridData.inputParams.yPer) buBound(1) -= 1;
 
-    if (zStag) {
-        if (not gridData.inputParams.zPer) {
-            blBound(2) += 1;
-            buBound(2) -= 1;
-        }
+    if (not gridData.inputParams.zPer) {
+        blBound(2) += 1;
+        buBound(2) -= 1;
     }
 
 #ifdef PLANAR
@@ -286,293 +238,6 @@ void field::setWallSlices() {
         fWalls(i) = blitz::RectDomain<3>(wlBound(i), wuBound(i));
     }
 }
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to create the slices for interpolation while computing convective derivative
- *
- *          One of the core functions of field is to seamlessly interpolate its values between
- *          cell-centered, face-centered, vertex-centered, and edge-centered points.
- *          This is important whenever there is coupling between variables that are placed at
- *          different locations in a cell, and also for computing the non-linear term of NSE.
- *          This function resizes an array of views (RectDomain objects), and shifts each view
- *          appropriately, so that this array of views can be used to get snapshots of the field,
- *          summed, and divided by the number of views.
- *          This is equivalent to first-order linear interpolation.
- *          The only issue to note here is that on non-uniform grids, weights may be needed to
- *          perform this interpolation.
- *          This feature is *not* implemented yet, and the cost being paid for this lack is not yet
- *          ascertained.
- ********************************************************************************************************************************************
- */
-void field::setInterpolationSlices() {
-    // INTERPOLATION SLICES FOR INTERPOLATING VALUES OF VARIOUS FIELDS
-    // In all the below slices, we are considering interpolations between the following 8 variables
-    //
-    // Vx, Vy, Vz - these are face centered variables sitting on X, Y and Z planes respectively (like velocity)
-    // Wx, Wy, Wz - these are edge centered variables sitting on X, Y and Z axes respectively (like vorticity)
-    // Pc - this a cell centered variable (like temperature)
-    // Qv - this a vertex centered variable (I don't know if anything sits here. But hey! completeness!)
-    if (not xStag) {
-        if (yStag) {
-            if (zStag) {
-                /* coll stag stag */
-                /**X-Face centered configuration - Vx **/
-
-                /* Interpolation of data - Vx ---> Vx
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => no change
-                 **/
-                VxIntSlices.resize(1);
-                VxIntSlices(0) = fCore;
-
-                /* Interpolation of data - Vy ---> Vx
-                 * Interpolation types:
-                 *      - X direction => staggered to collocated
-                 *      - Y direction => collocated to staggered
-                 *      - Z direction => no change
-                 **/
-                VyIntSlices.resize(4);
-                VyIntSlices(0) = fCore;
-                VyIntSlices(1) = shift(1, VyIntSlices(0), -1);
-                VyIntSlices(2) = shift(0, VyIntSlices(0), 1);
-                VyIntSlices(3) = shift(1, VyIntSlices(2), -1);
-
-                /* Interpolation of data - Vz ---> Vx
-                 * Interpolation types:
-                 *      - X direction => staggered to collocated
-                 *      - Y direction => no change
-                 *      - Z direction => collocated to staggered
-                 **/
-                VzIntSlices.resize(4);
-                VzIntSlices(0) = fCore;
-                VzIntSlices(1) = shift(2, VzIntSlices(0), -1);
-                VzIntSlices(2) = shift(0, VzIntSlices(0), 1);
-                VzIntSlices(3) = shift(2, VzIntSlices(2), -1);
-
-                /* Interpolation of data - Pc ---> Vx
-                 * Interpolation types:
-                 *      - X direction => staggered to collocated
-                 *      - Y direction => no change
-                 *      - Z direction => no change
-                 **/
-                PcIntSlices.resize(2);
-                PcIntSlices(0) = fCore;
-                PcIntSlices(1) = shift(0, PcIntSlices(0), 1);
-
-            } else {
-                /* coll stag coll */
-                /**Y-Edge centered configuration - Wy **/
-
-                /* Interpolation of data - Vx ---> Wy
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => staggered to collocated
-                 **/
-            }
-        } else {
-            if (zStag) {
-                /* coll coll stag */
-                /**Z-Edge centered configuration - Wz **/
-
-                /* Interpolation of data - Vx ---> Wz
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => staggered to collocated
-                 *      - Z direction => no change
-                 **/
-            } else {
-                /* coll coll coll */
-                /**Vertex centered configuration - Qv **/
-
-                /* Interpolation of data - Vx ---> Qv
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => staggered to collocated
-                 *      - Z direction => staggered to collocated
-                 **/
-            }
-        }
-    } else {
-        if (yStag) {
-            if (zStag) {
-                /* stag stag stag */
-                /**Cell centered configuration - Pc **/
-
-                /* Interpolation of data - Vx ---> Pc
-                 * Interpolation types:
-                 *      - X direction => collocated to staggered
-                 *      - Y direction => no change
-                 *      - Z direction => no change
-                 **/
-                VxIntSlices.resize(2);
-                VxIntSlices(0) = fCore;
-                VxIntSlices(1) = shift(0, VxIntSlices(0), -1);
-
-                /* Interpolation of data - Vy ---> Pc
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => collocated to staggered
-                 *      - Z direction => no change
-                 **/
-                VyIntSlices.resize(2);
-                VyIntSlices(0) = fCore;
-                VyIntSlices(1) = shift(1, VyIntSlices(0), -1);
-
-                /* Interpolation of data - Vz ---> Pc
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => collocated to staggered
-                 **/
-                VzIntSlices.resize(2);
-                VzIntSlices(0) = fCore;
-                VzIntSlices(1) = shift(2, VzIntSlices(0), -1);
-
-                /* Interpolation of data - Pc ---> Pc
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => no change
-                 **/
-                PcIntSlices.resize(1);
-                PcIntSlices(0) = fCore;
-
-            } else {
-                /* stag stag coll */
-                /**Z-Face centered configuration - Vz **/
-
-                /* Interpolation of data - Vx ---> Vz
-                 * Interpolation types:
-                 *      - X direction => collocated to staggered
-                 *      - Y direction => no change
-                 *      - Z direction => staggered to collocated
-                 **/
-                VxIntSlices.resize(4);
-                VxIntSlices(0) = fCore;
-                VxIntSlices(1) = shift(0, VxIntSlices(0), -1);
-                VxIntSlices(2) = shift(2, VxIntSlices(0), 1);
-                VxIntSlices(3) = shift(0, VxIntSlices(2), -1);
-
-                /* Interpolation of data - Vy ---> Vz
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => collocated to staggered
-                 *      - Z direction => staggered to collocated
-                 **/
-                VyIntSlices.resize(4);
-                VyIntSlices(0) = fCore;
-                VyIntSlices(1) = shift(1, VyIntSlices(0), -1);
-                VyIntSlices(2) = shift(2, VyIntSlices(0), 1);
-                VyIntSlices(3) = shift(1, VyIntSlices(2), -1);
-
-                /* Interpolation of data - Vz ---> Vz
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => no change
-                 **/
-                VzIntSlices.resize(1);
-                VzIntSlices(0) = fCore;
-
-                /* Interpolation of data - Pc ---> Vz
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => staggered to collocated
-                 **/
-                PcIntSlices.resize(2);
-                PcIntSlices(0) = fCore;
-                PcIntSlices(1) = shift(2, PcIntSlices(0), 1);
-
-            }
-        } else {
-            if (zStag) {
-                /* stag coll stag */
-                /**Y-Face centered configuration - Vy **/
-
-                /* Interpolation of data - Vx ---> Vy
-                 * Interpolation types:
-                 *      - X direction => collocated to staggered
-                 *      - Y direction => staggered to collocated
-                 *      - Z direction => no change
-                 **/
-                VxIntSlices.resize(4);
-                VxIntSlices(0) = fCore;
-                VxIntSlices(1) = shift(0, VxIntSlices(0), -1);
-                VxIntSlices(2) = shift(1, VxIntSlices(0), 1);
-                VxIntSlices(3) = shift(0, VxIntSlices(2), -1);
-
-                /* Interpolation of data - Vy ---> Vy
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => no change
-                 *      - Z direction => no change
-                 **/
-                VyIntSlices.resize(1);
-                VyIntSlices(0) = fCore;
-
-                /* Interpolation of data - Vz ---> Vy
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => staggered to collocated
-                 *      - Z direction => collocated to staggered
-                 **/
-                VzIntSlices.resize(4);
-                VzIntSlices(0) = fCore;
-                VzIntSlices(1) = shift(2, VzIntSlices(0), -1);
-                VzIntSlices(2) = shift(1, VzIntSlices(0), 1);
-                VzIntSlices(3) = shift(2, VzIntSlices(2), -1);
-
-                /* Interpolation of data - Pc ---> Vy
-                 * Interpolation types:
-                 *      - X direction => no change
-                 *      - Y direction => staggered to collocated
-                 *      - Z direction => no change
-                 **/
-                PcIntSlices.resize(2);
-                PcIntSlices(0) = fCore;
-                PcIntSlices(1) = shift(1, PcIntSlices(0), 1);
-
-            } else {
-                /* stag coll coll */
-                /**X-Edge centered configuration - Wx **/
-
-                /* Interpolation of data - Vx ---> Wx
-                 * Interpolation types:
-                 *      - X direction => collocated to staggered
-                 *      - Y direction => staggered to collocated
-                 *      - Z direction => staggered to collocated
-                 **/
-            }
-        }
-    }
-
-    // RESET INTERPOLATION SLICES FOR PLANAR GRID
-#ifdef PLANAR
-    if (fieldName == "Vy") {
-        VxIntSlices.resize(1);
-        VyIntSlices.resize(1);
-        VzIntSlices.resize(1);
-
-        VxIntSlices(0) = fCore;
-        VyIntSlices(0) = fCore;
-        VzIntSlices(0) = fCore;
-    } else if (fieldName == "Vx") {
-        VyIntSlices.resize(1);
-
-        VyIntSlices(0) = fCore;
-    } else if (fieldName == "Vz") {
-        VyIntSlices.resize(1);
-
-        VyIntSlices(0) = fCore;
-    }
-#endif
-}
-
 
 /**
  ********************************************************************************************************************************************

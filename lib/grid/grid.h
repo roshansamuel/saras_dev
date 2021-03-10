@@ -77,7 +77,6 @@ class grid {
 
         void checkAnisotropy();
         void gatherGlobal();
-        void initWeights();
 
         void computeGlobalLimits();
 
@@ -91,17 +90,11 @@ class grid {
         /** Total number of points (cell-centers) in the full global domain */
         int totalPoints;
 
-        /** The sizes of the core of MPI decomposed sub-domains without the pads (collocated points) - localNx, localNy, localNz */
-        blitz::TinyVector<int, 3> collocCoreSize;
-
-        /** The sizes of the MPI decomposed sub-domains including the pads on all sides (collocated points) - collocCoreSize + 2*padWidths */
-        blitz::TinyVector<int, 3> collocFullSize;
-
         /** The sizes of the core of MPI decomposed sub-domains without the pads (staggered points) */
-        blitz::TinyVector<int, 3> staggrCoreSize;
+        blitz::TinyVector<int, 3> coreSize;
 
         /** The sizes of the MPI decomposed sub-domains including the pads on all sides (staggered points) - staggrCoreSize + 2*padWidths */
-        blitz::TinyVector<int, 3> staggrFullSize;
+        blitz::TinyVector<int, 3> fullSize;
 
         /** The sizes of the pad widths along the three directions - padX, padY, padZ */
         blitz::TinyVector<int, 3> padWidths;
@@ -131,66 +124,41 @@ class grid {
         /** Vector of indices pointing to the <B>sizeArray</B> that determines the global full domain size along the 3 directions */
         blitz::TinyVector<int, 3> sizeIndex;
 
-        /** RectDomain object that defines the slice for the core of the local MPI decomposed sub-domain (collocated points) */
-        blitz::RectDomain<3> collocCoreDomain;
-
-        /** RectDomain object that defines the slice for the full extent of the local MPI decomposed sub-domain (collocated points) */
-        blitz::RectDomain<3> collocFullDomain;
-
         /** RectDomain object that defines the slice for the core of the local MPI decomposed sub-domain (staggered points) */
-        blitz::RectDomain<3> staggrCoreDomain;
+        blitz::RectDomain<3> coreDomain;
 
         /** RectDomain object that defines the slice for the full extent of the local MPI decomposed sub-domain (staggered points) */
-        blitz::RectDomain<3> staggrFullDomain;
+        blitz::RectDomain<3> fullDomain;
 
         /*****************************************************************************************************************************************************/
 
-        /** Collocated grids along the x, y and z directions defined locally within MPI decomposed sub-domains */
+        /** Grids along the x, y and z directions defined locally within MPI decomposed sub-domains */
         //@{
-        blitz::Array<real, 1> xColloc, yColloc, zColloc;
-        //@}
-
-        /** Staggered grids along the x, y and z directions defined locally within MPI decomposed sub-domains */
-        //@{
-        blitz::Array<real, 1> xStaggr, yStaggr, zStaggr;
+        blitz::Array<real, 1> x, y, z;
         //@}
 
         /*****************************************************************************************************************************************************/
 
-        /** Collocated grids along the x, y and z directions for the full global domain */
+        /** Grids points along the x, y and z directions for the global domain in physical plane */
         //@{
-        blitz::Array<real, 1> xCollocGlobal, yCollocGlobal, zCollocGlobal;
-        //@}
-
-        /** Staggered grids along the x, y and z directions for the full global domain */
-        //@{
-        blitz::Array<real, 1> xStaggrGlobal, yStaggrGlobal, zStaggrGlobal;
+        blitz::Array<real, 1> xGlobal, yGlobal, zGlobal;
         //@}
 
         /*****************************************************************************************************************************************************/
 
-        /** Arrays of grid derivative terms along \f$ \xi \f$ direction for both collocated and staggered points, local to each sub-domain. */
+        /** Arrays of grid derivative terms along \f$ \xi \f$ direction, local to each sub-domain. */
         //@{
-        blitz::Array<real, 1> xi_xColloc, xi_xStaggr, xixxColloc, xixxStaggr, xix2Colloc, xix2Staggr;
+        blitz::Array<real, 1> xi_x, xixx, xix2;
         //@}
 
-        /** Arrays of grid derivative terms along \f$ \eta \f$ direction for both collocated and staggered points, local to each sub-domain. */
+        /** Arrays of grid derivative terms along \f$ \eta \f$ direction, local to each sub-domain. */
         //@{
-        blitz::Array<real, 1> et_yColloc, et_yStaggr, etyyColloc, etyyStaggr, ety2Colloc, ety2Staggr;
+        blitz::Array<real, 1> et_y, etyy, ety2;
         //@}
 
-        /** Arrays of grid derivative terms along \f$ \zeta \f$ direction for both collocated and staggered points, local to each sub-domain. */
+        /** Arrays of grid derivative terms along \f$ \zeta \f$ direction, local to each sub-domain. */
         //@{
-        blitz::Array<real, 1> zt_zColloc, zt_zStaggr, ztzzColloc, ztzzStaggr, ztz2Colloc, ztz2Staggr;
-        //@}
-
-        /*****************************************************************************************************************************************************/
-
-        /** Arrays of weights for linear interpolation when transferring data from face-centers to cell-centers */
-        //@{
-        blitz::Array<real, 1> lftWgt, rgtWgt;
-        blitz::Array<real, 1> frnWgt, bakWgt;
-        blitz::Array<real, 1> botWgt, topWgt;
+        blitz::Array<real, 1> zt_z, ztzz, ztz2;
         //@}
 
         /*****************************************************************************************************************************************************/
@@ -231,8 +199,8 @@ class grid {
             blitz::TinyVector<int, 3> locIndex;
 
             if (pointInDomain(gloIndex)) {
-                locIndex(0) = gloIndex(0) % collocCoreSize(0);
-                locIndex(1) = gloIndex(1) % collocCoreSize(1);
+                locIndex(0) = gloIndex(0) % coreSize(0);
+                locIndex(1) = gloIndex(1) % coreSize(1);
                 locIndex(2) = gloIndex(2);
             } else {
                 locIndex = 0, 0, 0;
@@ -256,8 +224,8 @@ class grid {
         inline blitz::TinyVector<int, 3> loc2glo(blitz::TinyVector<int, 3> locIndex) const {
             blitz::TinyVector<int, 3> gloIndex;
 
-            gloIndex(0) = rankData.xRank*collocCoreSize(0) + locIndex(0);
-            gloIndex(1) = rankData.yRank*collocCoreSize(1) + locIndex(1);
+            gloIndex(0) = rankData.xRank*coreSize(0) + locIndex(0);
+            gloIndex(1) = rankData.yRank*coreSize(1) + locIndex(1);
             gloIndex(2) = locIndex(2);
 
             return gloIndex;

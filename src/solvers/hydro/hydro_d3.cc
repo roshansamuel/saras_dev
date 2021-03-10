@@ -261,9 +261,9 @@ real hydro_d3::testPeriodic() {
     for (int i=V.Vx.F.lbound(0); i <= V.Vx.F.ubound(0); i++) {
         for (int j=V.Vx.F.lbound(1); j <= V.Vx.F.ubound(1); j++) {
             for (int k=V.Vx.F.lbound(2); k <= V.Vx.F.ubound(2); k++) {
-                V.Vx.F(i, j, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
-                                  cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
-                                  cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                V.Vx.F(i, j, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                  cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                  cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
                 nseRHS.Vx(i, j, k) = V.Vx.F(i, j, k);
             }
         }
@@ -272,9 +272,9 @@ real hydro_d3::testPeriodic() {
     for (int i=V.Vy.F.lbound(0); i <= V.Vy.F.ubound(0); i++) {
         for (int j=V.Vy.F.lbound(1); j <= V.Vy.F.ubound(1); j++) {
             for (int k=V.Vy.F.lbound(2); k <= V.Vy.F.ubound(2); k++) {
-                V.Vy.F(i, j, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                   sin(2.0*M_PI*mesh.yColloc(j)/mesh.yLen)*
-                                   cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                V.Vy.F(i, j, k) = -cos(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                   sin(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                   cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
                 nseRHS.Vy(i, j, k) = V.Vy.F(i, j, k);
             }
         }
@@ -288,15 +288,15 @@ real hydro_d3::testPeriodic() {
     for (int iX = 1; iX <= mesh.padWidths(0); iX++) {
         for (int iY = V.Vx.fCore.lbound(1); iY <= V.Vx.fCore.ubound(1); iY += iX) {
             for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += iX) {
-                xCoord = mesh.xColloc(V.Vx.fCore.lbound(0)) - (mesh.xColloc(V.Vx.fCore.lbound(0) + iX) - mesh.xColloc(V.Vx.fCore.lbound(0)));
+                xCoord = mesh.x(V.Vx.fCore.lbound(0)) - (mesh.x(V.Vx.fCore.lbound(0) + iX) - mesh.x(V.Vx.fCore.lbound(0)));
                 nseRHS.Vx(V.Vx.fCore.lbound(0) - iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
+                                                               cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
 
-                xCoord = mesh.xColloc(V.Vx.fCore.ubound(0)) + (mesh.xColloc(V.Vx.fCore.ubound(0)) - mesh.xColloc(V.Vx.fCore.ubound(0) - iX));
+                xCoord = mesh.x(V.Vx.fCore.ubound(0)) + (mesh.x(V.Vx.fCore.ubound(0)) - mesh.x(V.Vx.fCore.ubound(0) - iX));
                 nseRHS.Vx(V.Vx.fCore.ubound(0) + iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
-                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
+                                                               cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
             }
         }
     }
@@ -305,15 +305,15 @@ real hydro_d3::testPeriodic() {
     for (int iY = 1; iY <= mesh.padWidths(1); iY++) {
         for (int iX = V.Vx.fCore.lbound(0); iX <= V.Vx.fCore.ubound(0); iX += iY) {
             for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += iY) {
-                yCoord = mesh.yStaggr(V.Vx.fCore.lbound(1)) - (mesh.yStaggr(V.Vx.fCore.lbound(1) + iY) - mesh.yStaggr(V.Vx.fCore.lbound(1)));
-                nseRHS.Vx(iX, V.Vx.fCore.lbound(1) - iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+                yCoord = mesh.y(V.Vx.fCore.lbound(1)) - (mesh.y(V.Vx.fCore.lbound(1) + iY) - mesh.y(V.Vx.fCore.lbound(1)));
+                nseRHS.Vx(iX, V.Vx.fCore.lbound(1) - iY, iZ) = sin(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                                cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
 
-                yCoord = mesh.yStaggr(V.Vx.fCore.ubound(1)) + (mesh.yStaggr(V.Vx.fCore.ubound(1)) - mesh.yStaggr(V.Vx.fCore.ubound(1) - iY));
-                nseRHS.Vx(iX, V.Vx.fCore.ubound(1) + iY, iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+                yCoord = mesh.y(V.Vx.fCore.ubound(1)) + (mesh.y(V.Vx.fCore.ubound(1)) - mesh.y(V.Vx.fCore.ubound(1) - iY));
+                nseRHS.Vx(iX, V.Vx.fCore.ubound(1) + iY, iZ) = sin(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                                cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                               cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                               cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
             }
         }
     }
@@ -322,14 +322,14 @@ real hydro_d3::testPeriodic() {
     for (int iZ = 1; iZ <= mesh.padWidths(2); iZ++) {
         for (int iX = V.Vx.fCore.lbound(0); iX <= V.Vx.fCore.ubound(0); iX += iZ) {
             for (int iY = V.Vx.fCore.lbound(1); iY <= V.Vx.fCore.ubound(1); iY += iZ) {
-                zCoord = mesh.zStaggr(V.Vx.fCore.lbound(2)) - (mesh.zStaggr(V.Vx.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vx.fCore.lbound(2)));
-                nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
+                zCoord = mesh.z(V.Vx.fCore.lbound(2)) - (mesh.z(V.Vx.fCore.lbound(2) + iZ) - mesh.z(V.Vx.fCore.lbound(2)));
+                nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
+                                                               cos(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
                                                                cos(2.0*M_PI*zCoord/mesh.zLen);
 
-                zCoord = mesh.zStaggr(V.Vx.fCore.ubound(2)) + (mesh.zStaggr(V.Vx.fCore.ubound(2)) - mesh.zStaggr(V.Vx.fCore.ubound(2) - iZ));
-                nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
-                                                               cos(2.0*M_PI*mesh.yStaggr(iY)/mesh.yLen)*
+                zCoord = mesh.z(V.Vx.fCore.ubound(2)) + (mesh.z(V.Vx.fCore.ubound(2)) - mesh.z(V.Vx.fCore.ubound(2) - iZ));
+                nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
+                                                               cos(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
                                                                cos(2.0*M_PI*zCoord/mesh.zLen);
             }
         }
@@ -339,15 +339,15 @@ real hydro_d3::testPeriodic() {
     for (int iX = 1; iX <= mesh.padWidths(0); iX++) {
         for (int iY = V.Vy.fCore.lbound(1); iY <= V.Vy.fCore.ubound(1); iY += iX) {
             for (int iZ = V.Vy.fCore.lbound(2); iZ <= V.Vy.fCore.ubound(2); iZ += iX) {
-                xCoord = mesh.xStaggr(V.Vy.fCore.lbound(0)) - (mesh.xStaggr(V.Vy.fCore.lbound(0) + iX) - mesh.xStaggr(V.Vy.fCore.lbound(0)));
+                xCoord = mesh.x(V.Vy.fCore.lbound(0)) - (mesh.x(V.Vy.fCore.lbound(0) + iX) - mesh.x(V.Vy.fCore.lbound(0)));
                 nseRHS.Vy(V.Vy.fCore.lbound(0) - iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
-                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                sin(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
+                                                                cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
 
-                xCoord = mesh.xStaggr(V.Vy.fCore.ubound(0)) + (mesh.xStaggr(V.Vy.fCore.ubound(0)) - mesh.xStaggr(V.Vy.fCore.ubound(0) - iX));
+                xCoord = mesh.x(V.Vy.fCore.ubound(0)) + (mesh.x(V.Vy.fCore.ubound(0)) - mesh.x(V.Vy.fCore.ubound(0) - iX));
                 nseRHS.Vy(V.Vy.fCore.ubound(0) + iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
-                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                sin(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
+                                                                cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
             }
         }
     }
@@ -356,15 +356,15 @@ real hydro_d3::testPeriodic() {
     for (int iY = 1; iY <= mesh.padWidths(1); iY++) {
         for (int iX = V.Vy.fCore.lbound(0); iX <= V.Vy.fCore.ubound(0); iX += iY) {
             for (int iZ = V.Vy.fCore.lbound(2); iZ <= V.Vy.fCore.ubound(2); iZ += iY) {
-                yCoord = mesh.yColloc(V.Vy.fCore.lbound(1)) - (mesh.yColloc(V.Vy.fCore.lbound(1) + iY) - mesh.yColloc(V.Vy.fCore.lbound(1)));
-                nseRHS.Vy(iX, V.Vy.fCore.lbound(1) - iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+                yCoord = mesh.y(V.Vy.fCore.lbound(1)) - (mesh.y(V.Vy.fCore.lbound(1) + iY) - mesh.y(V.Vy.fCore.lbound(1)));
+                nseRHS.Vy(iX, V.Vy.fCore.lbound(1) - iY, iZ) = -cos(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                                 sin(2.0*M_PI*yCoord/mesh.yLen)*
-                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
 
-                yCoord = mesh.yColloc(V.Vy.fCore.ubound(1)) + (mesh.yColloc(V.Vy.fCore.ubound(1)) - mesh.yColloc(V.Vy.fCore.ubound(1) - iY));
-                nseRHS.Vy(iX, V.Vy.fCore.ubound(1) + iY, iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+                yCoord = mesh.y(V.Vy.fCore.ubound(1)) + (mesh.y(V.Vy.fCore.ubound(1)) - mesh.y(V.Vy.fCore.ubound(1) - iY));
+                nseRHS.Vy(iX, V.Vy.fCore.ubound(1) + iY, iZ) = -cos(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                                 sin(2.0*M_PI*yCoord/mesh.yLen)*
-                                                                cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                                cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
             }
         }
     }
@@ -373,14 +373,14 @@ real hydro_d3::testPeriodic() {
     for (int iZ = 1; iZ <= mesh.padWidths(2); iZ++) {
         for (int iX = V.Vy.fCore.lbound(0); iX <= V.Vy.fCore.ubound(0); iX += iZ) {
             for (int iY = V.Vy.fCore.lbound(1); iY <= V.Vy.fCore.ubound(1); iY += iZ) {
-                zCoord = mesh.zStaggr(V.Vy.fCore.lbound(2)) - (mesh.zStaggr(V.Vy.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vy.fCore.lbound(2)));
-                nseRHS.Vy(iX, iY, V.Vy.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
+                zCoord = mesh.z(V.Vy.fCore.lbound(2)) - (mesh.z(V.Vy.fCore.lbound(2) + iZ) - mesh.z(V.Vy.fCore.lbound(2)));
+                nseRHS.Vy(iX, iY, V.Vy.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
+                                                                sin(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
                                                                 cos(2.0*M_PI*zCoord/mesh.zLen);
 
-                zCoord = mesh.zStaggr(V.Vy.fCore.ubound(2)) + (mesh.zStaggr(V.Vy.fCore.ubound(2)) - mesh.zStaggr(V.Vy.fCore.ubound(2) - iZ));
-                nseRHS.Vy(iX, iY, V.Vy.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
-                                                                sin(2.0*M_PI*mesh.yColloc(iY)/mesh.yLen)*
+                zCoord = mesh.z(V.Vy.fCore.ubound(2)) + (mesh.z(V.Vy.fCore.ubound(2)) - mesh.z(V.Vy.fCore.ubound(2) - iZ));
+                nseRHS.Vy(iX, iY, V.Vy.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
+                                                                sin(2.0*M_PI*mesh.y(iY)/mesh.yLen)*
                                                                 cos(2.0*M_PI*zCoord/mesh.zLen);
             }
         }

@@ -90,10 +90,10 @@ poisson::poisson(const grid &mesh, const parser &solParam): mesh(mesh), inputPar
     setCoefficients();
 
     // COPY THE STAGGERED GRID COORDINATES TO LOCAL ARRAYS
-    copyStaggrGrids();
+    copyGrids();
 
     // COPY THE STAGGERED GRID DERIVATIVES TO LOCAL ARRAYS
-    copyStaggrDerivs();
+    copyDerivs();
 
     // RESIZE AND INITIALIZE NECESSARY DATA-STRUCTURES
     initializeArrays();
@@ -155,9 +155,9 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         real xDist, zDist;
 
         for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-            xDist = mesh.xStaggr(i) - 0.5;
+            xDist = mesh.x(i) - 0.5;
             for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-                zDist = mesh.zStaggr(k) - 0.5;
+                zDist = mesh.z(k) - 0.5;
 
                 pAnalytic(i, 0, k) = (xDist*xDist + zDist*zDist)/4.0;
             }
@@ -166,11 +166,11 @@ void poisson::mgSolve(plainsf &inFn, const plainsf &rhs) {
         real xDist, yDist, zDist;
 
         for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-            xDist = mesh.xStaggr(i) - 0.5;
+            xDist = mesh.x(i) - 0.5;
             for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-                yDist = mesh.yStaggr(j) - 0.5;
+                yDist = mesh.y(j) - 0.5;
                 for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-                    zDist = mesh.zStaggr(k) - 0.5;
+                    zDist = mesh.z(k) - 0.5;
 
                     pAnalytic(i, j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
                 }
@@ -498,7 +498,7 @@ void poisson::setCoefficients() {
  *
  ********************************************************************************************************************************************
  */
-void poisson::copyStaggrDerivs() {
+void poisson::copyDerivs() {
     // Points at the left and right pads of the MPI-subdomains need to be taken from
     // neighbouring sub-domains, and these real values will be used to hold the coordinates
     // temporarily during transfer along each axis
@@ -520,7 +520,7 @@ void poisson::copyStaggrDerivs() {
         xixx(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
         xixx(n).reindexSelf(stagFull(n).lbound(0));
         xixx(n) = 0.0;
-        xixx(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xixxStaggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
+        xixx(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xixx(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
 
         // Assign points to be sent
         sendPoint0 = xixx(n)(1);
@@ -543,7 +543,7 @@ void poisson::copyStaggrDerivs() {
         xix2(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
         xix2(n).reindexSelf(stagFull(n).lbound(0));
         xix2(n) = 0.0;
-        xix2(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xix2Staggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
+        xix2(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xix2(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
 
         // Assign points to be sent
         sendPoint0 = xix2(n)(1);
@@ -567,7 +567,7 @@ void poisson::copyStaggrDerivs() {
         etyy(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
         etyy(n).reindexSelf(stagFull(n).lbound(1));
         etyy(n) = 0.0;
-        etyy(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.etyyStaggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
+        etyy(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.etyy(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
 
         // Assign points to be sent
         sendPoint0 = etyy(n)(1);
@@ -590,7 +590,7 @@ void poisson::copyStaggrDerivs() {
         ety2(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
         ety2(n).reindexSelf(stagFull(n).lbound(1));
         ety2(n) = 0.0;
-        ety2(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.ety2Staggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
+        ety2(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.ety2(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
 
         // Assign points to be sent
         sendPoint0 = ety2(n)(1);
@@ -614,7 +614,7 @@ void poisson::copyStaggrDerivs() {
         ztzz(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
         ztzz(n).reindexSelf(stagFull(n).lbound(2));
         ztzz(n) = 0.0;
-        ztzz(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztzzStaggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
+        ztzz(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztzz(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
 
         ztzz(n)(-1) = ztzz(n)(1);
         ztzz(n)(stagCore(n).ubound(2) + 1) = ztzz(n)(stagCore(n).ubound(2) - 1);
@@ -624,7 +624,7 @@ void poisson::copyStaggrDerivs() {
         ztz2(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
         ztz2(n).reindexSelf(stagFull(n).lbound(2));
         ztz2(n) = 0.0;
-        ztz2(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztz2Staggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
+        ztz2(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.ztz2(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
 
         ztz2(n)(-1) = ztz2(n)(1);
         ztz2(n)(stagCore(n).ubound(2) + 1) = ztz2(n)(stagCore(n).ubound(2) - 1);
@@ -644,7 +644,7 @@ void poisson::copyStaggrDerivs() {
  *
  ********************************************************************************************************************************************
  */
-void poisson::copyStaggrGrids() {
+void poisson::copyGrids() {
     // Points at the left and right pads of the MPI-subdomains need to be taken from
     // neighbouring sub-domains, and these real values will be used to hold the coordinates
     // temporarily during transfer along each axis
@@ -661,7 +661,7 @@ void poisson::copyStaggrGrids() {
         nuX(n).resize(stagFull(n).ubound(0) - stagFull(n).lbound(0) + 1);
         nuX(n).reindexSelf(stagFull(n).lbound(0));
         nuX(n) = 0.0;
-        nuX(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.xStaggr(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
+        nuX(n)(blitz::Range(0, stagCore(n).ubound(0), 1)) = mesh.x(blitz::Range(0, stagCore(0).ubound(0), strideValues(n)));
 
         // Assign points to be sent
         sendPoint0 = nuX(n)(1);
@@ -684,7 +684,7 @@ void poisson::copyStaggrGrids() {
         nuY(n).resize(stagFull(n).ubound(1) - stagFull(n).lbound(1) + 1);
         nuY(n).reindexSelf(stagFull(n).lbound(1));
         nuY(n) = 0.0;
-        nuY(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.yStaggr(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
+        nuY(n)(blitz::Range(0, stagCore(n).ubound(1), 1)) = mesh.y(blitz::Range(0, stagCore(0).ubound(1), strideValues(n)));
 
         // Assign points to be sent
         sendPoint0 = nuY(n)(1);
@@ -707,7 +707,7 @@ void poisson::copyStaggrGrids() {
         nuZ(n).resize(stagFull(n).ubound(2) - stagFull(n).lbound(2) + 1);
         nuZ(n).reindexSelf(stagFull(n).lbound(2));
         nuZ(n) = 0.0;
-        nuZ(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.zStaggr(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
+        nuZ(n)(blitz::Range(0, stagCore(n).ubound(2), 1)) = mesh.z(blitz::Range(0, stagCore(0).ubound(2), strideValues(n)));
 
         nuZ(n)(-1) = -nuZ(n)(1);
         nuZ(n)(stagCore(n).ubound(2) + 1) = nuZ(n)(stagCore(n).ubound(2)) +

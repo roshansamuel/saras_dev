@@ -75,8 +75,6 @@ class sfield {
         /** Instance of force class to handle scalar field forcing */
         force *tForcing;
 
-        blitz::Array<real, 3> interTempF;
-
         sfield(const grid &gridData, std::string fieldName);
 
         void computeDiff(plainsf &H);

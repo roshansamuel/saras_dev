@@ -217,12 +217,7 @@ class hotPlateCC: public boundary {
         blitz::Array<bool, 3> wallMask;
         blitz::Array<real, 3> wallData;
 
-        blitz::Array<real, 1> x, y, z;
-        blitz::Array<real, 1> xGlo, yGlo, zGlo;
-
         const real patchRadius;
-
-        void setXYZ();
 
         void createPatch(real patchRadius);
 };

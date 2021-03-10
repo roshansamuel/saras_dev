@@ -75,14 +75,11 @@ mpidata::mpidata(blitz::Array<real, 3> inputArray, const parallel &parallelData)
  * \param   globSize stores the global size of a sub-domain - including core and pads
  * \param   coreSize stores the size of the core of the sub-domain and is similar to the collocCoreSize variable in the grid class
  * \param   padWidth contains the widths of pads along the 3 directions, namely padWidths TinyVector from the grid class
- * \param   xStag specifies whether the array to which the instance of \ref mpidata class is associated with has its data points staggered in x-direction or not
- * \param   yStag specifies whether the array to which the instance of \ref mpidata class is associated with has its data points staggered in y-direction or not
  ********************************************************************************************************************************************
  */
 void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
                               const blitz::TinyVector<int, 3> coreSize,
-                              const blitz::TinyVector<int, 3> padWidth,
-                              const bool xStag, const bool yStag) {
+                              const blitz::TinyVector<int, 3> padWidth) {
     /** The <B>loclSize</B> variable holds the local size of the sub-array slice to be sent/received within the sub-domain. */
     blitz::TinyVector<int, 3> loclSize;
 
@@ -109,7 +106,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) saStarts(0) += 1;
+    saStarts(0) += 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0);
     MPI_Type_commit(&sendSubarrayX0);
@@ -127,7 +124,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) saStarts(0) -= 1;
+    saStarts(0) -= 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1);
     MPI_Type_commit(&sendSubarrayX1);
@@ -147,7 +144,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (yStag) saStarts(1) += 1;
+    saStarts(1) += 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY0);
     MPI_Type_commit(&sendSubarrayY0);
@@ -165,7 +162,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (yStag) saStarts(1) -= 1;
+    saStarts(1) -= 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayY1);
     MPI_Type_commit(&sendSubarrayY1);
@@ -187,8 +184,8 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) saStarts(0) += 1;
-    if (yStag) saStarts(1) += 1;
+    saStarts(0) += 1;
+    saStarts(1) += 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0Y0);
     MPI_Type_commit(&sendSubarrayX0Y0);
@@ -206,8 +203,8 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) saStarts(0) += 1;
-    if (yStag) saStarts(1) -= 1;
+    saStarts(0) += 1;
+    saStarts(1) -= 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX0Y1);
     MPI_Type_commit(&sendSubarrayX0Y1);
@@ -227,8 +224,8 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) saStarts(0) -= 1;
-    if (yStag) saStarts(1) += 1;
+    saStarts(0) -= 1;
+    saStarts(1) += 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1Y0);
     MPI_Type_commit(&sendSubarrayX1Y0);
@@ -246,8 +243,8 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
 
     // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
-    if (xStag) saStarts(0) -= 1;
-    if (yStag) saStarts(1) -= 1;
+    saStarts(0) -= 1;
+    saStarts(1) -= 1;
 
     MPI_Type_create_subarray(3, globCopy.data(), loclSize.data(), saStarts.data(), MPI_ORDER_C, MPI_FP_REAL, &sendSubarrayX1Y1);
     MPI_Type_commit(&sendSubarrayX1Y1);

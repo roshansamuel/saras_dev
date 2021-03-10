@@ -67,14 +67,6 @@ class field {
         /** This string is used to identify the field, and is useful in file-writing */
         std::string fieldName;
 
-        /** xStag, yStag and zStag are the boolean flags which specify whether the field variable is at cell-center, face-center, edge-center and so on.
-         *  When the flag is true, the variable is shifted by half the grid-spacing.
-         *  This means that when all the flags are true, the variable is at the cell-center.
-         *  And when all the flags are false, the variable is placed at the vertex centers (collocated arrangement). */
-        //@{
-        const bool xStag, yStag, zStag;
-        //@}
-
         /** The core slice is a view of the field data excluding the ghost points surrounding it */
         blitz::RectDomain<3> fCore;
 
@@ -94,16 +86,12 @@ class field {
          *  Thus, the core slice is a union of both bulk and wall slices. */
         blitz::Array<blitz::RectDomain<3>, 1> fWalls;
 
-        blitz::Array<blitz::RectDomain<3>, 1> PcIntSlices, QvIntSlices;
-        blitz::Array<blitz::RectDomain<3>, 1> VxIntSlices, VyIntSlices, VzIntSlices;
-        blitz::Array<blitz::RectDomain<3>, 1> WxIntSlices, WyIntSlices, WzIntSlices;
-
         blitz::TinyVector<int, 3> fSize;
         blitz::TinyVector<int, 3> flBound, cuBound;
 
         mpidata *mpiHandle;
 
-        field(const grid &gridData, std::string fieldName, const bool xStag, const bool yStag, const bool zStag);
+        field(const grid &gridData, std::string fieldName);
 
         void syncData();
 

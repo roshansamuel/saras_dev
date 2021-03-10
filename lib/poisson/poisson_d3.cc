@@ -564,9 +564,9 @@ void multigrid_d3::initDirichlet() {
     // Along X-direction - Left and Right Walls
     xDist = mesh.inputParams.Lx/2.0;
     for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-        yDist = mesh.yStaggr(j) - 0.5;
+        yDist = mesh.y(j) - 0.5;
         for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-            zDist = mesh.zStaggr(k) - 0.5;
+            zDist = mesh.z(k) - 0.5;
 
             xWall(j, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
@@ -575,9 +575,9 @@ void multigrid_d3::initDirichlet() {
     // Along Y-direction - Front and Rear Walls
     yDist = mesh.inputParams.Ly/2.0;
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        xDist = mesh.xStaggr(i) - 0.5;
+        xDist = mesh.x(i) - 0.5;
         for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-            zDist = mesh.zStaggr(k) - 0.5;
+            zDist = mesh.z(k) - 0.5;
 
             yWall(i, k) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
@@ -586,9 +586,9 @@ void multigrid_d3::initDirichlet() {
     // Along Z-direction - Top and Bottom Walls
     zDist = mesh.inputParams.Lz/2.0;
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        xDist = mesh.xStaggr(i) - 0.5;
+        xDist = mesh.x(i) - 0.5;
         for (int j=0; j<=stagCore(0).ubound(1); ++j) {
-            yDist = mesh.yStaggr(j) - 0.5;
+            yDist = mesh.y(j) - 0.5;
 
             zWall(i, j) = (xDist*xDist + yDist*yDist + zDist*zDist)/6.0;
         }
@@ -830,9 +830,9 @@ real multigrid_d3::testPeriodic() {
     for (int i = 0; i <= xEnd(0); ++i) {
         for (int j = 0; j <= yEnd(0); ++j) {
             for (int k = 0; k <= zEnd(0); ++k) {
-                pressureData(0)(i, j, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                           cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
-                                           cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                pressureData(0)(i, j, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                           cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                           cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
                 residualData(0)(i, j, k) = pressureData(0)(i, j, k);
             }
         }
@@ -842,15 +842,15 @@ real multigrid_d3::testPeriodic() {
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int j = 0; j <= yEnd(n); ++j) {
             for (int k = 0; k <= zEnd(n); ++k) {
-                xCoord = mesh.xStaggr(0) - (mesh.xStaggr(strideValues(n)) - mesh.xStaggr(0));
+                xCoord = mesh.x(0) - (mesh.x(strideValues(n)) - mesh.x(0));
                 residualData(n)(-1, j, k) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                            cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
-                                            cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                                            cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                            cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
 
-                xCoord = mesh.xStaggr(xEnd(0)) + (mesh.xStaggr(xEnd(0)) - mesh.xStaggr(xEnd(0) - strideValues(n)));
+                xCoord = mesh.x(xEnd(0)) + (mesh.x(xEnd(0)) - mesh.x(xEnd(0) - strideValues(n)));
                 residualData(n)(xEnd(n) + 1, j, k) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                     cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
-                                                     cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                                                     cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                                     cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
             }
         }
     }
@@ -858,15 +858,15 @@ real multigrid_d3::testPeriodic() {
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int i = 0; i <= xEnd(n); ++i) {
             for (int k = 0; k <= zEnd(n); ++k) {
-                yCoord = mesh.yStaggr(0) - (mesh.yStaggr(strideValues(n)) - mesh.yStaggr(0));
-                residualData(n)(i, -1, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                yCoord = mesh.y(0) - (mesh.y(strideValues(n)) - mesh.y(0));
+                residualData(n)(i, -1, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
                                             cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                            cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                                            cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
 
-                yCoord = mesh.yStaggr(yEnd(0)) + (mesh.yStaggr(yEnd(0)) - mesh.yStaggr(yEnd(0) - strideValues(n)));
-                residualData(n)(i, yEnd(n) + 1, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+                yCoord = mesh.y(yEnd(0)) + (mesh.y(yEnd(0)) - mesh.y(yEnd(0) - strideValues(n)));
+                residualData(n)(i, yEnd(n) + 1, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
                                                      cos(2.0*M_PI*yCoord/mesh.yLen)*
-                                                     cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                                                     cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
             }
         }
     }
@@ -874,14 +874,14 @@ real multigrid_d3::testPeriodic() {
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int i = 0; i <= xEnd(n); ++i) {
             for (int j = 0; j <= yEnd(n); ++j) {
-                zCoord = mesh.zStaggr(0) - (mesh.zStaggr(strideValues(n)) - mesh.zStaggr(0));
-                residualData(n)(i, j, -1) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                            cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                zCoord = mesh.z(0) - (mesh.z(strideValues(n)) - mesh.z(0));
+                residualData(n)(i, j, -1) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                            cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
                                             cos(2.0*M_PI*zCoord/mesh.zLen);
 
-                zCoord = mesh.zStaggr(zEnd(0)) + (mesh.zStaggr(zEnd(0)) - mesh.zStaggr(zEnd(0) - strideValues(n)));
-                residualData(n)(i, j, zEnd(n) + 1) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                                     cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
+                zCoord = mesh.z(zEnd(0)) + (mesh.z(zEnd(0)) - mesh.z(zEnd(0) - strideValues(n)));
+                residualData(n)(i, j, zEnd(n) + 1) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                                     cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
                                                      cos(2.0*M_PI*zCoord/mesh.zLen);
             }
         }

@@ -103,8 +103,7 @@ class mpidata {
 
         void createSubarrays(const blitz::TinyVector<int, 3> globSize,
                              const blitz::TinyVector<int, 3> coreSize,
-                             const blitz::TinyVector<int, 3> padWidth,
-                             const bool xStag, const bool yStag);
+                             const blitz::TinyVector<int, 3> padWidth)
 
         void syncData();
 };

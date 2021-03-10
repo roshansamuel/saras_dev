@@ -72,12 +72,12 @@ static void taylorGreen(sfield &F, sfield &dF, grid &mesh) {
     for (int i=F.F.F.lbound(0); i <= F.F.F.ubound(0); i++) {
         for (int j=F.F.F.lbound(1); j <= F.F.F.ubound(1); j++) {
             for (int k=F.F.F.lbound(2); k <= F.F.F.ubound(2); k++) {
-                F.F.F(i, j, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                 cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
-                                 cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
-                dF.F.F(i, j, k) = 2.0*M_PI*cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                           cos(2.0*M_PI*mesh.yStaggr(j)/mesh.yLen)*
-                                           cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                F.F.F(i, j, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                 cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                 cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
+                dF.F.F(i, j, k) = 2.0*M_PI*cos(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                           cos(2.0*M_PI*mesh.y(j)/mesh.yLen)*
+                                           cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
             }
         }
     }
@@ -85,10 +85,10 @@ static void taylorGreen(sfield &F, sfield &dF, grid &mesh) {
     int j = 0;
     for (int i=F.F.F.lbound(0); i <= F.F.F.ubound(0); i++) {
         for (int k=F.F.F.lbound(2); k <= F.F.F.ubound(2); k++) {
-            F.F.F(i, j, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                             cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
-            dF.F.F(i, j, k) = 2.0*M_PI*cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                       cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+            F.F.F(i, j, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                             cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
+            dF.F.F(i, j, k) = 2.0*M_PI*cos(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                       cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
         }
     }
 #endif

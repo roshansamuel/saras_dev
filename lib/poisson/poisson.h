@@ -115,8 +115,8 @@ class poisson {
 
         void setLocalSizeIndex();
         void initializeArrays();
-        void copyStaggrDerivs();
-        void copyStaggrGrids();
+        void copyDerivs();
+        void copyGrids();
         void setCoefficients();
         void setStagBounds();
 

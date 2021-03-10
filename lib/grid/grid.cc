@@ -99,7 +99,7 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     dEt = 1.0;
 #endif
 
-    // COMPUTE THE LOCAL ARRAY SIZES, collocCoreSize, START AND END INDICES, subarrayStarts AND subarrayEnds
+    // COMPUTE THE LOCAL ARRAY SIZES, coreSize, START AND END INDICES, subarrayStarts AND subarrayEnds
     computeGlobalLimits();
 
     // SET THE TinyVector AND RectDomain VARIABLES BASED ON VALUES COMPUTED IN computeGlobalLimits, FOR RESIZING ALL LOCAL GRIDS
@@ -143,9 +143,6 @@ grid::grid(const parser &solParam, parallel &parallelData): inputParams(solParam
     if (gridCheck) checkAnisotropy();
 
     gatherGlobal();
-
-    /** Initialize the weights for linear interpolation if using non-uniform grid */
-    initWeights();
 }
 
 
@@ -219,8 +216,8 @@ void grid::computeGlobalLimits() {
     ztSt = 0;
     ztEn = ztSt + localNz - 1;
 
-    staggrCoreSize = localNx, localNy, localNz;
-    staggrFullSize = staggrCoreSize + 2*padWidths;
+    coreSize = localNx, localNy, localNz;
+    fullSize = coreSize + 2*padWidths;
 
     // SUB-ARRAY STARTS AND ENDS FOR *STAGGERED* GRID
     subarrayStarts = xiSt, etSt, ztSt;
@@ -239,32 +236,13 @@ void grid::computeGlobalLimits() {
 void grid::setDomainSizes() {
     blitz::TinyVector<int, 3> loBound, upBound;
 
-    // SIZE OF THE STAGGERED DOMAIN IN THE CORE OF THE LOCAL SUB-DOMAIN
-    collocCoreSize = staggrCoreSize - 1;
-
-#ifdef PLANAR
-    collocCoreSize(1) += 1;
-#endif
-
-    collocFullSize = collocCoreSize + 2*padWidths;
-
-    // LOWER BOUND AND UPPER BOUND OF CORE - USED TO CONSTRUCT THE CORE SLICE OF COLLOCATED POINTS
-    loBound = 0, 0, 0;
-    upBound = collocCoreSize - 1;
-    collocCoreDomain = blitz::RectDomain<3>(loBound, upBound);
-
     // LOWER BOUND AND UPPER BOUND OF CORE - USED TO CONSTRUCT THE CORE SLICE OF STAGGERED POINTS
-    upBound = staggrCoreSize - 1;
-    staggrCoreDomain = blitz::RectDomain<3>(loBound, upBound);
+    upBound = coreSize - 1;
+    coreDomain = blitz::RectDomain<3>(loBound, upBound);
 
     // LOWER BOUND AND UPPER BOUND OF FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
-    loBound = -padWidths;
-    upBound = collocCoreSize + padWidths - 1;
-    collocFullDomain = blitz::RectDomain<3>(loBound, upBound);
-
-    // LOWER BOUND AND UPPER BOUND OF FULL SUB-DOMAIN - USED TO CONSTRUCT THE FULL SUB-DOMAIN SLICE
-    upBound = staggrCoreSize + padWidths - 1;
-    staggrFullDomain = blitz::RectDomain<3>(loBound, upBound);
+    upBound = coreSize + padWidths - 1;
+    fullDomain = blitz::RectDomain<3>(loBound, upBound);
 }
 
 
@@ -282,55 +260,34 @@ void grid::setDomainSizes() {
 void grid::resizeGrid() {
     // ALL ARRAYS MUST BE RESIZED AND REINDEXED TO LET THE NEGATIVE PADS HAVE NEGATIVE INDICES
     // THIS IS DONE IN A SINGLE STEP BY INITIALIZING THE ARRAYS WITH A blitz::Range OBJECT WHICH CONTAINS SIZE AND INDEXING INFORMATION
-    blitz::Range xStagRange, xCollRange;
-    blitz::Range yStagRange, yCollRange;
-    blitz::Range zStagRange, zCollRange;
+    blitz::Range xRange, yRange, zRange;
 
     // RANGE OF THE SUB-DOMAIN FOR STAGGERED AND COLLOCATED GRIDS: CONSTRUCTED FROM LOWER AND UPPER BOUNDS OF FULL SUB-DOMAIN
-    xCollRange = blitz::Range(collocFullDomain.lbound(0), collocFullDomain.ubound(0));
-    yCollRange = blitz::Range(collocFullDomain.lbound(1), collocFullDomain.ubound(1));
-    zCollRange = blitz::Range(collocFullDomain.lbound(2), collocFullDomain.ubound(2));
-
-    xStagRange = blitz::Range(staggrFullDomain.lbound(0), staggrFullDomain.ubound(0));
-    yStagRange = blitz::Range(staggrFullDomain.lbound(1), staggrFullDomain.ubound(1));
-    zStagRange = blitz::Range(staggrFullDomain.lbound(2), staggrFullDomain.ubound(2));
+    xRange = blitz::Range(fullDomain.lbound(0), fullDomain.ubound(0));
+    yRange = blitz::Range(fullDomain.lbound(1), fullDomain.ubound(1));
+    zRange = blitz::Range(fullDomain.lbound(2), fullDomain.ubound(2));
 
     // LOCAL XI, ETA AND ZETA ARRAYS
-    xi.resize(xStagRange);
-    et.resize(yStagRange);
-    zt.resize(zStagRange);
-
-    // COLLOCATED GRID POINTS AND THEIR METRICS
-    xColloc.resize(xCollRange);
-    yColloc.resize(yCollRange);
-    zColloc.resize(zCollRange);
-
-    xi_xColloc.resize(xCollRange);          xixxColloc.resize(xCollRange);          xix2Colloc.resize(xCollRange);
-    et_yColloc.resize(yCollRange);          etyyColloc.resize(yCollRange);          ety2Colloc.resize(yCollRange);
-    zt_zColloc.resize(zCollRange);          ztzzColloc.resize(zCollRange);          ztz2Colloc.resize(zCollRange);
+    xi.resize(xRange);
+    et.resize(yRange);
+    zt.resize(zRange);
 
     // STAGGERED GRID POINTS AND THEIR METRICS
-    xStaggr.resize(xStagRange);
-    yStaggr.resize(yStagRange);
-    zStaggr.resize(zStagRange);
+    x.resize(xRange);
+    y.resize(yRange);
+    z.resize(zRange);
 
-    xi_xStaggr.resize(xStagRange);          xixxStaggr.resize(xStagRange);          xix2Staggr.resize(xStagRange);
-    et_yStaggr.resize(yStagRange);          etyyStaggr.resize(yStagRange);          ety2Staggr.resize(yStagRange);
-    zt_zStaggr.resize(zStagRange);          ztzzStaggr.resize(zStagRange);          ztz2Staggr.resize(zStagRange);
+    xi_x.resize(xRange);        xixx.resize(xRange);        xix2.resize(xRange);
+    et_y.resize(yRange);        etyy.resize(yRange);        ety2.resize(yRange);
+    zt_z.resize(zRange);        ztzz.resize(zRange);        ztz2.resize(zRange);
 
-    xColloc = 1.0;          xStaggr = 1.0;
-    yColloc = 1.0;          yStaggr = 1.0;
-    zColloc = 1.0;          zStaggr = 1.0;
+    x = 1.0;        y = 1.0;        z = 1.0;
 
     // BELOW ARE DEFAULT VALUES FOR A UNIFORM GRID OVER DOMAIN OF LENGTH 1.0
     // THESE VALUES ARE OVERWRITTEN AS PER GRID TYPE
-    xi_xColloc = 1.0;          xixxColloc = 0.0;          xix2Colloc = 1.0;
-    et_yColloc = 1.0;          etyyColloc = 0.0;          ety2Colloc = 1.0;
-    zt_zColloc = 1.0;          ztzzColloc = 0.0;          ztz2Colloc = 1.0;
-
-    xi_xStaggr = 1.0;          xixxStaggr = 0.0;          xix2Staggr = 1.0;
-    et_yStaggr = 1.0;          etyyStaggr = 0.0;          ety2Staggr = 1.0;
-    zt_zStaggr = 1.0;          ztzzStaggr = 0.0;          ztz2Staggr = 1.0;
+    xi_x = 1.0;     xixx = 0.0;     xix2 = 1.0;
+    et_y = 1.0;     etyy = 0.0;     ety2 = 1.0;
+    zt_z = 1.0;     ztzz = 0.0;     ztz2 = 1.0;
 }
 
 
@@ -384,54 +341,30 @@ void grid::createUniformGrid() {
     int i;
 
     // COLLOCATED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
-    for (i = -padWidths(0); i < staggrCoreSize(0) + padWidths(0); i++) {
-        xStaggr(i) = xLen*xi(i);
-    }
-
-    // STAGGERED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
-    for (i = -padWidths(0); i < collocCoreSize(0) + padWidths(0); i++) {
-        xColloc(i) = xLen*(xi(i) + xi(i + 1))/2.0;
+    for (i = -padWidths(0); i < coreSize(0) + padWidths(0); i++) {
+        x(i) = xLen*xi(i);
     }
 
 #ifndef PLANAR
     // COLLOCATED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
-    for (i = -padWidths(1); i < staggrCoreSize(1) + padWidths(1); i++) {
-        yStaggr(i) = yLen*et(i);
-    }
-
-    // STAGGERED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
-    for (i = -padWidths(1); i < collocCoreSize(1) + padWidths(1); i++) {
-        yColloc(i) = yLen*(et(i) + et(i + 1))/2.0;
+    for (i = -padWidths(1); i < coreSize(1) + padWidths(1); i++) {
+        y(i) = yLen*et(i);
     }
 #endif
 
     // COLLOCATED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
-    for (i = -padWidths(2); i < staggrCoreSize(2) + padWidths(2); i++) {
-        zStaggr(i) = zLen*zt(i);
+    for (i = -padWidths(2); i < coreSize(2) + padWidths(2); i++) {
+        z(i) = zLen*zt(i);
     }
 
-    // STAGGERED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
-    for (i = -padWidths(2); i < collocCoreSize(2) + padWidths(2); i++) {
-        zColloc(i) = zLen*(zt(i) + zt(i + 1))/2.0;
-    }
+    xi_x = 1.0/xLen;
+    xix2 = pow(xi_x, 2.0);
 
-    xi_xStaggr = 1.0/xLen;
-    xix2Staggr = pow(xi_xStaggr, 2.0);
+    et_y = 1.0/yLen;
+    ety2 = pow(et_y, 2.0);
 
-    xi_xColloc = 1.0/xLen;
-    xix2Colloc = pow(xi_xColloc, 2.0);
-
-    et_yStaggr = 1.0/yLen;
-    ety2Staggr = pow(et_yStaggr, 2.0);
-
-    et_yColloc = 1.0/yLen;
-    ety2Colloc = pow(et_yColloc, 2.0);
-
-    zt_zStaggr = 1.0/zLen;
-    ztz2Staggr = pow(zt_zStaggr, 2.0);
-
-    zt_zColloc = 1.0/zLen;
-    ztz2Colloc = pow(zt_zColloc, 2.0);
+    zt_z = 1.0/zLen;
+    ztz2 = pow(zt_z, 2.0);
 }
 
 
@@ -470,63 +403,36 @@ void grid::createTanHypGrid(int dim) {
 
     if (dim == 0) {
         // STAGGERED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
-        for (i = 0; i < staggrCoreSize(0); i++) {
-            xStaggr(i) = xLen*(1.0 - tanh(thBeta[0]*(1.0 - 2.0*xi(i)))/tanh(thBeta[0]))/2.0;
+        for (i = 0; i < coreSize(0); i++) {
+            x(i) = xLen*(1.0 - tanh(thBeta[0]*(1.0 - 2.0*xi(i)))/tanh(thBeta[0]))/2.0;
 
-            xi_xStaggr(i) = tanh(thBeta[0])/(thBeta[0]*xLen*(1.0 - pow((1.0 - 2.0*xStaggr(i)/xLen)*tanh(thBeta[0]), 2)));
-            xixxStaggr(i) = -4.0*pow(tanh(thBeta[0]), 3)*(1.0 - 2.0*xStaggr(i)/xLen)/(thBeta[0]*xLen*xLen*pow(1.0 - pow(tanh(thBeta[0])*(1.0 - 2.0*xStaggr(i)/xLen), 2), 2));
-            xix2Staggr(i) = pow(xi_xStaggr(i), 2.0);
-        }
-
-        // COLLOCATED X-GRID POINTS FROM UNIFORM XI-GRID POINTS AND THEIR METRICS
-        for (i = 0; i < collocCoreSize(0); i++) {
-            xColloc(i) = xLen*(1.0 - tanh(thBeta[0]*(1.0 - (xi(i) + xi(i + 1))))/tanh(thBeta[0]))/2.0;
-
-            xi_xColloc(i) = tanh(thBeta[0])/(thBeta[0]*xLen*(1.0 - pow((1.0 - 2.0*xColloc(i)/xLen)*tanh(thBeta[0]), 2)));
-            xixxColloc(i) = -4.0*pow(tanh(thBeta[0]), 3)*(1.0 - 2.0*xColloc(i)/xLen)/(thBeta[0]*xLen*xLen*pow(1.0 - pow(tanh(thBeta[0])*(1.0 - 2.0*xColloc(i)/xLen), 2), 2));
-            xix2Colloc(i) = pow(xi_xColloc(i), 2.0);
+            xi_x(i) = tanh(thBeta[0])/(thBeta[0]*xLen*(1.0 - pow((1.0 - 2.0*x(i)/xLen)*tanh(thBeta[0]), 2)));
+            xixx(i) = -4.0*pow(tanh(thBeta[0]), 3)*(1.0 - 2.0*x(i)/xLen)/(thBeta[0]*xLen*xLen*pow(1.0 - pow(tanh(thBeta[0])*(1.0 - 2.0*x(i)/xLen), 2), 2));
+            xix2(i) = pow(xi_x(i), 2.0);
         }
     }
 
 #ifndef PLANAR
     if (dim == 1) {
         // STAGGERED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
-        for (i = 0; i < staggrCoreSize(1); i++) {
-            yStaggr(i) = yLen*(1.0 - tanh(thBeta[1]*(1.0 - 2.0*et(i)))/tanh(thBeta[1]))/2.0;
+        for (i = 0; i < coreSize(1); i++) {
+            y(i) = yLen*(1.0 - tanh(thBeta[1]*(1.0 - 2.0*et(i)))/tanh(thBeta[1]))/2.0;
 
-            et_yStaggr(i) = tanh(thBeta[1])/(thBeta[1]*yLen*(1.0 - pow((1.0 - 2.0*yStaggr(i)/yLen)*tanh(thBeta[1]), 2)));
-            etyyStaggr(i) = -4.0*pow(tanh(thBeta[1]), 3)*(1.0 - 2.0*yStaggr(i)/yLen)/(thBeta[1]*yLen*yLen*pow(1.0 - pow(tanh(thBeta[1])*(1.0 - 2.0*yStaggr(i)/yLen), 2), 2));
-            ety2Staggr(i) = pow(et_yStaggr(i), 2.0);
-        }
-
-        // COLLOCATED Y-GRID POINTS FROM UNIFORM ETA-GRID POINTS AND THEIR METRICS
-        for (i = 0; i < collocCoreSize(1); i++) {
-            yColloc(i) = yLen*(1.0 - tanh(thBeta[1]*(1.0 - (et(i) + et(i + 1))))/tanh(thBeta[1]))/2.0;
-
-            et_yColloc(i) = tanh(thBeta[1])/(thBeta[1]*yLen*(1.0 - pow((1.0 - 2.0*yColloc(i)/yLen)*tanh(thBeta[1]), 2)));
-            etyyColloc(i) = -4.0*pow(tanh(thBeta[1]), 3)*(1.0 - 2.0*yColloc(i)/yLen)/(thBeta[1]*yLen*yLen*pow(1.0 - pow(tanh(thBeta[1])*(1.0 - 2.0*yColloc(i)/yLen), 2), 2));
-            ety2Colloc(i) = pow(et_yColloc(i), 2.0);
+            et_y(i) = tanh(thBeta[1])/(thBeta[1]*yLen*(1.0 - pow((1.0 - 2.0*y(i)/yLen)*tanh(thBeta[1]), 2)));
+            etyy(i) = -4.0*pow(tanh(thBeta[1]), 3)*(1.0 - 2.0*y(i)/yLen)/(thBeta[1]*yLen*yLen*pow(1.0 - pow(tanh(thBeta[1])*(1.0 - 2.0*y(i)/yLen), 2), 2));
+            ety2(i) = pow(et_y(i), 2.0);
         }
     }
 #endif
 
     if (dim == 2) {
         // STAGGERED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
-        for (i = 0; i < staggrCoreSize(2); i++) {
-            zStaggr(i) = zLen*(1.0 - tanh(thBeta[2]*(1.0 - 2.0*zt(i)))/tanh(thBeta[2]))/2.0;
+        for (i = 0; i < coreSize(2); i++) {
+            z(i) = zLen*(1.0 - tanh(thBeta[2]*(1.0 - 2.0*zt(i)))/tanh(thBeta[2]))/2.0;
 
-            zt_zStaggr(i) = tanh(thBeta[2])/(thBeta[2]*zLen*(1.0 - pow((1.0 - 2.0*zStaggr(i)/zLen)*tanh(thBeta[2]), 2)));
-            ztzzStaggr(i) = -4.0*pow(tanh(thBeta[2]), 3)*(1.0 - 2.0*zStaggr(i)/zLen)/(thBeta[2]*zLen*zLen*pow(1.0 - pow(tanh(thBeta[2])*(1.0 - 2.0*zStaggr(i)/zLen), 2), 2));
-            ztz2Staggr(i) = pow(zt_zStaggr(i), 2.0);
-        }
-
-        // COLLOCATED Z-GRID POINTS FROM UNIFORM ZETA-GRID POINTS AND THEIR METRICS
-        for (i = 0; i < collocCoreSize(2); i++) {
-            zColloc(i) = zLen*(1.0 - tanh(thBeta[2]*(1.0 - (zt(i) + zt(i + 1))))/tanh(thBeta[2]))/2.0;
-
-            zt_zColloc(i) = tanh(thBeta[2])/(thBeta[2]*zLen*(1.0 - pow((1.0 - 2.0*zColloc(i)/zLen)*tanh(thBeta[2]), 2)));
-            ztzzColloc(i) = -4.0*pow(tanh(thBeta[2]), 3)*(1.0 - 2.0*zColloc(i)/zLen)/(thBeta[2]*zLen*zLen*pow(1.0 - pow(tanh(thBeta[2])*(1.0 - 2.0*zColloc(i)/zLen), 2), 2));
-            ztz2Colloc(i) = pow(zt_zColloc(i), 2.0);
+            zt_z(i) = tanh(thBeta[2])/(thBeta[2]*zLen*(1.0 - pow((1.0 - 2.0*z(i)/zLen)*tanh(thBeta[2]), 2)));
+            ztzz(i) = -4.0*pow(tanh(thBeta[2]), 3)*(1.0 - 2.0*z(i)/zLen)/(thBeta[2]*zLen*zLen*pow(1.0 - pow(tanh(thBeta[2])*(1.0 - 2.0*z(i)/zLen), 2), 2));
+            ztz2(i) = pow(zt_z(i), 2.0);
         }
     }
 }
@@ -568,30 +474,30 @@ void grid::syncGrid() {
     xLftPad = blitz::Range(-padWidths(0), -1, 1);
     xLftPts = blitz::Range(padWidths(0) , 1, -1);
 
-    xRgtPad = blitz::Range(staggrCoreSize(0), staggrCoreSize(0) + padWidths(0) - 1, 1);
-    xRgtPts = blitz::Range(staggrCoreSize(0) - 2, staggrCoreSize(0) - padWidths(0) - 1, -1);
+    xRgtPad = blitz::Range(coreSize(0), coreSize(0) + padWidths(0) - 1, 1);
+    xRgtPts = blitz::Range(coreSize(0) - 2, coreSize(0) - padWidths(0) - 1, -1);
 
     // Exchange the pad points across processors for staggered grid data along X axis
-    MPI_Sendrecv(&xStaggr(1), 1, padGrid, rankData.faceRanks(0), 1, &xStaggr(staggrCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xStaggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xStaggr(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&x(1), 1, padGrid, rankData.faceRanks(0), 1, &x(coreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&x(coreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &x(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
-    MPI_Sendrecv(&xi_xStaggr(1), 1, padGrid, rankData.faceRanks(0), 1, &xi_xStaggr(staggrCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xi_xStaggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xi_xStaggr(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xi_x(1), 1, padGrid, rankData.faceRanks(0), 1, &xi_x(coreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xi_x(coreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xi_x(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
-    MPI_Sendrecv(&xixxStaggr(1), 1, padGrid, rankData.faceRanks(0), 1, &xixxStaggr(staggrCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xixxStaggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xixxStaggr(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xixx(1), 1, padGrid, rankData.faceRanks(0), 1, &xixx(coreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xixx(coreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xixx(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
-    MPI_Sendrecv(&xix2Staggr(1), 1, padGrid, rankData.faceRanks(0), 1, &xix2Staggr(staggrCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xix2Staggr(staggrCoreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xix2Staggr(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xix2(1), 1, padGrid, rankData.faceRanks(0), 1, &xix2(coreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&xix2(coreSize(0) - padWidths(0) - 1), 1, padGrid, rankData.faceRanks(1), 2, &xix2(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
 
     // Whether domain is periodic or not, left-most point and right-most points will be differently calculated
     if (rankData.xRank == 0) {
-        xStaggr(xLftPad) = -xStaggr(xLftPts);
-        xixxStaggr(xLftPad) = -xixxStaggr(xLftPad);
+        x(xLftPad) = -x(xLftPts);
+        xixx(xLftPad) = -xixx(xLftPad);
     }
     if (rankData.xRank == rankData.npX - 1) {
-        xStaggr(xRgtPad) = 2.0*xLen - xStaggr(xRgtPts);
-        xixxStaggr(xRgtPad) = -xixxStaggr(xRgtPad);
+        x(xRgtPad) = 2.0*xLen - x(xRgtPts);
+        xixx(xRgtPad) = -xixx(xRgtPad);
     }
 
     // Along Y Axis
@@ -599,30 +505,30 @@ void grid::syncGrid() {
     yLftPad = blitz::Range(-padWidths(1), -1, 1);
     yLftPts = blitz::Range(padWidths(1) , 1, -1);
 
-    yRgtPad = blitz::Range(staggrCoreSize(1), staggrCoreSize(1) + padWidths(1) - 1, 1);
-    yRgtPts = blitz::Range(staggrCoreSize(1) - 2, staggrCoreSize(1) - padWidths(1) - 1, -1);
+    yRgtPad = blitz::Range(coreSize(1), coreSize(1) + padWidths(1) - 1, 1);
+    yRgtPts = blitz::Range(coreSize(1) - 2, coreSize(1) - padWidths(1) - 1, -1);
 
     // Exchange the pad points across processors for staggered grid data along Y axis
-    MPI_Sendrecv(&yStaggr(1), 1, padGrid, rankData.faceRanks(2), 1, &yStaggr(staggrCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&yStaggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &yStaggr(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&y(1), 1, padGrid, rankData.faceRanks(2), 1, &y(coreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&y(coreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &y(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
-    MPI_Sendrecv(&et_yStaggr(1), 1, padGrid, rankData.faceRanks(2), 1, &et_yStaggr(staggrCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&et_yStaggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &et_yStaggr(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&et_y(1), 1, padGrid, rankData.faceRanks(2), 1, &et_y(coreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&et_y(coreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &et_y(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
-    MPI_Sendrecv(&etyyStaggr(1), 1, padGrid, rankData.faceRanks(2), 1, &etyyStaggr(staggrCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&etyyStaggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &etyyStaggr(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&etyy(1), 1, padGrid, rankData.faceRanks(2), 1, &etyy(coreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&etyy(coreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &etyy(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
-    MPI_Sendrecv(&ety2Staggr(1), 1, padGrid, rankData.faceRanks(2), 1, &ety2Staggr(staggrCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&ety2Staggr(staggrCoreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &ety2Staggr(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&ety2(1), 1, padGrid, rankData.faceRanks(2), 1, &ety2(coreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
+    MPI_Sendrecv(&ety2(coreSize(1) - padWidths(1) - 1), 1, padGrid, rankData.faceRanks(3), 2, &ety2(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
 
     // Whether domain is periodic or not, front-most point and rear-most points will be differently calculated
     if (rankData.yRank == 0) {
-        yStaggr(yLftPad) = -yStaggr(yLftPts);
-        etyyStaggr(yLftPad) = -etyyStaggr(yLftPad);
+        y(yLftPad) = -y(yLftPts);
+        etyy(yLftPad) = -etyy(yLftPad);
     }
     if (rankData.yRank == rankData.npY - 1) {
-        yStaggr(yRgtPad) = 2.0*yLen - yStaggr(yRgtPts);
-        etyyStaggr(yRgtPad) = -etyyStaggr(yRgtPad);
+        y(yRgtPad) = 2.0*yLen - y(yRgtPts);
+        etyy(yRgtPad) = -etyy(yRgtPad);
     }
 #endif
 
@@ -630,93 +536,15 @@ void grid::syncGrid() {
     zLftPad = blitz::Range(-padWidths(2), -1, 1);
     zLftPts = blitz::Range(padWidths(2) , 1, -1);
 
-    zRgtPad = blitz::Range(staggrCoreSize(2), staggrCoreSize(2) + padWidths(2) - 1, 1);
-    zRgtPts = blitz::Range(staggrCoreSize(2) - 2, staggrCoreSize(2) - padWidths(2) - 1, -1);
+    zRgtPad = blitz::Range(coreSize(2), coreSize(2) + padWidths(2) - 1, 1);
+    zRgtPts = blitz::Range(coreSize(2) - 2, coreSize(2) - padWidths(2) - 1, -1);
 
     // Whether domain is periodic or not, top-most point and bottom-most points will be differently calculated
-    zStaggr(zLftPad) = -zStaggr(zLftPts);
-    ztzzStaggr(zLftPad) = -ztzzStaggr(zLftPad);
+    z(zLftPad) = -z(zLftPts);
+    ztzz(zLftPad) = -ztzz(zLftPad);
 
-    zStaggr(zRgtPad) = 2.0*zLen - zStaggr(zRgtPts);
-    ztzzStaggr(zRgtPad) = -ztzzStaggr(zRgtPad);
-
-
-    // Now, let us deal with the collocated grid
-    // Along X Axis
-    xLftPad = blitz::Range(-padWidths(0), -1, 1);
-    xLftPts = blitz::Range(padWidths(0) - 1 , 0, -1);
-
-    xRgtPad = blitz::Range(collocCoreSize(0), collocCoreSize(0) + padWidths(0) - 1, 1);
-    xRgtPts = blitz::Range(collocCoreSize(0) - 1, collocCoreSize(0) - padWidths(0), -1);
-
-    // Exchange the pad points across processors for collocated grid data along X axis
-    MPI_Sendrecv(&xColloc(0), 1, padGrid, rankData.faceRanks(0), 1, &xColloc(collocCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xColloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.faceRanks(1), 2, &xColloc(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
-
-    MPI_Sendrecv(&xi_xColloc(0), 1, padGrid, rankData.faceRanks(0), 1, &xi_xColloc(collocCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xi_xColloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.faceRanks(1), 2, &xi_xColloc(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
-
-    MPI_Sendrecv(&xixxColloc(0), 1, padGrid, rankData.faceRanks(0), 1, &xixxColloc(collocCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xixxColloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.faceRanks(1), 2, &xixxColloc(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
-
-    MPI_Sendrecv(&xix2Colloc(0), 1, padGrid, rankData.faceRanks(0), 1, &xix2Colloc(collocCoreSize(0)), 1, padGrid, rankData.faceRanks(1), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&xix2Colloc(collocCoreSize(0) - padWidths(0)), 1, padGrid, rankData.faceRanks(1), 2, &xix2Colloc(-padWidths(0)), 1, padGrid, rankData.faceRanks(0), 2, MPI_COMM_WORLD, &srStatus);
-
-    // Whether domain is periodic or not, left-most point and right-most points will be differently calculated
-    if (rankData.xRank == 0) {
-        xColloc(xLftPad) = -xColloc(xLftPts);
-        xixxColloc(xLftPad) = -xixxColloc(xLftPad);
-    }
-    if (rankData.xRank == rankData.npX - 1) {
-        xColloc(xRgtPad) = 2.0*xLen - xColloc(xRgtPts);
-        xixxColloc(xRgtPad) = -xixxColloc(xRgtPad);
-    }
-
-    // Along Y Axis
-#ifndef PLANAR
-    yLftPad = blitz::Range(-padWidths(1), -1, 1);
-    yLftPts = blitz::Range(padWidths(1) - 1 , 0, -1);
-
-    yRgtPad = blitz::Range(collocCoreSize(1), collocCoreSize(1) + padWidths(1) - 1, 1);
-    yRgtPts = blitz::Range(collocCoreSize(1) - 1, collocCoreSize(1) - padWidths(1), -1);
-
-    // Exchange the pad points across processors for collocated grid data along Y axis
-    MPI_Sendrecv(&yColloc(0), 1, padGrid, rankData.faceRanks(2), 1, &yColloc(collocCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&yColloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.faceRanks(3), 2, &yColloc(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
-
-    MPI_Sendrecv(&et_yColloc(0), 1, padGrid, rankData.faceRanks(2), 1, &et_yColloc(collocCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&et_yColloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.faceRanks(3), 2, &et_yColloc(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
-
-    MPI_Sendrecv(&etyyColloc(0), 1, padGrid, rankData.faceRanks(2), 1, &etyyColloc(collocCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&etyyColloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.faceRanks(3), 2, &etyyColloc(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
-
-    MPI_Sendrecv(&ety2Colloc(0), 1, padGrid, rankData.faceRanks(2), 1, &ety2Colloc(collocCoreSize(1)), 1, padGrid, rankData.faceRanks(3), 1, MPI_COMM_WORLD, &srStatus);
-    MPI_Sendrecv(&ety2Colloc(collocCoreSize(1) - padWidths(1)), 1, padGrid, rankData.faceRanks(3), 2, &ety2Colloc(-padWidths(1)), 1, padGrid, rankData.faceRanks(2), 2, MPI_COMM_WORLD, &srStatus);
-
-    // Whether domain is periodic or not, front-most point and rear-most points will be differently calculated
-    if (rankData.yRank == 0) {
-        yColloc(yLftPad) = -yColloc(yLftPts);
-        etyyColloc(yLftPad) = -etyyColloc(yLftPad);
-    }
-    if (rankData.yRank == rankData.npY - 1) {
-        yColloc(yRgtPad) = 2.0*yLen - yColloc(yRgtPts);
-        etyyColloc(yRgtPad) = -etyyColloc(yRgtPad);
-    }
-#endif
-
-    // Along Z Axis
-    zLftPad = blitz::Range(-padWidths(2), -1, 1);
-    zLftPts = blitz::Range(padWidths(2) - 1 , 0, -1);
-
-    zRgtPad = blitz::Range(collocCoreSize(2), collocCoreSize(2) + padWidths(2) - 1, 1);
-    zRgtPts = blitz::Range(collocCoreSize(2) - 1, collocCoreSize(2) - padWidths(2), -1);
-
-    // Whether domain is periodic or not, top-most point and bottom-most points will be differently calculated
-    zColloc(zLftPad) = -zColloc(zLftPts);
-    ztzzColloc(zLftPad) = -ztzzColloc(zLftPad);
-
-    zColloc(zRgtPad) = 2.0*zLen - zColloc(zRgtPts);
-    ztzzColloc(zRgtPad) = -ztzzColloc(zRgtPad);
+    z(zRgtPad) = 2.0*zLen - z(zRgtPts);
+    ztzz(zRgtPad) = -ztzz(zRgtPad);
 }
 
 
@@ -801,142 +629,44 @@ void grid::gatherGlobal() {
     int arrSize[maxRank];
     int arrDisp[maxRank];
 
-    blitz::TinyVector<int, 3> collocGlobalSize;
-    blitz::TinyVector<int, 3> staggrGlobalSize;
+    blitz::TinyVector<int, 3> globalSize;
     blitz::TinyVector<int, 3> globalReIndexVal;
 
-    staggrGlobalSize = globalSize + 2*padWidths;
-    collocGlobalSize = globalSize + 2*padWidths - 1;
+    globalSize = globalSize + 2*padWidths;
     globalReIndexVal = -padWidths;
 
-    xCollocGlobal.resize(collocGlobalSize(0));     xCollocGlobal.reindexSelf(globalReIndexVal(0));        xCollocGlobal = 0.0;
-    xStaggrGlobal.resize(staggrGlobalSize(0));     xStaggrGlobal.reindexSelf(globalReIndexVal(0));        xStaggrGlobal = 0.0;
+    xGlobal.resize(globalSize(0));     xGlobal.reindexSelf(globalReIndexVal(0));        xGlobal = 0.0;
 
 #ifndef PLANAR
-    yCollocGlobal.resize(collocGlobalSize(1));     yCollocGlobal.reindexSelf(globalReIndexVal(1));        yCollocGlobal = 0.0;
-    yStaggrGlobal.resize(staggrGlobalSize(1));     yStaggrGlobal.reindexSelf(globalReIndexVal(1));        yStaggrGlobal = 0.0;
+    yGlobal.resize(globalSize(1));     yGlobal.reindexSelf(globalReIndexVal(1));        yGlobal = 0.0;
 #endif
 
-    zCollocGlobal.resize(collocGlobalSize(2));     zCollocGlobal.reindexSelf(globalReIndexVal(2));        zCollocGlobal = 0.0;
-    zStaggrGlobal.resize(staggrGlobalSize(2));     zStaggrGlobal.reindexSelf(globalReIndexVal(2));        zStaggrGlobal = 0.0;
+    zGlobal.resize(globalSize(2));     zGlobal.reindexSelf(globalReIndexVal(2));        zGlobal = 0.0;
 
     // GATHERING THE STAGGERED GRID ALONG X-DIRECTION
-    locSize = xStaggr.size() - 2*padWidths(0);
+    locSize = x.size() - 2*padWidths(0);
     locDisp = subarrayStarts(0);
     if (rankData.xRank == rankData.npX-1) {
         locSize += 2*padWidths(0);
     }
     MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_ROW_COMM);
     MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_ROW_COMM);
-    MPI_Allgatherv(xStaggr.dataFirst(), locSize, MPI_FP_REAL, xStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_ROW_COMM);
-
-    // GATHERING THE COLLOCATED GRID ALONG X-DIRECTION
-    locSize = xColloc.size() - 2*padWidths(0);
-    locDisp = rankData.xRank*locSize;
-    if (rankData.xRank == rankData.npX-1) {
-        locSize += 2*padWidths(0);
-    }
-    MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_ROW_COMM);
-    MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_ROW_COMM);
-    MPI_Allgatherv(xColloc.dataFirst(), locSize, MPI_FP_REAL, xCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_ROW_COMM);
+    MPI_Allgatherv(x.dataFirst(), locSize, MPI_FP_REAL, xGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_ROW_COMM);
 
 #ifndef PLANAR
     // GATHERING THE STAGGERED GRID ALONG Y-DIRECTION
-    locSize = yStaggr.size() - 2*padWidths(1);
+    locSize = y.size() - 2*padWidths(1);
     locDisp = subarrayStarts(1);
     if (rankData.yRank == rankData.npY-1) {
         locSize += 2*padWidths(1);
     }
     MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_COL_COMM);
     MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_COL_COMM);
-    MPI_Allgatherv(yStaggr.dataFirst(), locSize, MPI_FP_REAL, yStaggrGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_COL_COMM);
-
-    // GATHERING THE COLLOCATED GRID ALONG Y-DIRECTION
-    locSize = yColloc.size() - 2*padWidths(1);
-    locDisp = rankData.yRank*locSize;
-    if (rankData.yRank == rankData.npY-1) {
-        locSize += 2*padWidths(1);
-    }
-    MPI_Allgather(&locSize, 1, MPI_INT, arrSize, 1, MPI_INT, rankData.MPI_COL_COMM);
-    MPI_Allgather(&locDisp, 1, MPI_INT, arrDisp, 1, MPI_INT, rankData.MPI_COL_COMM);
-    MPI_Allgatherv(yColloc.dataFirst(), locSize, MPI_FP_REAL, yCollocGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_COL_COMM);
+    MPI_Allgatherv(y.dataFirst(), locSize, MPI_FP_REAL, yGlobal.dataFirst(), arrSize, arrDisp, MPI_FP_REAL, rankData.MPI_COL_COMM);
 #endif
 
     // GLOBAL AND LOCAL STAGGERED GRIDS ALONG Z-DIRECTION ARE SAME FOR ALL RANKS
     for (i = -padWidths(2); i < globalSize(2) + padWidths(2); i++) {
-        zStaggrGlobal(i) = zStaggr(i);
-    }
-
-    // GLOBAL AND LOCAL COLLOCATED GRIDS ALONG Z-DIRECTION ARE SAME FOR ALL RANKS
-    for (i = -padWidths(2); i < globalSize(2) + padWidths(2) - 1; i++) {
-        zCollocGlobal(i) = zColloc(i);
-    }
-}
-
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to generate weights for linear interpolation
- *
- *          The solution files are written with all points interpolated to cell-centers.
- *          For uniform grids, averaging of points is done.
- *          However, for non-uniform grids, linear interpolation has to be performed.
- *          This function generates the weights for linear interpolation and stores them,
- *          so that the weights don't have to recalculated during every call to write solution.
- ********************************************************************************************************************************************
- */
-void grid::initWeights() {
-    real cellLength;
-
-    lftWgt.resize(xStaggr.size());
-    lftWgt.reindexSelf(xStaggr.lbound());
-    lftWgt = 0.5;
-
-    rgtWgt.resize(xStaggr.size());
-    rgtWgt.reindexSelf(xStaggr.lbound());
-    rgtWgt = 0.5;
-
-#ifndef PLANAR
-    frnWgt.resize(yStaggr.size());
-    frnWgt.reindexSelf(yStaggr.lbound());
-    frnWgt = 0.5;
-
-    bakWgt.resize(yStaggr.size());
-    bakWgt.reindexSelf(yStaggr.lbound());
-    bakWgt = 0.5;
-#endif
-
-    botWgt.resize(zStaggr.size());
-    botWgt.reindexSelf(zStaggr.lbound());
-    botWgt = 0.5;
-
-    topWgt.resize(zStaggr.size());
-    topWgt.reindexSelf(zStaggr.lbound());
-    topWgt = 0.5;
-
-    if (inputParams.xGrid) {
-        for (int i=0; i<=xStaggr.ubound(0)-1; i++) {
-            cellLength = xColloc(i) - xColloc(i-1);
-            lftWgt(i) = (xColloc(i) - xStaggr(i))/cellLength;
-            rgtWgt(i) = (xStaggr(i) - xColloc(i-1))/cellLength;
-        }
-    }
-
-#ifndef PLANAR
-    if (inputParams.yGrid) {
-        for (int i=0; i<=yStaggr.ubound(0)-1; i++) {
-            cellLength = yColloc(i) - yColloc(i-1);
-            frnWgt(i) = (yColloc(i) - yStaggr(i))/cellLength;
-            bakWgt(i) = (yStaggr(i) - yColloc(i-1))/cellLength;
-        }
-    }
-#endif
-
-    if (inputParams.zGrid) {
-        for (int i=0; i<=zStaggr.ubound(0)-1; i++) {
-            cellLength = zColloc(i) - zColloc(i-1);
-            botWgt(i) = (zColloc(i) - zStaggr(i))/cellLength;
-            topWgt(i) = (zStaggr(i) - zColloc(i-1))/cellLength;
-        }
+        zGlobal(i) = z(i);
     }
 }

@@ -81,8 +81,6 @@ class vfield {
         boundary *wLft, *wRgt, *wFrn, *wBak, *wTop, *wBot;
         //@}
 
-        blitz::Array<real, 3> interTempX, interTempY, interTempZ;
-
         vfield(const grid &gridData, std::string fieldName);
 
         void computeDiff(plainvf &H);

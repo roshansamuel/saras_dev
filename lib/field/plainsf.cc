@@ -67,7 +67,7 @@ plainsf::plainsf(const grid &gridData, const sfield &refF): gridData(gridData) {
     zColl = blitz::Range(gridData.collocCoreDomain.lbound(2), gridData.collocCoreDomain.ubound(2));
 
     mpiHandle = new mpidata(F, gridData.rankData);
-    mpiHandle->createSubarrays(refF.F.fSize, refF.F.cuBound + 1, gridData.padWidths, refF.F.xStag, refF.F.yStag);
+    mpiHandle->createSubarrays(refF.F.fSize, refF.F.cuBound + 1, gridData.padWidths);
 }
 
 /**

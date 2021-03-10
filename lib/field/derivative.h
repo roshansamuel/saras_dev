@@ -74,10 +74,6 @@ class derivative {
         blitz::Range fullRange;
         blitz::Range xRange, yRange, zRange;
 
-        blitz::Array<real, 1> x_Metric, y_Metric, z_Metric;
-        blitz::Array<real, 1> xxMetric, yyMetric, zzMetric;
-        blitz::Array<real, 1> x2Metric, y2Metric, z2Metric;
-
         blitz::Array<real, 3> tempMat;
 
         void setWallRectDomains();

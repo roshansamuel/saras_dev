@@ -104,13 +104,13 @@ static void taylorGreen(sfield &rho, sfield &P_analytic, grid &mesh) {
     for (int i=rho.F.F.lbound(0); i <= rho.F.F.ubound(0); i++) {
         for (int j=rho.F.F.lbound(1); j <= rho.F.F.ubound(1); j++) {
             for (int k=rho.F.F.lbound(2); k <= rho.F.F.ubound(2); k++) {
-                P_analytic.F.F(i, j, k) = sin(1.0*M_PI*mesh.xStaggr(i))*
-                                          cos(2.0*M_PI*mesh.yStaggr(j))*
-                                          cos(4.0*M_PI*mesh.zStaggr(k));
+                P_analytic.F.F(i, j, k) = sin(1.0*M_PI*mesh.x(i))*
+                                          cos(2.0*M_PI*mesh.y(j))*
+                                          cos(4.0*M_PI*mesh.z(k));
 
-                rho.F.F(i, j, k) = -21.0*M_PI*M_PI*sin(1.0*M_PI*mesh.xStaggr(i))*
-                                                   cos(2.0*M_PI*mesh.yStaggr(j))*
-                                                   cos(4.0*M_PI*mesh.zStaggr(k));
+                rho.F.F(i, j, k) = -21.0*M_PI*M_PI*sin(1.0*M_PI*mesh.x(i))*
+                                                   cos(2.0*M_PI*mesh.y(j))*
+                                                   cos(4.0*M_PI*mesh.z(k));
             }
         }
     }
@@ -118,11 +118,11 @@ static void taylorGreen(sfield &rho, sfield &P_analytic, grid &mesh) {
     int j = 0;
     for (int i=rho.F.F.lbound(0); i <= rho.F.F.ubound(0); i++) {
         for (int k=rho.F.F.lbound(2); k <= rho.F.F.ubound(2); k++) {
-            P_analytic.F.F(i, j, k) = sin(1.0*M_PI*mesh.xStaggr(i))*
-                                      cos(4.0*M_PI*mesh.zStaggr(k));
+            P_analytic.F.F(i, j, k) = sin(1.0*M_PI*mesh.x(i))*
+                                      cos(4.0*M_PI*mesh.z(k));
 
-            rho.F.F(i, j, k) = -17.0*M_PI*M_PI*sin(1.0*M_PI*mesh.xStaggr(i))*
-                                               cos(4.0*M_PI*mesh.zStaggr(k));
+            rho.F.F(i, j, k) = -17.0*M_PI*M_PI*sin(1.0*M_PI*mesh.x(i))*
+                                               cos(4.0*M_PI*mesh.z(k));
         }
     }
 #endif

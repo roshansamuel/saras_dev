@@ -375,7 +375,7 @@ void multigrid_d2::initDirichlet() {
     // Along X-direction - Left and Right Walls
     xDist = mesh.inputParams.Lx/2.0;
     for (int k=0; k<=stagCore(0).ubound(2); ++k) {
-        zDist = mesh.zStaggr(k) - 0.5;
+        zDist = mesh.z(k) - 0.5;
 
         xWall(k) = (xDist*xDist + zDist*zDist)/4.0;
     }
@@ -383,7 +383,7 @@ void multigrid_d2::initDirichlet() {
     // Along Z-direction - Top and Bottom Walls
     zDist = mesh.inputParams.Lz/2.0;
     for (int i=0; i<=stagCore(0).ubound(0); ++i) {
-        xDist = mesh.xStaggr(i) - 0.5;
+        xDist = mesh.x(i) - 0.5;
 
         zWall(i) = (xDist*xDist + zDist*zDist)/4.0;
     }
@@ -584,8 +584,8 @@ real multigrid_d2::testPeriodic() {
 
     for (int i = 0; i <= xEnd(0); ++i) {
         for (int k = 0; k <= zEnd(0); ++k) {
-            pressureData(0)(i, 0, k) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                                       cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+            pressureData(0)(i, 0, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                                       cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
             residualData(0)(i, 0, k) = pressureData(0)(i, 0, k);
         }
     }
@@ -593,24 +593,24 @@ real multigrid_d2::testPeriodic() {
     // EXPECTED VALUES IN THE PAD REGIONS IF DATA TRANSFER HAPPENS WITH NO HITCH
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int k = 0; k <= zEnd(n); ++k) {
-            xCoord = mesh.xStaggr(0) - (mesh.xStaggr(strideValues(n)) - mesh.xStaggr(0));
+            xCoord = mesh.x(0) - (mesh.x(strideValues(n)) - mesh.x(0));
             residualData(n)(-1, 0, k) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                        cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                                        cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
 
-            xCoord = mesh.xStaggr(xEnd(0)) + (mesh.xStaggr(xEnd(0)) - mesh.xStaggr(xEnd(0) - strideValues(n)));
+            xCoord = mesh.x(xEnd(0)) + (mesh.x(xEnd(0)) - mesh.x(xEnd(0) - strideValues(n)));
             residualData(n)(xEnd(n) + 1, 0, k) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                 cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+                                                 cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
         }
     }
 
     for (int n = 0; n <= inputParams.vcDepth; n++) {
         for (int i = 0; i <= xEnd(n); ++i) {
-            zCoord = mesh.zStaggr(0) - (mesh.zStaggr(strideValues(n)) - mesh.zStaggr(0));
-            residualData(n)(i, 0, -1) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+            zCoord = mesh.z(0) - (mesh.z(strideValues(n)) - mesh.z(0));
+            residualData(n)(i, 0, -1) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
                                         cos(2.0*M_PI*zCoord/mesh.zLen);
 
-            zCoord = mesh.zStaggr(zEnd(0)) + (mesh.zStaggr(zEnd(0)) - mesh.zStaggr(zEnd(0) - strideValues(n)));
-            residualData(n)(i, 0, zEnd(n) + 1) = sin(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
+            zCoord = mesh.z(zEnd(0)) + (mesh.z(zEnd(0)) - mesh.z(zEnd(0) - strideValues(n)));
+            residualData(n)(i, 0, zEnd(n) + 1) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
                                                  cos(2.0*M_PI*zCoord/mesh.zLen);
         }
     }

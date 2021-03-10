@@ -258,16 +258,16 @@ real hydro_d2::testPeriodic() {
 
     for (int i=V.Vx.F.lbound(0); i <= V.Vx.F.ubound(0); i++) {
         for (int k=V.Vx.F.lbound(2); k <= V.Vx.F.ubound(2); k++) {
-            V.Vx.F(i, 0, k) = sin(2.0*M_PI*mesh.xColloc(i)/mesh.xLen)*
-                              cos(2.0*M_PI*mesh.zStaggr(k)/mesh.zLen);
+            V.Vx.F(i, 0, k) = sin(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                              cos(2.0*M_PI*mesh.z(k)/mesh.zLen);
             nseRHS.Vx(i, 0, k) = V.Vx.F(i, 0, k);
         }
     }
 
     for (int i=V.Vz.F.lbound(0); i <= V.Vz.F.ubound(0); i++) {
         for (int k=V.Vz.F.lbound(2); k <= V.Vz.F.ubound(2); k++) {
-            V.Vz.F(i, 0, k) = -cos(2.0*M_PI*mesh.xStaggr(i)/mesh.xLen)*
-                               sin(2.0*M_PI*mesh.zColloc(k)/mesh.zLen);
+            V.Vz.F(i, 0, k) = -cos(2.0*M_PI*mesh.x(i)/mesh.xLen)*
+                               sin(2.0*M_PI*mesh.z(k)/mesh.zLen);
             nseRHS.Vz(i, 0, k) = V.Vz.F(i, 0, k);
         }
     }
@@ -276,25 +276,25 @@ real hydro_d2::testPeriodic() {
     // X-VELOCITY IN LEFT AND RIGHT PADS
     for (int iX = 1; iX <= mesh.padWidths(0); iX++) {
         for (int iZ = V.Vx.fCore.lbound(2); iZ <= V.Vx.fCore.ubound(2); iZ += 1) {
-            xCoord = mesh.xColloc(V.Vx.fCore.lbound(0)) - (mesh.xColloc(V.Vx.fCore.lbound(0) + iX) - mesh.xColloc(V.Vx.fCore.lbound(0)));
+            xCoord = mesh.x(V.Vx.fCore.lbound(0)) - (mesh.x(V.Vx.fCore.lbound(0) + iX) - mesh.x(V.Vx.fCore.lbound(0)));
             nseRHS.Vx(V.Vx.fCore.lbound(0) - iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                           cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                           cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
 
-            xCoord = mesh.xColloc(V.Vx.fCore.ubound(0)) + (mesh.xColloc(V.Vx.fCore.ubound(0)) - mesh.xColloc(V.Vx.fCore.ubound(0) - iX));
+            xCoord = mesh.x(V.Vx.fCore.ubound(0)) + (mesh.x(V.Vx.fCore.ubound(0)) - mesh.x(V.Vx.fCore.ubound(0) - iX));
             nseRHS.Vx(V.Vx.fCore.ubound(0) + iX, iY, iZ) = sin(2.0*M_PI*xCoord/mesh.xLen)*
-                                                           cos(2.0*M_PI*mesh.zStaggr(iZ)/mesh.zLen);
+                                                           cos(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
         }
     }
 
     // X-VELOCITY IN BOTTOM AND TOP PADS
     for (int iZ = 1; iZ <= mesh.padWidths(2); iZ++) {
         for (int iX = V.Vx.fCore.lbound(0); iX <= V.Vx.fCore.ubound(0); iX += 1) {
-            zCoord = mesh.zStaggr(V.Vx.fCore.lbound(2)) - (mesh.zStaggr(V.Vx.fCore.lbound(2) + iZ) - mesh.zStaggr(V.Vx.fCore.lbound(2)));
-            nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+            zCoord = mesh.z(V.Vx.fCore.lbound(2)) - (mesh.z(V.Vx.fCore.lbound(2) + iZ) - mesh.z(V.Vx.fCore.lbound(2)));
+            nseRHS.Vx(iX, iY, V.Vx.fCore.lbound(2) - iZ) = sin(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                            cos(2.0*M_PI*zCoord/mesh.zLen);
 
-            zCoord = mesh.zStaggr(V.Vx.fCore.ubound(2)) + (mesh.zStaggr(V.Vx.fCore.ubound(2)) - mesh.zStaggr(V.Vx.fCore.ubound(2) - iZ));
-            nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.xColloc(iX)/mesh.xLen)*
+            zCoord = mesh.z(V.Vx.fCore.ubound(2)) + (mesh.z(V.Vx.fCore.ubound(2)) - mesh.z(V.Vx.fCore.ubound(2) - iZ));
+            nseRHS.Vx(iX, iY, V.Vx.fCore.ubound(2) + iZ) = sin(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                            cos(2.0*M_PI*zCoord/mesh.zLen);
         }
     }
@@ -302,25 +302,25 @@ real hydro_d2::testPeriodic() {
     // Z-VELOCITY IN LEFT AND RIGHT PADS
     for (int iX = 1; iX <= mesh.padWidths(0); iX++) {
         for (int iZ = V.Vz.fCore.lbound(2); iZ <= V.Vz.fCore.ubound(2); iZ += 1) {
-            xCoord = mesh.xStaggr(V.Vz.fCore.lbound(0)) - (mesh.xStaggr(V.Vz.fCore.lbound(0) + iX) - mesh.xStaggr(V.Vz.fCore.lbound(0)));
+            xCoord = mesh.x(V.Vz.fCore.lbound(0)) - (mesh.x(V.Vz.fCore.lbound(0) + iX) - mesh.x(V.Vz.fCore.lbound(0)));
             nseRHS.Vz(V.Vz.fCore.lbound(0) - iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                            sin(2.0*M_PI*mesh.zColloc(iZ)/mesh.zLen);
+                                                            sin(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
 
-            xCoord = mesh.xStaggr(V.Vz.fCore.ubound(0)) + (mesh.xStaggr(V.Vz.fCore.ubound(0)) - mesh.xStaggr(V.Vz.fCore.ubound(0) - iX));
+            xCoord = mesh.x(V.Vz.fCore.ubound(0)) + (mesh.x(V.Vz.fCore.ubound(0)) - mesh.x(V.Vz.fCore.ubound(0) - iX));
             nseRHS.Vz(V.Vz.fCore.ubound(0) + iX, iY, iZ) = -cos(2.0*M_PI*xCoord/mesh.xLen)*
-                                                            sin(2.0*M_PI*mesh.zColloc(iZ)/mesh.zLen);
+                                                            sin(2.0*M_PI*mesh.z(iZ)/mesh.zLen);
         }
     }
 
     // Z-VELOCITY IN BOTTOM AND TOP PADS
     for (int iZ = 1; iZ <= mesh.padWidths(2); iZ++) {
         for (int iX = V.Vz.fCore.lbound(0); iX <= V.Vz.fCore.ubound(0); iX += 1) {
-            zCoord = mesh.zColloc(V.Vz.fCore.lbound(2)) - (mesh.zColloc(V.Vz.fCore.lbound(2) + iZ) - mesh.zColloc(V.Vz.fCore.lbound(2)));
-            nseRHS.Vz(iX, iY, V.Vz.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+            zCoord = mesh.z(V.Vz.fCore.lbound(2)) - (mesh.z(V.Vz.fCore.lbound(2) + iZ) - mesh.z(V.Vz.fCore.lbound(2)));
+            nseRHS.Vz(iX, iY, V.Vz.fCore.lbound(2) - iZ) = -cos(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                             sin(2.0*M_PI*zCoord/mesh.zLen);
 
-            zCoord = mesh.zColloc(V.Vz.fCore.ubound(2)) + (mesh.zColloc(V.Vz.fCore.ubound(2)) - mesh.zColloc(V.Vz.fCore.ubound(2) - iZ));
-            nseRHS.Vz(iX, iY, V.Vz.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.xStaggr(iX)/mesh.xLen)*
+            zCoord = mesh.z(V.Vz.fCore.ubound(2)) + (mesh.z(V.Vz.fCore.ubound(2)) - mesh.z(V.Vz.fCore.ubound(2) - iZ));
+            nseRHS.Vz(iX, iY, V.Vz.fCore.ubound(2) + iZ) = -cos(2.0*M_PI*mesh.x(iX)/mesh.xLen)*
                                                             sin(2.0*M_PI*zCoord/mesh.zLen);
         }
     }

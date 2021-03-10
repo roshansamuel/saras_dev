@@ -57,23 +57,7 @@
  */
 hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const real plateRad):
                             boundary(mesh, inField, bcWall), patchRadius(plateRad) {
-    setXYZ();
     createPatch(patchRadius);
-}
-
-/**
- ********************************************************************************************************************************************
- * \brief   Function to set the x, y and z arrays by reference to the values in grid class
- *
- *          Depending on whether the variable is collocated or staggered along a given direction,
- *          the function sets the reference to each grid array, x, y and z, to either the
- *          array of locations of face-centers or cell-centers.
- ********************************************************************************************************************************************
- */
-void hotPlateCC::setXYZ() {
-    dField.xStag ? x.reference(mesh.xStaggr) : x.reference(mesh.xColloc);
-    dField.yStag ? y.reference(mesh.yStaggr) : y.reference(mesh.yColloc);
-    dField.zStag ? z.reference(mesh.zStaggr) : z.reference(mesh.zColloc);
 }
 
 
@@ -103,7 +87,7 @@ void hotPlateCC::createPatch(const real patchRadius) {
     for (int iX = dField.fWalls(wallNum).lbound(0); iX <= dField.fWalls(wallNum).ubound(0); iX++) {
         for (int iY = dField.fWalls(wallNum).lbound(1); iY <= dField.fWalls(wallNum).ubound(1); iY++) {
             for (int iZ = dField.fWalls(wallNum).lbound(2); iZ <= dField.fWalls(wallNum).ubound(2); iZ++) {
-                real ptRadius = sqrt(pow((x(iX) - patchCentX), 2) + pow((y(iY) - patchCentY), 2) + pow((z(iZ) - patchCentZ), 2));
+                real ptRadius = sqrt(pow((mesh.x(iX) - patchCentX), 2) + pow((mesh.y(iY) - patchCentY), 2) + pow((mesh.z(iZ) - patchCentZ), 2));
                 if (ptRadius <= patchRadius) {
                     wallData(iX, iY, iZ) = 1.0;
                     wallMask(iX, iY, iZ) = false;
