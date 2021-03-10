@@ -110,9 +110,9 @@ class boundary {
  ********************************************************************************************************************************************
  */
 
-class dirichletCC: public boundary {
+class dirichlet: public boundary {
     public:
-        dirichletCC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
+        dirichlet(const grid &mesh, field &inField, const int bcWall, const real bcValue);
 
         inline void imposeBC();
     private:
@@ -121,62 +121,30 @@ class dirichletCC: public boundary {
 
 /**
  ********************************************************************************************************************************************
- *  \class dirichletCC boundary.h "lib/boundary/boundary.h"
+ *  \class dirichlet boundary.h "lib/boundary/boundary.h"
  *  \brief The derived class from boundary to apply dirichlet boundary condition for a cell-centered variable.
  *
  ********************************************************************************************************************************************
  */
 
-class dirichletFC: public boundary {
+class periodic: public boundary {
     public:
-        dirichletFC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
-
-        inline void imposeBC();
-    private:
-        const real fieldValue;
-};
-
-/**
- ********************************************************************************************************************************************
- *  \class dirichletFC boundary.h "lib/boundary/boundary.h"
- *  \brief The derived class from boundary to apply dirichlet boundary condition for a face-centered variable.
- *
- ********************************************************************************************************************************************
- */
-
-class periodicCC: public boundary {
-    public:
-        periodicCC(const grid &mesh, field &inField, const int bcWall);
+        periodic(const grid &mesh, field &inField, const int bcWall);
 
         inline void imposeBC();
 };
 
 /**
  ********************************************************************************************************************************************
- *  \class periodicCC boundary.h "lib/boundary/boundary.h"
+ *  \class periodic boundary.h "lib/boundary/boundary.h"
  *  \brief The derived class from boundary to apply periodic boundary condition for a cell-centered variable.
  *
  ********************************************************************************************************************************************
  */
 
-class periodicFC: public boundary {
+class neumann: public boundary {
     public:
-        periodicFC(const grid &mesh, field &inField, const int bcWall);
-
-        inline void imposeBC();
-};
-
-/**
- ********************************************************************************************************************************************
- *  \class periodicFC boundary.h "lib/boundary/boundary.h"
- *  \brief The derived class from boundary to apply periodic boundary condition for a face-centered variable.
- *
- ********************************************************************************************************************************************
- */
-
-class neumannCC: public boundary {
-    public:
-        neumannCC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
+        neumann(const grid &mesh, field &inField, const int bcWall, const real bcValue);
 
         inline void imposeBC();
     private:
@@ -185,32 +153,15 @@ class neumannCC: public boundary {
 
 /**
  ********************************************************************************************************************************************
- *  \class neumannCC boundary.h "lib/boundary/boundary.h"
+ *  \class neumann boundary.h "lib/boundary/boundary.h"
  *  \brief The derived class from boundary to apply neumann boundary condition for a cell-centered variable.
  *
  ********************************************************************************************************************************************
  */
 
-class neumannFC: public boundary {
+class hotPlate: public boundary {
     public:
-        neumannFC(const grid &mesh, field &inField, const int bcWall, const real bcValue);
-
-        inline void imposeBC();
-    private:
-        const real fieldValue;
-};
-
-/**
- ********************************************************************************************************************************************
- *  \class neumannFC boundary.h "lib/boundary/boundary.h"
- *  \brief The derived class from boundary to apply neumann boundary condition for a face-centered variable.
- *
- ********************************************************************************************************************************************
- */
-
-class hotPlateCC: public boundary {
-    public:
-        hotPlateCC(const grid &mesh, field &inField, const int bcWall, const real plateRad);
+        hotPlate(const grid &mesh, field &inField, const int bcWall, const real plateRad);
 
         void imposeBC();
     private:
@@ -224,7 +175,7 @@ class hotPlateCC: public boundary {
 
 /**
  ********************************************************************************************************************************************
- *  \class hotPlateCC boundary.h "lib/boundary/boundary.h"
+ *  \class hotPlate boundary.h "lib/boundary/boundary.h"
  *  \brief The derived class from boundary to apply mixed boundary condition involving a heated plate for a cell-centered variable.
  *
  ********************************************************************************************************************************************

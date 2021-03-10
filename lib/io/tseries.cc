@@ -274,7 +274,7 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     int iY = 0;
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iZ = zLow; iZ <= zTop; iZ++) {
-            theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
+            theta = T.F.F(iX, iY, iZ) + mesh.z(iZ) - 1.0;
 
             localKineticEnergy += (pow(V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ), 2.0) +
                                    pow(V.Vz.F(iX, iY, iZ-1) + V.Vz.F(iX, iY, iZ), 2.0))*0.125*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dZt/mesh.zt_zColloc(iZ));
@@ -288,7 +288,7 @@ void tseries::writeTSData(const sfield &T, const real nu, const real kappa) {
     for (int iX = xLow; iX <= xTop; iX++) {
         for (int iY = yLow; iY <= yTop; iY++) {
             for (int iZ = zLow; iZ <= zTop; iZ++) {
-                theta = T.F.F(iX, iY, iZ) + mesh.zStaggr(iZ) - 1.0;
+                theta = T.F.F(iX, iY, iZ) + mesh.z(iZ) - 1.0;
 
                 localKineticEnergy += (pow(V.Vx.F(iX-1, iY, iZ) + V.Vx.F(iX, iY, iZ), 2.0) +
                                        pow(V.Vy.F(iX, iY-1, iZ) + V.Vy.F(iX, iY, iZ), 2.0) +

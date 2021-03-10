@@ -29,7 +29,7 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file neumannFC.cc
+/*! \file dirichlet.cc
  *
  *  \brief Definitions for functions of class boundary
  *  \sa boundary.h
@@ -44,33 +44,32 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the neumannFC class
+ * \brief   Constructor of the dirichlet class
  *
  *          The constructor initializes the base boundary class using part of the arguments supplied to it.
- *          The value of the derivative of the field at the boundary, denoted by fieldValue, is also set in the initialization list.
+ *          The value of the field at the boundary, denoted by fieldValue, is also set in the initialization list.
  *
  * \param   mesh is a const reference to the global data contained in the grid class.
  * \param   inField is a reference to the field to which the boundary conditions must be applied.
  * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
- * \param   bcValue is the const real value of the derivative of the variable at the boundary.
+ * \param   bcValue is the const real value of the variable at the boundary.
  ********************************************************************************************************************************************
  */
-neumannFC::neumannFC(const grid &mesh, field &inField, const int bcWall, const real bcValue):
+dirichlet::dirichlet(const grid &mesh, field &inField, const int bcWall, const real bcValue):
                             boundary(mesh, inField, bcWall), fieldValue(bcValue) { }
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose Neumann BC on a face centered variable
+ * \brief   Function to impose Dirichlet BC on a cell centered variable
  *
  *          For Saras solver, the wall passes through the cell centers of the variables.
- *          Hence the variable is lying on either sides of the wall for this case.
- *          Accordingly the derivative of the variable is set on the wall.
+ *          Hence the variable is lying on the wall for this case.
+ *          Accordingly the value of the variable is directly set to fieldValue on the wall.
  *
  ********************************************************************************************************************************************
  */
-inline void neumannFC::imposeBC() {
+inline void dirichlet::imposeBC() {
     if (rankFlag) {
-        // This implementation assumes that the derivative at boundary is 0, and needs update
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum), shiftVal));
+        dField.F(dField.fWalls(wallNum)) = fieldValue;
     }
 }

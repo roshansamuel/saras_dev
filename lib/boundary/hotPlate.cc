@@ -44,7 +44,7 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the hotPlateCC class
+ * \brief   Constructor of the hotPlate class
  *
  *          The constructor initializes the base boundary class using part of the arguments supplied to it.
  *          The radius of the heating plate, denoted by patchRadius, is also set in the initialization list.
@@ -55,7 +55,7 @@
  * \param   plateRad is the const real value of the radius of the heating plate.
  ********************************************************************************************************************************************
  */
-hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const real plateRad):
+hotPlate::hotPlate(const grid &mesh, field &inField, const int bcWall, const real plateRad):
                             boundary(mesh, inField, bcWall), patchRadius(plateRad) {
     createPatch(patchRadius);
 }
@@ -69,7 +69,7 @@ hotPlateCC::hotPlateCC(const grid &mesh, field &inField, const int bcWall, const
  *
  ********************************************************************************************************************************************
  */
-void hotPlateCC::createPatch(const real patchRadius) {
+void hotPlate::createPatch(const real patchRadius) {
     real patchCentX, patchCentY, patchCentZ;
 
     patchCentX = mesh.xLen/2.0;
@@ -109,7 +109,7 @@ void hotPlateCC::createPatch(const real patchRadius) {
  *
  ********************************************************************************************************************************************
  */
-void hotPlateCC::imposeBC() {
+void hotPlate::imposeBC() {
     // First impose Neumann BC everywhere for adiabatic wall
     dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum), 1));
 

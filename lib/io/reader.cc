@@ -83,41 +83,12 @@ void reader::initLimits() {
 
     for (unsigned int i=0; i < rFields.size(); i++) {
         gloSize = mesh.globalSize;
-        if (not rFields[i].xStag) {
-            gloSize(0) -= 1;
-        }
+        locSize = mesh.coreSize;
 
-#ifndef PLANAR
-        if (not rFields[i].yStag) {
-            gloSize(1) -= 1;
-        }
-#else
+#ifdef PLANAR
         gloSize(1) = 1;
-#endif
-
-        if (not rFields[i].zStag) {
-            gloSize(2) -= 1;
-        }
-
-        locSize = mesh.collocCoreSize;
-        if (rFields[i].xStag) {
-            // Though the last point (which is shared across 2 processors) was excluded for some subdomains in the writer class, while reading, these overlapping points have to be considered
-            // This is one point where reader differs from writer
-            locSize(0) = mesh.staggrCoreSize(0);
-        }
-
-#ifndef PLANAR
-        if (rFields[i].yStag) {
-            // As with X direction, all subdomains include both the boundary points (which may be shared across 2 processors)
-            locSize(1) = mesh.staggrCoreSize(1);
-        }
-#else
         locSize(1) = 1;
 #endif
-
-        if (rFields[i].zStag) {
-            locSize(2) = mesh.staggrCoreSize(2);
-        }
 
         // Since only the last rank along X and Y directions include the extra point (shared across processors), subArrayStarts are same for all ranks
         sdStart = mesh.subarrayStarts;

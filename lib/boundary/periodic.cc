@@ -29,7 +29,7 @@
  *
  ********************************************************************************************************************************************
  */
-/*! \file periodicFC.cc
+/*! \file periodic.cc
  *
  *  \brief Definitions for functions of class boundary
  *  \sa boundary.h
@@ -44,7 +44,7 @@
 
 /**
  ********************************************************************************************************************************************
- * \brief   Constructor of the periodicFC class
+ * \brief   Constructor of the periodic class
  *
  *          The constructor simply initializes the base boundary class using all the arguments supplied to it.
  *          Since periodic BC is being implemented, no additional values are necessary for the object.
@@ -54,28 +54,30 @@
  * \param   bcWall is a const integer which specifies the wall to which the BC must be applied.
  ********************************************************************************************************************************************
  */
-periodicFC::periodicFC(const grid &mesh, field &inField, const int bcWall):
+periodic::periodic(const grid &mesh, field &inField, const int bcWall):
                             boundary(mesh, inField, bcWall) { }
 
 /**
  ********************************************************************************************************************************************
- * \brief   Function to impose periodic BC on a face centered variable
+ * \brief   Function to impose periodic BC on a cell centered variable
  *
  *          For Saras solver, the wall passes through the cell centers of the variables.
- *          Hence the variable is lying on either sides of the wall for this case.
+ *          Hence the variable is lying on the wall for this case.
  *          This BC is used mainly in the Z-direction, because Saras supports pencil/slab decomposition only.
  *          Along Z, no MPI structures exist at all.
  *          Hence no MPI data transfer takes place, and this BC imposes periodic BC along Z.
  *
  ********************************************************************************************************************************************
  */
-inline void periodicFC::imposeBC() {
+inline void periodic::imposeBC() {
     // The BC is applied for all ranks and no rankFlag is used
+    // NOTE: The second point from the wall of the opposite side is read to impose periodic BC.
+    // This corresponds to a bulk that is same as core - and is implemented as Method 3 in setBulkSlice function of field.cc
     if (shiftVal > 0) {
         // If shiftVal = 1, the wall is either left (0), front (2), or bottom (4) wall
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum + 1), -1));
+        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum + 1), -2));
     } else {
         // If shiftVal = -1, the wall is either right (1), back (3), or top (5) wall
-        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum - 1), 1));
+        dField.F(dField.fWalls(wallNum)) = dField.F(dField.shift(shiftDim, dField.fWalls(wallNum - 1), 2));
     }
 }
