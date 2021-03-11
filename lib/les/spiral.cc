@@ -78,13 +78,6 @@ spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, c
     qY = new sfield(mesh, "qY");
     qZ = new sfield(mesh, "qZ");
 
-    // Scalar fields used to store the velocity fields interpolated to cell-centers
-    // The vector field class cannot be used here because vfield by default stores
-    // its comopnents in face-centered configuration.
-    Vxcc = new sfield(mesh, "Ucc");
-    Vycc = new sfield(mesh, "Vcc");
-    Vzcc = new sfield(mesh, "Wcc");
-
     // 3x3x3 arrays which store local velocity field when computing structure function
     u.resize(3, 3, 3);
     v.resize(3, 3, 3);
@@ -131,42 +124,20 @@ spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, c
 real spiral::computeSG(plainvf &nseRHS) {
     real localSGKE, totalSGKE;
 
-    // First interpolate all velocities to cell centers
-    // Then U, V and W data are available at all cell centers except ghost points
-    Vxcc->F.F = 0.0;
-    for (unsigned int i=0; i < P.F.VxIntSlices.size(); i++) {
-        Vxcc->F.F(P.F.fCore) += V.Vx.F(P.F.VxIntSlices(i));
-    }
-    Vxcc->F.F /= P.F.VxIntSlices.size();
-
-    Vycc->F.F = 0.0;
-    for (unsigned int i=0; i < P.F.VyIntSlices.size(); i++) {
-        Vycc->F.F(P.F.fCore) += V.Vy.F(P.F.VyIntSlices(i));
-    }
-    Vycc->F.F /= P.F.VyIntSlices.size();
-
-    Vzcc->F.F = 0.0;
-    for (unsigned int i=0; i < P.F.VzIntSlices.size(); i++) {
-        Vzcc->F.F(P.F.fCore) += V.Vz.F(P.F.VzIntSlices(i));
-    }
-    Vzcc->F.F /= P.F.VzIntSlices.size();
-
-    Vxcc->F.syncData();
-    Vycc->F.syncData();
-    Vzcc->F.syncData();
+    V.syncData();
 
     // Compute the x, y and z derivatives of the interpolated velocity field and store them into
     // the arrays A11, A12, A13, ... A33. These arrays will be later accessed when constructing
     // the velocity gradient tensor at each point in the domain.
-    Vxcc->derS.calcDerivative1_x(A11);
-    Vxcc->derS.calcDerivative1_y(A12);
-    Vxcc->derS.calcDerivative1_z(A13);
-    Vycc->derS.calcDerivative1_x(A21);
-    Vycc->derS.calcDerivative1_y(A22);
-    Vycc->derS.calcDerivative1_z(A23);
-    Vzcc->derS.calcDerivative1_x(A31);
-    Vzcc->derS.calcDerivative1_y(A32);
-    Vzcc->derS.calcDerivative1_z(A33);
+    V.derVx.calcDerivative1_x(A11);
+    V.derVx.calcDerivative1_y(A12);
+    V.derVx.calcDerivative1_z(A13);
+    V.derVy.calcDerivative1_x(A21);
+    V.derVy.calcDerivative1_y(A22);
+    V.derVy.calcDerivative1_z(A23);
+    V.derVz.calcDerivative1_x(A31);
+    V.derVz.calcDerivative1_y(A32);
+    V.derVz.calcDerivative1_z(A33);
 
     // Set the array limits when looping over the domain to compute SG contribution.
     // Use only the cell centers like a collocated grid and compute T tensor.
@@ -179,11 +150,11 @@ real spiral::computeSG(plainvf &nseRHS) {
 
     localSGKE = 0.0;
     for (int iX = xS; iX <= xE; iX++) {
-        real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
+        real dx = mesh.x(iX) - mesh.x(iX - 1);
         for (int iY = yS; iY <= yE; iY++) {
-            real dy = mesh.yColloc(iY) - mesh.yColloc(iY - 1);
+            real dy = mesh.y(iY) - mesh.y(iY - 1);
             for (int iZ = zS; iZ <= zE; iZ++) {
-                real dz = mesh.zColloc(iZ) - mesh.zColloc(iZ - 1);
+                real dz = mesh.z(iZ) - mesh.z(iZ - 1);
 
                 // Specify the values of all the quantities necessary for sgsFlux function to
                 // compute the sub-grid stress correctly. These are all member variables of the les
@@ -194,14 +165,14 @@ real spiral::computeSG(plainvf &nseRHS) {
                 del = std::pow(dx*dy*dz, 1.0/3.0);
 
                 // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
-                u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
-                v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
-                w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                u = V.Vx.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                v = V.Vy.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                w = V.Vz.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
 
                 // 3. The x, y and z coordinates of the 3 x 3 x 3 points over which u, v and w have been specified
-                x = mesh.xStaggr(blitz::Range(iX-1, iX+1));
-                y = mesh.yStaggr(blitz::Range(iY-1, iY+1));
-                z = mesh.zStaggr(blitz::Range(iZ-1, iZ+1));
+                x = mesh.x(blitz::Range(iX-1, iX+1));
+                y = mesh.y(blitz::Range(iY-1, iY+1));
+                z = mesh.z(blitz::Range(iZ-1, iZ+1));
 
                 // 4. The velocity gradient tensor specified as a 3 x 3 matrix
                 dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
@@ -219,7 +190,7 @@ real spiral::computeSG(plainvf &nseRHS) {
                 Tyz->F.F(iX, iY, iZ) = sTyz;
                 Tzx->F.F(iX, iY, iZ) = sTzx;
 
-                localSGKE += abs(K)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localSGKE += abs(K)*(mesh.dXi/mesh.xi_x(iX))*(mesh.dEt/mesh.et_y(iY))*(mesh.dZt/mesh.zt_z(iZ));
             }
         }
     }
@@ -311,42 +282,20 @@ real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     real localSGKE, totalSGKE;
     real sQx, sQy, sQz;
 
-    // First interpolate all velocities to cell centers
-    // Then U, V and W data are available at all cell centers except ghost points
-    Vxcc->F.F = 0.0;
-    for (unsigned int i=0; i < P.F.VxIntSlices.size(); i++) {
-        Vxcc->F.F(P.F.fCore) += V.Vx.F(P.F.VxIntSlices(i));
-    }
-    Vxcc->F.F /= P.F.VxIntSlices.size();
-
-    Vycc->F.F = 0.0;
-    for (unsigned int i=0; i < P.F.VyIntSlices.size(); i++) {
-        Vycc->F.F(P.F.fCore) += V.Vy.F(P.F.VyIntSlices(i));
-    }
-    Vycc->F.F /= P.F.VyIntSlices.size();
-
-    Vzcc->F.F = 0.0;
-    for (unsigned int i=0; i < P.F.VzIntSlices.size(); i++) {
-        Vzcc->F.F(P.F.fCore) += V.Vz.F(P.F.VzIntSlices(i));
-    }
-    Vzcc->F.F /= P.F.VzIntSlices.size();
-
-    Vxcc->F.syncData();
-    Vycc->F.syncData();
-    Vzcc->F.syncData();
+    V.syncData();
 
     // Compute the x, y and z derivatives of the interpolated velocity field and store them into
     // the arrays A11, A12, A13, ... A33. These arrays will be later accessed when constructing
     // the velocity gradient tensor at each point in the domain.
-    Vxcc->derS.calcDerivative1_x(A11);
-    Vxcc->derS.calcDerivative1_y(A12);
-    Vxcc->derS.calcDerivative1_z(A13);
-    Vycc->derS.calcDerivative1_x(A21);
-    Vycc->derS.calcDerivative1_y(A22);
-    Vycc->derS.calcDerivative1_z(A23);
-    Vzcc->derS.calcDerivative1_x(A31);
-    Vzcc->derS.calcDerivative1_y(A32);
-    Vzcc->derS.calcDerivative1_z(A33);
+    V.derVx.calcDerivative1_x(A11);
+    V.derVx.calcDerivative1_y(A12);
+    V.derVx.calcDerivative1_z(A13);
+    V.derVy.calcDerivative1_x(A21);
+    V.derVy.calcDerivative1_y(A22);
+    V.derVy.calcDerivative1_z(A23);
+    V.derVz.calcDerivative1_x(A31);
+    V.derVz.calcDerivative1_y(A32);
+    V.derVz.calcDerivative1_z(A33);
 
     // Compute the x, y and z derivatives of the temperature field and store them into
     // the arrays B1, B2, and B3. These arrays will be later accessed when constructing
@@ -366,11 +315,11 @@ real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
 
     localSGKE = 0.0;
     for (int iX = xS; iX <= xE; iX++) {
-        real dx = mesh.xColloc(iX) - mesh.xColloc(iX - 1);
+        real dx = mesh.x(iX) - mesh.x(iX - 1);
         for (int iY = yS; iY <= yE; iY++) {
-            real dy = mesh.yColloc(iY) - mesh.yColloc(iY - 1);
+            real dy = mesh.y(iY) - mesh.y(iY - 1);
             for (int iZ = zS; iZ <= zE; iZ++) {
-                real dz = mesh.zColloc(iZ) - mesh.zColloc(iZ - 1);
+                real dz = mesh.z(iZ) - mesh.z(iZ - 1);
 
                 // Specify the values of all the quantities necessary for sgsFlux function to
                 // compute the sub-grid stress correctly. These are all member variables of the les
@@ -381,14 +330,14 @@ real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 del = std::pow(dx*dy*dz, 1.0/3.0);
 
                 // 2. Velocities at the 3 x 3 x 3 points over which structure function will be calculated
-                u = Vxcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
-                v = Vycc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
-                w = Vzcc->F.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                u = V.Vx.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                v = V.Vy.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
+                w = V.Vz.F(blitz::Range(iX-1, iX+1), blitz::Range(iY-1, iY+1), blitz::Range(iZ-1, iZ+1));
 
                 // 3. The x, y and z coordinates of the 3 x 3 x 3 points over which u, v and w have been specified
-                x = mesh.xStaggr(blitz::Range(iX-1, iX+1));
-                y = mesh.yStaggr(blitz::Range(iY-1, iY+1));
-                z = mesh.zStaggr(blitz::Range(iZ-1, iZ+1));
+                x = mesh.x(blitz::Range(iX-1, iX+1));
+                y = mesh.y(blitz::Range(iY-1, iY+1));
+                z = mesh.z(blitz::Range(iZ-1, iZ+1));
 
                 // 4. The velocity gradient tensor specified as a 3 x 3 matrix
                 dudx = A11(iX, iY, iZ), A12(iX, iY, iZ), A13(iX, iY, iZ),
@@ -419,7 +368,7 @@ real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
                 qY->F.F(iX, iY, iZ) = sQy;
                 qZ->F.F(iX, iY, iZ) = sQz;
 
-                localSGKE += abs(K)*(mesh.dXi/mesh.xi_xColloc(iX))*(mesh.dEt/mesh.et_yColloc(iY))*(mesh.dZt/mesh.zt_zColloc(iZ));
+                localSGKE += abs(K)*(mesh.dXi/mesh.xi_x(iX))*(mesh.dEt/mesh.et_y(iY))*(mesh.dZt/mesh.zt_z(iZ));
             }
         }
     }

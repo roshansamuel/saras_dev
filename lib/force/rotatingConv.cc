@@ -66,29 +66,11 @@ rotatingConv::rotatingConv(const grid &mesh, vfield &U, const sfield &T): force(
 
 void rotatingConv::addForcing(plainvf &Hv) {
     //ADD THE BUOYANCY TERM TO THE Vz COMPONENT OF Hv
-    V.interTempZ = 0.0;
-    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-    }
-    V.interTempZ /= V.Vz.PcIntSlices.size();
-
-    Hv.Vz += Fb*V.interTempZ;
+    Hv.Vz += Fb*T.F.F;
 
     //ADD THE ROTATING TERM TO THE Vx COMPONENT OF Hv
-    V.interTempX = 0.0;
-    for (unsigned int i=0; i < V.Vx.VyIntSlices.size(); i++) {
-        V.interTempX(V.Vx.fCore) += V.Vy.F(V.Vx.VyIntSlices(i));
-    }   
-    V.interTempX /= V.Vx.VyIntSlices.size();
-
-    Hv.Vx += Fr*V.interTempX;
+    Hv.Vx += Fr*V.Vy.F;
 
     //SUBTRACT THE ROTATING TERM FROM THE Vy COMPONENT of Hv
-    V.interTempY = 0.0;
-    for (unsigned int i=0; i < V.Vy.VxIntSlices.size(); i++) {
-        V.interTempY(V.Vy.fCore) += V.Vx.F(V.Vy.VxIntSlices(i));
-    }   
-    V.interTempY /= V.Vy.VxIntSlices.size();
-
-    Hv.Vy -= Fr*V.interTempY;
+    Hv.Vy -= Fr*V.Vx.F;
 }

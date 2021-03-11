@@ -65,8 +65,8 @@ eulerCN_d3::eulerCN_d3(const grid &mesh, const real &sTime, const real &dt, tser
     // Using Nx x Ny x Nz as the upper limit may cause the run to freeze for very long time.
     // This can eat away a lot of core hours unnecessarily.
     // It remains to be seen if this upper limit is safe.
-    maxIterations = int(std::pow(std::log(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 3));
-    //maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+    maxIterations = int(std::pow(std::log(mesh.coreSize(0)*mesh.coreSize(1)*mesh.coreSize(2)), 3));
+    //maxIterations = mesh.coreSize(0)*mesh.coreSize(1)*mesh.coreSize(2);
 
     // If LES switch is enabled, initialize LES model
     if (mesh.inputParams.lesModel) {

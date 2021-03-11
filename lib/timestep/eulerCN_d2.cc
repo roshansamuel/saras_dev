@@ -65,8 +65,8 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &sTime, const real &dt, tser
     // Using Nx x Ny x Nz as the upper limit may cause the run to freeze for very long time.
     // This can eat away a lot of core hours unnecessarily.
     // It remains to be seen if this upper limit is safe.
-    maxIterations = int(std::pow(std::log(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 3));
-    //maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
+    maxIterations = int(std::pow(std::log(mesh.coreSize(0)*mesh.coreSize(1)*mesh.coreSize(2)), 3));
+    //maxIterations = mesh.coreSize(0)*mesh.coreSize(1)*mesh.coreSize(2);
 }
 
 
@@ -192,20 +192,10 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P, sfield &T) {
         // HENCE THE CONTRIBUTION OF VELOCITY TO SCALAR EQUATION MUST BE ADDED
         // THIS CONTRIBUTION IS Uz FOR RBC AND SST, BUT Ux FOR VERTICAL CONVECTION
         if (mesh.inputParams.probType == 5 || mesh.inputParams.probType == 6) {
-            T.interTempF = 0.0;
-            for (unsigned int i=0; i < T.F.VzIntSlices.size(); i++) {
-                T.interTempF(T.F.fCore) += V.Vz.F(T.F.VzIntSlices(i));
-            }
-
-            tmpRHS.F += T.interTempF/T.F.VzIntSlices.size();
+            tmpRHS.F += V.Vz.F;
 
         } else if (mesh.inputParams.probType == 7) {
-            T.interTempF = 0.0;
-            for (unsigned int i=0; i < T.F.VxIntSlices.size(); i++) {
-                T.interTempF(T.F.fCore) += V.Vx.F(T.F.VxIntSlices(i));
-            }
-
-            tmpRHS.F += T.interTempF/T.F.VxIntSlices.size();
+            tmpRHS.F += V.Vx.F;
         }
     }
 

@@ -58,11 +58,5 @@ buoyantForce::buoyantForce(const grid &mesh, vfield &U, const sfield &T): force(
 
 void buoyantForce::addForcing(plainvf &Hv) {
     //ADD THE BUOYANCY TERM TO THE Vz COMPONENT OF Hv
-    V.interTempZ = 0.0;
-    for (unsigned int i=0; i < V.Vz.PcIntSlices.size(); i++) {
-        V.interTempZ(V.Vz.fCore) += T.F.F(V.Vz.PcIntSlices(i));
-    }
-    V.interTempZ /= V.Vz.PcIntSlices.size();
-
-    Hv.Vz += Fb*V.interTempZ;
+    Hv.Vz += Fb*T.F.F;
 }
