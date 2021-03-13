@@ -71,96 +71,90 @@ void parser::parseYAML() {
 
     inFile.open("input/parameters.yaml", std::ifstream::in);
 
-    // Below three lines are old API code
-    YAML::Node yamlNode;
-    YAML::Parser parser(inFile);
-    parser.GetNextDocument(yamlNode);
-
-    // Below is the new API code - needs to be tested
-    //YAML::Node yamlNode = YAML::Load(inFile);
+    YAML::Node yamlNode = YAML::Load(inFile);
 
     /********** Problem parameters **********/
 
-    yamlNode["Program"]["Problem Type"] >> probType;
-    yamlNode["Program"]["Initial Condition"] >> icType;
-    yamlNode["Program"]["Mean Flow Velocity"] >> meanVelocity;
-    yamlNode["Program"]["Perturbation Intensity"] >> rfIntensity;
-    yamlNode["Program"]["Domain Type"] >> domainType;
-    yamlNode["Program"]["RBC Type"] >> rbcType;
+    probType = yamlNode["Program"]["Problem Type"].as<int>();
+    icType = yamlNode["Program"]["Initial Condition"].as<int>();
+    meanVelocity = yamlNode["Program"]["Mean Flow Velocity"].as<real>();
+    rfIntensity = yamlNode["Program"]["Perturbation Intensity"].as<real>();
+    domainType = yamlNode["Program"]["Domain Type"].as<std::string>();
+    rbcType = yamlNode["Program"]["RBC Type"].as<int>();
 
-    yamlNode["Program"]["LES Model"] >> lesModel;
+    lesModel = yamlNode["Program"]["LES Model"].as<int>();
 
-    yamlNode["Program"]["Reynolds Number"] >> Re;
-    yamlNode["Program"]["Rossby Number"] >> Ro;
-    yamlNode["Program"]["Rayleigh Number"] >> Ra;
-    yamlNode["Program"]["Prandtl Number"] >> Pr;
-    yamlNode["Program"]["Taylor Number"] >> Ta;
+    Re = yamlNode["Program"]["Reynolds Number"].as<real>();
+    Ro = yamlNode["Program"]["Rossby Number"].as<real>();
+    Ra = yamlNode["Program"]["Rayleigh Number"].as<real>();
+    Pr = yamlNode["Program"]["Prandtl Number"].as<real>();
+    Ta = yamlNode["Program"]["Taylor Number"].as<real>();
 
-    yamlNode["Program"]["X Length"] >> Lx;
-    yamlNode["Program"]["Y Length"] >> Ly;
-    yamlNode["Program"]["Z Length"] >> Lz;
+    Lx = yamlNode["Program"]["X Length"].as<real>();
+    Ly = yamlNode["Program"]["Y Length"].as<real>();
+    Lz = yamlNode["Program"]["Z Length"].as<real>();
 
-    yamlNode["Program"]["Heating Plate"] >> nonHgBC;
-    yamlNode["Program"]["Plate Radius"] >> patchRadius;
+    nonHgBC = yamlNode["Program"]["Heating Plate"].as<bool>();
+    patchRadius = yamlNode["Program"]["Plate Radius"].as<real>();
 
-    yamlNode["Program"]["Force"] >> forceType;
-    yamlNode["Program"]["Mean Pressure Gradient"] >> meanPGrad;
+    forceType = yamlNode["Program"]["Force"].as<int>();
+    meanPGrad = yamlNode["Program"]["Mean Pressure Gradient"].as<real>();
 
     /********** Mesh parameters **********/
 
-    yamlNode["Mesh"]["Mesh Type"] >> meshType;
+    meshType = yamlNode["Mesh"]["Mesh Type"].as<std::string>();
 
-    yamlNode["Mesh"]["X Beta"] >> betaX;
-    yamlNode["Mesh"]["Y Beta"] >> betaY;
-    yamlNode["Mesh"]["Z Beta"] >> betaZ;
+    betaX = yamlNode["Mesh"]["X Beta"].as<real>();
+    betaY = yamlNode["Mesh"]["Y Beta"].as<real>();
+    betaZ = yamlNode["Mesh"]["Z Beta"].as<real>();
 
-    yamlNode["Mesh"]["X Index"] >> xInd;
-    yamlNode["Mesh"]["Y Index"] >> yInd;
-    yamlNode["Mesh"]["Z Index"] >> zInd;
+    xInd = yamlNode["Mesh"]["X Index"].as<int>();
+    yInd = yamlNode["Mesh"]["Y Index"].as<int>();
+    zInd = yamlNode["Mesh"]["Z Index"].as<int>();
 
     /********** Parallelization parameters **********/
 
-    yamlNode["Parallel"]["Number of OMP threads"] >> nThreads;
+    nThreads = yamlNode["Parallel"]["Number of OMP threads"].as<int>();
 
-    yamlNode["Parallel"]["X Number of Procs"] >> npX;
-    yamlNode["Parallel"]["Y Number of Procs"] >> npY;
+    npX = yamlNode["Parallel"]["X Number of Procs"].as<int>();
+    npY = yamlNode["Parallel"]["Y Number of Procs"].as<int>();
 
     /********** Solver parameters **********/
 
-    yamlNode["Solver"]["Differentiation Scheme"] >> dScheme;
-    yamlNode["Solver"]["Integration Scheme"] >> iScheme;
-    yamlNode["Solver"]["Solve Tolerance"] >> cnTolerance;
+    dScheme = yamlNode["Solver"]["Differentiation Scheme"].as<int>();
+    iScheme = yamlNode["Solver"]["Integration Scheme"].as<int>();
+    cnTolerance = yamlNode["Solver"]["Solve Tolerance"].as<real>();
 
-    yamlNode["Solver"]["Restart Run"] >> restartFlag;
+    restartFlag = yamlNode["Solver"]["Restart Run"].as<bool>();
 
-    yamlNode["Solver"]["Use CFL Condition"] >> useCFL;
-    yamlNode["Solver"]["Courant Number"] >> courantNumber;
-    yamlNode["Solver"]["Time-Step"] >> tStp;
-    yamlNode["Solver"]["Final Time"] >> tMax;
+    useCFL = yamlNode["Solver"]["Use CFL Condition"].as<bool>();
+    courantNumber = yamlNode["Solver"]["Courant Number"].as<real>();
+    tStp = yamlNode["Solver"]["Time-Step"].as<real>();
+    tMax = yamlNode["Solver"]["Final Time"].as<real>();
 
-    yamlNode["Solver"]["I/O Count"] >> ioCnt;
-    yamlNode["Solver"]["Solution Format"] >> solnFormat;
-    yamlNode["Solver"]["Solution Write Interval"] >> fwInt;
-    yamlNode["Solver"]["Restart Write Interval"] >> rsInt;
+    ioCnt = yamlNode["Solver"]["I/O Count"].as<int>();
+    solnFormat = yamlNode["Solver"]["Solution Format"].as<int>();
+    fwInt = yamlNode["Solver"]["Solution Write Interval"].as<real>();
+    rsInt = yamlNode["Solver"]["Restart Write Interval"].as<real>();
 
-    yamlNode["Solver"]["Record Probes"] >> readProbes;
-    yamlNode["Solver"]["Probe Time Interval"] >> prInt;
-    yamlNode["Solver"]["Probes"] >> probeCoords;
+    readProbes = yamlNode["Solver"]["Record Probes"].as<bool>();
+    prInt = yamlNode["Solver"]["Probe Time Interval"].as<real>();
+    probeCoords = yamlNode["Solver"]["Probes"].as<std::string>();
 
     /********** Multigrid parameters **********/
 
-    yamlNode["Multigrid"]["V-Cycle Depth"] >> vcDepth;
-    yamlNode["Multigrid"]["V-Cycle Count"] >> vcCount;
+    vcDepth = yamlNode["Multigrid"]["V-Cycle Depth"].as<int>();
+    vcCount = yamlNode["Multigrid"]["V-Cycle Count"].as<int>();
 
-    yamlNode["Multigrid"]["Solve Coarsest"] >> solveFlag;
-    yamlNode["Multigrid"]["Solve Tolerance"] >> mgTolerance;
+    solveFlag = yamlNode["Multigrid"]["Solve Coarsest"].as<bool>();
+    mgTolerance = yamlNode["Multigrid"]["Solve Tolerance"].as<real>();
 
-    yamlNode["Multigrid"]["Smoothing Method"] >> gsSmooth;
-    yamlNode["Multigrid"]["Pre-Smoothing Count"] >> preSmooth;
-    yamlNode["Multigrid"]["Post-Smoothing Count"] >> postSmooth;
+    gsSmooth = yamlNode["Multigrid"]["Smoothing Method"].as<int>();
+    preSmooth = yamlNode["Multigrid"]["Pre-Smoothing Count"].as<int>();
+    postSmooth = yamlNode["Multigrid"]["Post-Smoothing Count"].as<int>();
 
-    yamlNode["Multigrid"]["Residual Type"] >> resType;
-    yamlNode["Multigrid"]["Print Residual"] >> printResidual;
+    resType = yamlNode["Multigrid"]["Residual Type"].as<int>();
+    printResidual = yamlNode["Multigrid"]["Print Residual"].as<bool>();
 
     inFile.close();
 }
