@@ -60,7 +60,7 @@
 
 class les {
     public:
-        les(const grid &mesh, const vfield &solverV, const sfield &solverP);
+        les(const grid &mesh, vfield &solverV, const sfield &solverP);
 
         virtual real computeSG(plainvf &nseRHS);
         virtual real computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T);
@@ -69,7 +69,7 @@ class les {
         const grid &mesh;
 
         const sfield &P;
-        const vfield &V;
+        vfield &V;
 };
 
 /**
@@ -82,7 +82,7 @@ class les {
 
 class spiral: public les {
     public:
-        spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, const real &kDiff);
+        spiral(const grid &mesh, vfield &solverV, const sfield &solverP, const real &kDiff);
 
         real computeSG(plainvf &nseRHS);
         real computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T);

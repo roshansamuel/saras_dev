@@ -97,7 +97,9 @@ cd ../../
 # RUN CODE IF REQUESTED BY USER
 if ! [ -z $EXECUTE_AFTER_COMPILE ]; then
     if [ -z $TEST_RUN ]; then
-        mpirun -np $PROC ./saras
+        echo "localhost slots="$PROC > hostfile
+        mpirun --hostfile hostfile -np $PROC ./saras
+        rm hostfile
     else
         mpirun -np $PROC ./saras_test
     fi

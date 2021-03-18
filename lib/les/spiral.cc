@@ -61,7 +61,7 @@
  * \param   kDiff is a const reference to scalar value denoting viscous dissipation
  ********************************************************************************************************************************************
  */
-spiral::spiral(const grid &mesh, const vfield &solverV, const sfield &solverP, const real &kDiff):
+spiral::spiral(const grid &mesh, vfield &solverV, const sfield &solverP, const real &kDiff):
     les(mesh, solverV, solverP),
     nu(kDiff)
 {
@@ -234,6 +234,10 @@ real spiral::computeSG(plainvf &nseRHS) {
     Tyz->syncData();
     Tzx->syncData();
 
+    A11 = 0.0;  A12 = 0.0;  A13 = 0.0;
+    A21 = 0.0;  A22 = 0.0;  A23 = 0.0;
+    A31 = 0.0;  A32 = 0.0;  A33 = 0.0;
+
     // Compute the components of the divergence of sub-grid stress tensor field
     Txx->derS.calcDerivative1_x(A11);
     Txy->derS.calcDerivative1_x(A12);
@@ -252,41 +256,9 @@ real spiral::computeSG(plainvf &nseRHS) {
 
     // Interpolate the computed divergence and add its contribution to the RHS 
     // of the NSE provided as argument to the function
-    // Contribution to the X-component of NSE
-    xS = V.Vx.fCore.lbound(0);      xE = V.Vx.fCore.ubound(0);
-    yS = V.Vx.fCore.lbound(1);      yE = V.Vx.fCore.ubound(1);
-    zS = V.Vx.fCore.lbound(2);      zE = V.Vx.fCore.ubound(2);
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                nseRHS.Vx(iX, iY, iZ) += (A11(iX, iY, iZ) + A11(iX + 1, iY, iZ))*0.5;
-            }
-        }
-    }
-
-    // Contribution to the Y-component of NSE
-    xS = V.Vy.fCore.lbound(0);      xE = V.Vy.fCore.ubound(0);
-    yS = V.Vy.fCore.lbound(1);      yE = V.Vy.fCore.ubound(1);
-    zS = V.Vy.fCore.lbound(2);      zE = V.Vy.fCore.ubound(2);
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                nseRHS.Vy(iX, iY, iZ) += (A22(iX, iY, iZ) + A22(iX, iY + 1, iZ))*0.5;
-            }
-        }
-    }
-
-    // Contribution to the Z-component of NSE
-    xS = V.Vz.fCore.lbound(0);      xE = V.Vz.fCore.ubound(0);
-    yS = V.Vz.fCore.lbound(1);      yE = V.Vz.fCore.ubound(1);
-    zS = V.Vz.fCore.lbound(2);      zE = V.Vz.fCore.ubound(2);
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                nseRHS.Vz(iX, iY, iZ) += (A33(iX, iY, iZ) + A33(iX, iY, iZ + 1))*0.5;
-            }
-        }
-    }
+    nseRHS.Vx(V.Vx.fCore) += (A11(V.Vx.fCore) + A11(V.Vx.shift(0, V.Vx.fCore, 1)))*0.5;
+    nseRHS.Vy(V.Vy.fCore) += (A22(V.Vy.fCore) + A22(V.Vy.shift(1, V.Vy.fCore, 1)))*0.5;
+    nseRHS.Vz(V.Vz.fCore) += (A33(V.Vz.fCore) + A33(V.Vz.shift(2, V.Vz.fCore, 1)))*0.5;
 
     return totalSGKE;
 }
@@ -453,40 +425,9 @@ real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
     // Interpolate the computed divergence and add its contribution to the RHS 
     // of the NSE provided as argument to the function
     // Contribution to the X-component of NSE
-    xS = V.Vx.fCore.lbound(0);      xE = V.Vx.fCore.ubound(0);
-    yS = V.Vx.fCore.lbound(1);      yE = V.Vx.fCore.ubound(1);
-    zS = V.Vx.fCore.lbound(2);      zE = V.Vx.fCore.ubound(2);
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                nseRHS.Vx(iX, iY, iZ) += (B1(iX, iY, iZ) + B1(iX + 1, iY, iZ))*0.5;
-            }
-        }
-    }
-
-    // Contribution to the Y-component of NSE
-    xS = V.Vy.fCore.lbound(0);      xE = V.Vy.fCore.ubound(0);
-    yS = V.Vy.fCore.lbound(1);      yE = V.Vy.fCore.ubound(1);
-    zS = V.Vy.fCore.lbound(2);      zE = V.Vy.fCore.ubound(2);
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                nseRHS.Vy(iX, iY, iZ) += (B2(iX, iY, iZ) + B2(iX, iY + 1, iZ))*0.5;
-            }
-        }
-    }
-
-    // Contribution to the Z-component of NSE
-    xS = V.Vz.fCore.lbound(0);      xE = V.Vz.fCore.ubound(0);
-    yS = V.Vz.fCore.lbound(1);      yE = V.Vz.fCore.ubound(1);
-    zS = V.Vz.fCore.lbound(2);      zE = V.Vz.fCore.ubound(2);
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                nseRHS.Vz(iX, iY, iZ) += (B3(iX, iY, iZ) + B3(iX, iY, iZ + 1))*0.5;
-            }
-        }
-    }
+    nseRHS.Vx(V.Vx.fCore) += (B1(V.Vx.fCore) + B1(V.Vx.shift(0, V.Vx.fCore, 1)))*0.5;
+    nseRHS.Vy(V.Vy.fCore) += (B2(V.Vy.fCore) + B2(V.Vy.shift(1, V.Vy.fCore, 1)))*0.5;
+    nseRHS.Vz(V.Vz.fCore) += (B3(V.Vz.fCore) + B3(V.Vz.shift(2, V.Vz.fCore, 1)))*0.5;
 
     // Synchronize the sub-grid scalar flux vector field data across MPI processors
     qX->syncData();
@@ -500,17 +441,7 @@ real spiral::computeSG(plainvf &nseRHS, plainsf &tmpRHS, sfield &T) {
 
     // Sum the components to get the divergence of scalar flux, and add its contribution
     // to the RHS of the temperature field equation provided as argument to the function
-    xS = T.F.fBulk.lbound(0);       xE = T.F.fBulk.ubound(0);
-    yS = T.F.fBulk.lbound(1);       yE = T.F.fBulk.ubound(1);
-    zS = T.F.fBulk.lbound(2);       zE = T.F.fBulk.ubound(2);
-
-    for (int iX = xS; iX <= xE; iX++) {
-        for (int iY = yS; iY <= yE; iY++) {
-            for (int iZ = zS; iZ <= zE; iZ++) {
-                tmpRHS.F(iX, iY, iZ) += (B1(iX, iY, iX) + B2(iX, iY, iX) + B3(iX, iY, iX));
-            }
-        }
-    }
+    tmpRHS.F(T.F.fBulk) += (B1(T.F.fBulk) + B2(T.F.fBulk) + B3(T.F.fBulk));
 
     return totalSGKE;
 }

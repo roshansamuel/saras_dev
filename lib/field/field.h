@@ -109,7 +109,7 @@ class field {
 
         real fieldMax();
 
-        blitz::RectDomain<3> shift(int dim, blitz::RectDomain<3> core, int steps);
+        blitz::RectDomain<3> shift(int dim, const blitz::RectDomain<3> core, int steps);
 
         field& operator += (field &a);
         field& operator -= (field &a);

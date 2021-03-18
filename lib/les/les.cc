@@ -51,7 +51,7 @@
  * \param   mesh is a const reference to the global data contained in the grid class
  ********************************************************************************************************************************************
  */
-les::les(const grid &mesh, const vfield &solverV, const sfield &solverP): mesh(mesh), P(solverP), V(solverV) { }
+les::les(const grid &mesh, vfield &solverV, const sfield &solverP): mesh(mesh), P(solverP), V(solverV) { }
 
 /**
  ********************************************************************************************************************************************

@@ -119,11 +119,13 @@ field::field(const grid &gridData, std::string fieldName, const bool xStag, cons
  * \return  A RectDomain object that specifies the new offset view of the data
  ********************************************************************************************************************************************
  */
-blitz::RectDomain<3> field::shift(int dim, blitz::RectDomain<3> core, int steps) {
-    core.lbound()(dim) += steps;
-    core.ubound()(dim) += steps;
+blitz::RectDomain<3> field::shift(int dim, const blitz::RectDomain<3> core, int steps) {
+    blitz::RectDomain<3> rDom = core;
 
-    return core;
+    rDom.lbound()(dim) += steps;
+    rDom.ubound()(dim) += steps;
+
+    return rDom;
 }
 
 /**
