@@ -97,7 +97,9 @@ class eulerCN_d2: public timestep {
         /** Maximum number of iterations for the iterative solvers \ref hydro#solveVx, \ref hydro#solveVy and \ref hydro#solveVz */
         int maxIterations;
 
-        real hx2, hz2, hz2hx2;
+        real hx2, hz2;
+        real ihx2, ihz2;
+        real i2hx, i2hz;
 
         multigrid_d2 mgSolver;
 
@@ -129,7 +131,8 @@ class eulerCN_d3: public timestep {
         int maxIterations;
 
         real hx2, hy2, hz2;
-        real hx2hy2, hz2hx2, hy2hz2, hx2hy2hz2;
+        real ihx2, ihy2, ihz2;
+        real i2hx, i2hy, i2hz;
 
         multigrid_d3 mgSolver;
 

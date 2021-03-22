@@ -20,7 +20,7 @@
     # 6 = Linear Temperature Profile (for Scalar Flow)
     # 7 = Cosine Temperature Profile (for Scalar Flow)
     # 8 = Sine Temperature Profile (for Scalar Flow)
-    "Initial Condition": 0
+    "Initial Condition": 8
 
     # Mean flow velocity (for Channel Flow)
     # If option 3 or 4 is selected above, the perturbation is imposed on a background uniform flow
@@ -48,10 +48,10 @@
     # Enable/Disable LES by choosing LES Model
     # 0 = Disable LES
     # 1 = Stretched Spiral Vortex LES
-    "LES Model": 1
+    "LES Model": 0
 
     # Non-dimensional parameters
-    "Reynolds Number": 20000
+    "Reynolds Number": 2000
     "Rossby Number": 12
     "Rayleigh Number": 1.0e8
     "Prandtl Number": 0.786
@@ -139,7 +139,7 @@
     # If above flag is true, then set the value of Courant number below
     "Courant Number": 0.1
     "Time-Step": 0.0005
-    "Final Time": 112.002
+    "Final Time": 112.01
 
     # Number of iterations to display output to standard I/O
     "I/O Count": 1

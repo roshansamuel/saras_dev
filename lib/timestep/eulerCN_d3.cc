@@ -97,9 +97,10 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P) {
 
     nseRHS = 0.0;
 
-    // First compute the explicit part of the semi-implicit viscous term and divide it by Re
+    // Compute the diffusion term of momentum equation
     V.computeDiff(nseRHS);
-    nseRHS *= nu;
+    // Split the diffusion term and multiply by diffusion coefficient
+    nseRHS *= 0.5*nu;
 
     // Compute the non-linear term and subtract it from the RHS
     V.computeNLin(V, nseRHS);
@@ -187,13 +188,15 @@ void eulerCN_d3::timeAdvance(vfield &V, sfield &P, sfield &T) {
     nseRHS = 0.0;
     tmpRHS = 0.0;
 
-    // Compute the explicit part of the semi-implicit viscous term of momentum equation
+    // Compute the diffusion term of momentum equation
     V.computeDiff(nseRHS);
-    nseRHS *= nu;
+    // Split the diffusion term and multiply by diffusion coefficient
+    nseRHS *= 0.5*nu;
 
-    // Compute the explicit part of the semi-implicit viscous term of scalar equation
+    // Compute the diffusion term of scalar equation
     T.computeDiff(tmpRHS);
-    tmpRHS *= kappa;
+    // Split the diffusion term and multiply by diffusion coefficient
+    tmpRHS *= 0.5*kappa;
 
     // Compute the non-linear term and subtract it from the RHS of momentum equation
     V.computeNLin(V, nseRHS);
@@ -291,11 +294,14 @@ void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
         for (int iX = V.Vx.fBulk.lbound(0); iX <= V.Vx.fBulk.ubound(0); iX++) {
             for (int iY = V.Vx.fBulk.lbound(1); iY <= V.Vx.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
-                    tempVx(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
-                                           hz2hx2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
-                                           hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1))) *
-                            dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vx(iX, iY, iZ)) /
-                     (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Colloc(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
+                    tempVx(iX, iY, iZ) = ((ihx2 * mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) +
+                                           i2hx * mesh.xixxColloc(iX) * (V.Vx.F(iX+1, iY, iZ) - V.Vx.F(iX-1, iY, iZ)) +
+                                           ihy2 * mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) + V.Vx.F(iX, iY-1, iZ)) +
+                                           i2hy * mesh.etyyStaggr(iY) * (V.Vx.F(iX, iY+1, iZ) - V.Vx.F(iX, iY-1, iZ)) +
+                                           ihz2 * mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) + V.Vx.F(iX, iY, iZ-1)) +
+                                           i2hz * mesh.ztzzStaggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - V.Vx.F(iX, iY, iZ-1))) *
+                            dt * nu * 0.5 + nseRHS.Vx(iX, iY, iZ)) /
+                     (1.0 + dt * nu * (ihx2 * mesh.xix2Colloc(iX) + ihy2 * mesh.ety2Staggr(iY) + ihz2 * mesh.ztz2Staggr(iZ)));
                 }
             }
         }
@@ -309,9 +315,12 @@ void eulerCN_d3::solveVx(vfield &V, plainvf &nseRHS) {
             for (int iY = V.Vx.fBulk.lbound(1); iY <= V.Vx.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vx.fBulk.lbound(2); iZ <= V.Vx.fBulk.ubound(2); iZ++) {
                     tempVx(iX, iY, iZ) = V.Vx.F(iX, iY, iZ) - 0.5 * dt * nu * (
-                              mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) / (hx2) +
-                              mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY-1, iZ)) / (hy2) +
-                              mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) / (hz2));
+                              mesh.xix2Colloc(iX) * (V.Vx.F(iX+1, iY, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX-1, iY, iZ)) * ihx2 +
+                              mesh.xixxColloc(iX) * (V.Vx.F(iX+1, iY, iZ) - V.Vx.F(iX-1, iY, iZ)) * i2hx +
+                              mesh.ety2Staggr(iY) * (V.Vx.F(iX, iY+1, iZ) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY-1, iZ)) * ihy2 +
+                              mesh.etyyStaggr(iY) * (V.Vx.F(iX, iY+1, iZ) - V.Vx.F(iX, iY-1, iZ)) * i2hy +
+                              mesh.ztz2Staggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - 2.0 * V.Vx.F(iX, iY, iZ) + V.Vx.F(iX, iY, iZ-1)) * ihz2 +
+                              mesh.ztzzStaggr(iZ) * (V.Vx.F(iX, iY, iZ+1) - V.Vx.F(iX, iY, iZ-1)) * i2hz);
                 }
             }
         }
@@ -361,11 +370,14 @@ void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
         for (int iX = V.Vy.fBulk.lbound(0); iX <= V.Vy.fBulk.ubound(0); iX++) {
             for (int iY = V.Vy.fBulk.lbound(1); iY <= V.Vy.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vy.fBulk.lbound(2); iZ <= V.Vy.fBulk.ubound(2); iZ++) {
-                    tempVy(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
-                                           hz2hx2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
-                                           hx2hy2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1))) *
-                            dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vy(iX, iY, iZ)) /
-                     (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Colloc(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
+                    tempVy(iX, iY, iZ) = ((ihx2 * mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) +
+                                           i2hx * mesh.xixxStaggr(iX) * (V.Vy.F(iX+1, iY, iZ) - V.Vy.F(iX-1, iY, iZ)) +
+                                           ihy2 * mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) + V.Vy.F(iX, iY-1, iZ)) +
+                                           i2hy * mesh.etyyColloc(iY) * (V.Vy.F(iX, iY+1, iZ) - V.Vy.F(iX, iY-1, iZ)) +
+                                           ihz2 * mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) + V.Vy.F(iX, iY, iZ-1)) +
+                                           i2hz * mesh.ztzzStaggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - V.Vy.F(iX, iY, iZ-1))) *
+                            dt * nu * 0.5 + nseRHS.Vy(iX, iY, iZ)) /
+                     (1.0 + dt * nu * (ihx2 * mesh.xix2Staggr(iX) + ihy2 * mesh.ety2Colloc(iY) + ihz2 * mesh.ztz2Staggr(iZ)));
                 }
             }
         }
@@ -379,9 +391,12 @@ void eulerCN_d3::solveVy(vfield &V, plainvf &nseRHS) {
             for (int iY = V.Vy.fBulk.lbound(1); iY <= V.Vy.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vy.fBulk.lbound(2); iZ <= V.Vy.fBulk.ubound(2); iZ++) {
                     tempVy(iX, iY, iZ) = V.Vy.F(iX, iY, iZ) - 0.5 * dt * nu * (
-                              mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) / (hx2) +
-                              mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY-1, iZ)) / (hy2) +
-                              mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY, iZ-1)) / (hz2));
+                              mesh.xix2Staggr(iX) * (V.Vy.F(iX+1, iY, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX-1, iY, iZ)) * ihx2 +
+                              mesh.xixxStaggr(iX) * (V.Vy.F(iX+1, iY, iZ) - V.Vy.F(iX-1, iY, iZ)) * i2hx +
+                              mesh.ety2Colloc(iY) * (V.Vy.F(iX, iY+1, iZ) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY-1, iZ)) * ihy2 +
+                              mesh.etyyColloc(iY) * (V.Vy.F(iX, iY+1, iZ) - V.Vy.F(iX, iY-1, iZ)) * i2hy +
+                              mesh.ztz2Staggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - 2.0 * V.Vy.F(iX, iY, iZ) + V.Vy.F(iX, iY, iZ-1)) * ihz2 +
+                              mesh.ztzzStaggr(iZ) * (V.Vy.F(iX, iY, iZ+1) - V.Vy.F(iX, iY, iZ-1)) * i2hz);
                 }
             }
         }
@@ -431,11 +446,14 @@ void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
         for (int iX = V.Vz.fBulk.lbound(0); iX <= V.Vz.fBulk.ubound(0); iX++) {
             for (int iY = V.Vz.fBulk.lbound(1); iY <= V.Vz.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
-                    tempVz(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
-                                           hz2hx2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
-                                           hx2hy2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1))) *
-                            dt * nu / ( hx2hy2hz2 * 2.0) + nseRHS.Vz(iX, iY, iZ)) /
-                     (1.0 + dt * nu * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Colloc(iZ)))/hx2hy2hz2);
+                    tempVz(iX, iY, iZ) = ((ihx2 * mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) +
+                                           i2hx * mesh.xixxStaggr(iX) * (V.Vz.F(iX+1, iY, iZ) - V.Vz.F(iX-1, iY, iZ)) +
+                                           ihy2 * mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) + V.Vz.F(iX, iY-1, iZ)) +
+                                           i2hy * mesh.etyyStaggr(iY) * (V.Vz.F(iX, iY+1, iZ) - V.Vz.F(iX, iY-1, iZ)) +
+                                           ihz2 * mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) + V.Vz.F(iX, iY, iZ-1)) +
+                                           i2hz * mesh.ztzzColloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - V.Vz.F(iX, iY, iZ-1))) *
+                            dt * nu * 0.5 + nseRHS.Vz(iX, iY, iZ)) /
+                     (1.0 + dt * nu * (ihx2 * mesh.xix2Staggr(iX) + ihy2 * mesh.ety2Staggr(iY) + ihz2 * mesh.ztz2Colloc(iZ)));
                 }
             }
         }
@@ -449,9 +467,12 @@ void eulerCN_d3::solveVz(vfield &V, plainvf &nseRHS) {
             for (int iY = V.Vz.fBulk.lbound(1); iY <= V.Vz.fBulk.ubound(1); iY++) {
                 for (int iZ = V.Vz.fBulk.lbound(2); iZ <= V.Vz.fBulk.ubound(2); iZ++) {
                     tempVz(iX, iY, iZ) = V.Vz.F(iX, iY, iZ) - 0.5 * dt * nu * (
-                              mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) / (hx2) +
-                              mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY-1, iZ)) / (hy2) +
-                              mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) / (hz2));
+                              mesh.xix2Staggr(iX) * (V.Vz.F(iX+1, iY, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX-1, iY, iZ)) * ihx2 +
+                              mesh.xixxStaggr(iX) * (V.Vz.F(iX+1, iY, iZ) - V.Vz.F(iX-1, iY, iZ)) * i2hx +
+                              mesh.ety2Staggr(iY) * (V.Vz.F(iX, iY+1, iZ) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY-1, iZ)) * ihy2 +
+                              mesh.etyyStaggr(iY) * (V.Vz.F(iX, iY+1, iZ) - V.Vz.F(iX, iY-1, iZ)) * i2hy +
+                              mesh.ztz2Colloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - 2.0 * V.Vz.F(iX, iY, iZ) + V.Vz.F(iX, iY, iZ-1)) * ihz2 +
+                              mesh.ztzzColloc(iZ) * (V.Vz.F(iX, iY, iZ+1) - V.Vz.F(iX, iY, iZ-1)) * i2hz);
                 }
             }
         }
@@ -488,11 +509,14 @@ void eulerCN_d3::solveT(sfield &T, plainsf &tmpRHS) {
         for (int iX = T.F.fBulk.lbound(0); iX <= T.F.fBulk.ubound(0); iX++) {
             for (int iY = T.F.fBulk.lbound(1); iY <= T.F.fBulk.ubound(1); iY++) {
                 for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
-                    tempT(iX, iY, iZ) = ((hy2hz2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
-                                          hz2hx2 * mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) + T.F.F(iX, iY-1, iZ)) +
-                                          hx2hy2 * mesh.ztz2Staggr(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1))) *
-                        dt * kappa / ( hx2hy2hz2 * 2.0) + tmpRHS.F(iX, iY, iZ)) /
-                 (1.0 + dt * kappa * ((hy2hz2 * mesh.xix2Staggr(iX) + hz2hx2 * mesh.ety2Staggr(iY) + hx2hy2 * mesh.ztz2Staggr(iZ)))/hx2hy2hz2);
+                    tempT(iX, iY, iZ) = ((ihx2 * mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) + T.F.F(iX-1, iY, iZ)) +
+                                          i2hx * mesh.xixxStaggr(iX) * (T.F.F(iX+1, iY, iZ) - T.F.F(iX-1, iY, iZ)) +
+                                          ihy2 * mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) + T.F.F(iX, iY-1, iZ)) +
+                                          i2hy * mesh.etyyStaggr(iY) * (T.F.F(iX, iY+1, iZ) - T.F.F(iX, iY-1, iZ)) +
+                                          ihz2 * mesh.ztz2Staggr(iZ) * (T.F.F(iX, iY, iZ+1) + T.F.F(iX, iY, iZ-1)) +
+                                          i2hz * mesh.ztzzStaggr(iZ) * (T.F.F(iX, iY, iZ+1) - T.F.F(iX, iY, iZ-1))) *
+                        dt * kappa * 0.5 + tmpRHS.F(iX, iY, iZ)) /
+                 (1.0 + dt * kappa * (ihx2 * mesh.xix2Staggr(iX) + ihy2 * mesh.ety2Staggr(iY) + ihz2 * mesh.ztz2Staggr(iZ)));
                 }
             }
         }
@@ -506,9 +530,12 @@ void eulerCN_d3::solveT(sfield &T, plainsf &tmpRHS) {
             for (int iY = T.F.fBulk.lbound(1); iY <= T.F.fBulk.ubound(1); iY++) {
                 for (int iZ = T.F.fBulk.lbound(2); iZ <= T.F.fBulk.ubound(2); iZ++) {
                     tempT(iX, iY, iZ) = T.F.F(iX, iY, iZ) - 0.5 * dt * kappa * (
-                           mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) / (hx2) +
-                           mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY-1, iZ)) / (hy2) +
-                           mesh.ztz2Staggr(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) / (hz2));
+                           mesh.xix2Staggr(iX) * (T.F.F(iX+1, iY, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX-1, iY, iZ)) * ihx2 +
+                           mesh.xixxStaggr(iX) * (T.F.F(iX+1, iY, iZ) - T.F.F(iX-1, iY, iZ)) * i2hx +
+                           mesh.ety2Staggr(iY) * (T.F.F(iX, iY+1, iZ) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY-1, iZ)) * ihy2 +
+                           mesh.etyyStaggr(iY) * (T.F.F(iX, iY+1, iZ) - T.F.F(iX, iY-1, iZ)) * i2hy +
+                           mesh.ztz2Staggr(iZ) * (T.F.F(iX, iY, iZ+1) - 2.0 * T.F.F(iX, iY, iZ) + T.F.F(iX, iY, iZ-1)) * ihz2 +
+                           mesh.ztzzStaggr(iZ) * (T.F.F(iX, iY, iZ+1) - T.F.F(iX, iY, iZ-1)) * i2hz);
                 }
             }
         }
@@ -547,9 +574,11 @@ void eulerCN_d3::setCoefficients() {
     hy2 = pow(mesh.dEt, 2.0);
     hz2 = pow(mesh.dZt, 2.0);
 
-    hz2hx2 = pow(mesh.dZt, 2.0)*pow(mesh.dXi, 2.0);
-    hx2hy2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0);
-    hy2hz2 = pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+    i2hx = 0.5/mesh.dXi;
+    i2hy = 0.5/mesh.dEt;
+    i2hz = 0.5/mesh.dZt;
 
-    hx2hy2hz2 = pow(mesh.dXi, 2.0)*pow(mesh.dEt, 2.0)*pow(mesh.dZt, 2.0);
+    ihx2 = 1.0/hx2;
+    ihy2 = 1.0/hy2;
+    ihz2 = 1.0/hz2;
 };
