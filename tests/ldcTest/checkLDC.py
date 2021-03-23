@@ -116,8 +116,8 @@ def loadData(timeVal):
     U = np.array(f['Vx'])
     W = np.array(f['Vz'])
 
-    X = np.array(f['X'])
-    Z = np.array(f['Z'])
+    X = np.array(f['Xcc'])
+    Z = np.array(f['Zcc'])
 
 
 def getVorticity():

@@ -401,7 +401,11 @@ void poisson::setStagBounds() {
     if (mesh.rankData.yRank < mesh.rankData.npY - 1) --mcUBy;
 
     loBound = 0, 0, 0;
+#ifdef PLANAR
+    upBound = mcUBx, 0, zEnd(0);
+#else
     upBound = mcUBx, mcUBy, zEnd(0);
+#endif
     meanCore = blitz::RectDomain<3>(loBound, upBound);
 };
 
