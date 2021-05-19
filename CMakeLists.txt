@@ -64,6 +64,19 @@ message (STATUS "The parent directory is ${PARENT_DIR}")
 message (STATUS "Install folder is ${INSTALL_DIR}")
 message (STATUS "All headers are in ${HEADER_DIR}")
 
+# Search for yaml-cpp library
+find_package(yaml-cpp)
+if (yaml-cpp_FOUND)
+    if (yaml-cpp_VERSION GREATER 0.3)
+        message (STATUS "Found YAML Cpp ${yaml-cpp_VERSION}")
+    else ()
+        message (STATUS "Found YAML Cpp ${yaml-cpp_VERSION}. Using deprecated YAML parsing commands.")
+        add_definitions(-DYAML_LEGACY)
+    endif ()
+else ()
+    message (FATAL_ERROR "Did not find YAML-Cpp library")
+endif ()
+
 # Search for OpenMP package to enable hybrid parallelization and set the correct OpenMP compiler flag
 find_package (OpenMP)
 message (STATUS "Compiler flag for OpenMP is ${OpenMP_C_FLAGS}")
@@ -129,3 +142,7 @@ unset (REAL_SINGLE CACHE)
 
 # Remove the TEST_POISSON variable from cache to force user to manually set the flag for testing Poisson solver
 unset (TEST_POISSON CACHE)
+
+# Remove variables associated with finding yaml-cpp version from cache
+unset (yaml-cpp_FOUND CACHE)
+unset (yaml-cpp_VERSION CACHE)
