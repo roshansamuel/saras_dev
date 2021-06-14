@@ -56,7 +56,11 @@ class derivative {
 
         const field &F;
 
-        real invDelx, invDely, invDelz;
+        /** Flags for first rank (fr) and last rank (lr) along X and Y directions */
+        bool xfr, xlr, yfr, ylr;
+
+        real ihx, ihy, ihz;
+        real ihx2, ihy2, ihz2;
 
         blitz::firstIndex i;
         blitz::secondIndex j;
@@ -78,20 +82,20 @@ class derivative {
         blitz::Array<real, 1> xxMetric, yyMetric, zzMetric;
         blitz::Array<real, 1> x2Metric, y2Metric, z2Metric;
 
-        blitz::Array<real, 3> tempMat;
+        blitz::Array<real, 3> tmpArray;
 
         void setWallRectDomains();
 
     public:
         derivative(const grid &gridData, const field &F);
 
-        void calcDerivative1_x(blitz::Array<real, 3> outputMat);
-        void calcDerivative1_y(blitz::Array<real, 3> outputMat);
-        void calcDerivative1_z(blitz::Array<real, 3> outputMat);
+        void calcDerivative1_x(blitz::Array<real, 3> outArray);
+        void calcDerivative1_y(blitz::Array<real, 3> outArray);
+        void calcDerivative1_z(blitz::Array<real, 3> outArray);
 
-        void calcDerivative2xx(blitz::Array<real, 3> outputMat);
-        void calcDerivative2yy(blitz::Array<real, 3> outputMat);
-        void calcDerivative2zz(blitz::Array<real, 3> outputMat);
+        void calcDerivative2xx(blitz::Array<real, 3> outArray);
+        void calcDerivative2yy(blitz::Array<real, 3> outArray);
+        void calcDerivative2zz(blitz::Array<real, 3> outArray);
 };
 
 /**

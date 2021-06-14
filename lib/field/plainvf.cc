@@ -63,14 +63,14 @@ plainvf::plainvf(const grid &gridData, const vfield &refV): gridData(gridData) {
 
     Vy.resize(refV.Vy.fSize);
     Vy.reindexSelf(refV.Vy.flBound);
-    Vx = 0.0;
+    Vy = 0.0;
 
     mpiVyData = new mpidata(Vy, gridData.rankData);
     mpiVyData->createSubarrays(refV.Vy.fSize, refV.Vy.cuBound + 1, gridData.padWidths, refV.Vy.xStag, refV.Vy.yStag);
 
     Vz.resize(refV.Vz.fSize);
     Vz.reindexSelf(refV.Vz.flBound);
-    Vx = 0.0;
+    Vz = 0.0;
 
     mpiVzData = new mpidata(Vz, gridData.rankData);
     mpiVzData->createSubarrays(refV.Vz.fSize, refV.Vz.cuBound + 1, gridData.padWidths, refV.Vz.xStag, refV.Vz.yStag);

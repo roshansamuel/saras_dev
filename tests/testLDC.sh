@@ -57,7 +57,7 @@ fi
 cd build
 
 # Run cmake with necessary flags for 2D LDC test
-CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON -DREAL_DOUBLE=ON
+CC=mpicc CXX=mpicxx cmake ../../ -DPLANAR=ON
 
 # Compile
 make -j8
@@ -69,12 +69,7 @@ mv ../../saras ../../tests/ldcTest/
 cd ../../tests/ldcTest/
 
 # Run the test case
-#mpirun -np $PROC ./saras
+mpirun -np $PROC ./saras
 
 # Run the python script to read the output file and compare with Ghia results
-"python"
-if [ "$?" -ne 127 ]; then
-    python checkLDC.py
-else
-    python3 checkLDC.py
-fi
+python checkLDC.py

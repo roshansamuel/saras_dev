@@ -163,7 +163,7 @@ void mpidata::createSubarrays(const blitz::TinyVector<int, 3> globSize,
     saStarts = padWidth;            saStarts(1) = coreSize(1);
     loclSize = coreSize;            loclSize(1) = padWidth(1);
 
-    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES
+    // STAGGERED GRID SHARE A POINT ACROSS SUB-DOMAIN BOUNDARIES,
     // AND HENCE SENDS A SLIGHTLY DIFFERENT DATA-SET
     if (yStag) saStarts(1) -= 1;
 

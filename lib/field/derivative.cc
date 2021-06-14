@@ -48,7 +48,7 @@
  *
  *          The constructor assigns values to the two const parameters of the derivative class,
  *          namely <B>grid</B> and <B>F</B>.
- *          It resizes tempMat, the blitz array used to hold temporary data while calculating
+ *          It resizes tmpArray, the blitz array used to hold temporary data while calculating
  *          derivatives, computes the factors to be used with blitz stencils, and assigns
  *          the appropriate references to grid derivatives for performing finite-difference
  *          operations on non-uniform grids.
@@ -60,13 +60,13 @@
 
 derivative::derivative(const grid &gridData, const field &F): gridData(gridData), F(F) {
     // TEMPORARY ARRAY TO STORE DERIVATIVES WHEN CALCULATING 2ND ORDER DERIVATIVES
-    tempMat.resize(F.fSize);
-    tempMat.reindexSelf(F.flBound);
+    tmpArray.resize(F.fSize);
+    tmpArray.reindexSelf(F.flBound);
 
     // INVERSES OF hx, hy AND hz, WHICH ARE MULTIPLIED TO FINITE-DIFFERENCE STENCILS
-    invDelx = 1.0/gridData.dXi;
-    invDely = 1.0/gridData.dEt;
-    invDelz = 1.0/gridData.dZt; 
+    ihx = 1.0/gridData.dXi;         ihx2 = pow(ihx, 2.0);
+    ihy = 1.0/gridData.dEt;         ihy2 = pow(ihy, 2.0);
+    ihz = 1.0/gridData.dZt;         ihz2 = pow(ihz, 2.0);
 
     // RANGES OF ARRAY INTO WHICH RESULTS FROM BLITZ STENCIL OPERATORS HAVE TO BE WRITTEN
     fullRange = blitz::Range::all();
@@ -106,7 +106,12 @@ derivative::derivative(const grid &gridData, const field &F): gridData(gridData)
         z2Metric.reference(gridData.ztz2Colloc);
     }
 
-    tempMat = 0.0;
+    tmpArray = 0.0;
+
+    xfr = (gridData.rankData.xRank == 0)? true: false;
+    yfr = (gridData.rankData.yRank == 0)? true: false;
+    xlr = (gridData.rankData.xRank == gridData.rankData.npX - 1)? true: false;
+    ylr = (gridData.rankData.yRank == gridData.rankData.npY - 1)? true: false;
 }
 
 
@@ -118,26 +123,24 @@ derivative::derivative(const grid &gridData, const field &F): gridData(gridData)
  *          should be same as that of the field.
  *          It uses blitz stencils to calculate derivatives using central differencing.
  *          
- * \param   outputMat is the blitz array into which result will be written.
+ * \param   outArray is the blitz array into which result will be written.
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative1_x(blitz::Array<real, 3> outputMat) {
+void derivative::calcDerivative1_x(blitz::Array<real, 3> outArray) {
     if (gridData.inputParams.dScheme == 1) {
-        outputMat(xRange, fullRange, fullRange) = central12n(F.F, 0);
+        outArray(xRange, fullRange, fullRange) = central12n(F.F, 0);
+
     } else if (gridData.inputParams.dScheme == 2) {
-        outputMat(xRange, fullRange, fullRange) = central14n(F.F, 0);
+        outArray(xRange, fullRange, fullRange) = central14n(F.F, 0);
 
         // 2ND ORDER CENTRAL DIFFERENCE AT BOUNDARIES
-        if (gridData.rankData.xRank == 0) {
-            outputMat(x0Mid) = 0.5*(outputMat(x0Rgt) - outputMat(x0Lft));
-        }
-        if (gridData.rankData.xRank == gridData.rankData.npX - 1) {
-            outputMat(x1Mid) = 0.5*(outputMat(x1Rgt) - outputMat(x1Lft));
-        }
+        if (xfr) outArray(x0Mid) = 0.5*(F.F(x0Rgt) - F.F(x0Lft));
+        if (xlr) outArray(x1Mid) = 0.5*(F.F(x1Rgt) - F.F(x1Lft));
     }
-    outputMat *= invDelx;
 
-    outputMat = x_Metric(i)*outputMat(i, j, k);
+    outArray *= ihx;
+
+    outArray = x_Metric(i)*outArray(i, j, k);
 }
 
 
@@ -149,26 +152,23 @@ void derivative::calcDerivative1_x(blitz::Array<real, 3> outputMat) {
  *          should be same as that of the field.
  *          It uses blitz stencils to calculate derivatives using central differencing.
  *          
- * \param   outputMat is the blitz array into which result will be written.
+ * \param   outArray is the blitz array into which result will be written.
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative1_y(blitz::Array<real, 3> outputMat) {
+void derivative::calcDerivative1_y(blitz::Array<real, 3> outArray) {
     if (gridData.inputParams.dScheme == 1) {
-        outputMat(fullRange, yRange, fullRange) = central12n(F.F, 1);
+        outArray(fullRange, yRange, fullRange) = central12n(F.F, 1);
+
     } else if (gridData.inputParams.dScheme == 2) {
-        outputMat(fullRange, yRange, fullRange) = central14n(F.F, 1);
+        outArray(fullRange, yRange, fullRange) = central14n(F.F, 1);
 
         // 2ND ORDER CENTRAL DIFFERENCE AT BOUNDARIES
-        if (gridData.rankData.yRank == 0) {
-            outputMat(y0Mid) = 0.5*(outputMat(y0Rgt) - outputMat(y0Lft));
-        }
-        if (gridData.rankData.yRank == gridData.rankData.npY - 1) {
-            outputMat(y1Mid) = 0.5*(outputMat(y1Rgt) - outputMat(y1Lft));
-        }
+        if (yfr) outArray(y0Mid) = 0.5*(F.F(y0Rgt) - F.F(y0Lft));
+        if (ylr) outArray(y1Mid) = 0.5*(F.F(y1Rgt) - F.F(y1Lft));
     }
-    outputMat *= invDely;
+    outArray *= ihy;
 
-    outputMat = y_Metric(j)*outputMat(i, j, k);
+    outArray = y_Metric(j)*outArray(i, j, k);
 }
 
 
@@ -180,22 +180,23 @@ void derivative::calcDerivative1_y(blitz::Array<real, 3> outputMat) {
  *          should be same as that of the field.
  *          It uses blitz stencils to calculate derivatives using central differencing.
  *          
- * \param   outputMat is the blitz array into which result will be written.
+ * \param   outArray is the blitz array into which result will be written.
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative1_z(blitz::Array<real, 3> outputMat) {
+void derivative::calcDerivative1_z(blitz::Array<real, 3> outArray) {
     if (gridData.inputParams.dScheme == 1) {
-        outputMat(fullRange, fullRange, zRange) = central12n(F.F, 2);
+        outArray(fullRange, fullRange, zRange) = central12n(F.F, 2);
+
     } else if (gridData.inputParams.dScheme == 2) {
-        outputMat(fullRange, fullRange, zRange) = central14n(F.F, 2);
+        outArray(fullRange, fullRange, zRange) = central14n(F.F, 2);
 
         // 2ND ORDER CENTRAL DIFFERENCE AT BOUNDARIES
-        outputMat(z0Mid) = 0.5*(outputMat(z0Rgt) - outputMat(z0Lft));
-        outputMat(z1Mid) = 0.5*(outputMat(z1Rgt) - outputMat(z1Lft));
+        outArray(z0Mid) = 0.5*(F.F(z0Rgt) - F.F(z0Lft));
+        outArray(z1Mid) = 0.5*(F.F(z1Rgt) - F.F(z1Lft));
     }
-    outputMat *= invDelz;
+    outArray *= ihz;
 
-    outputMat = z_Metric(k)*outputMat(i, j, k);
+    outArray = z_Metric(k)*outArray(i, j, k);
 }
 
 
@@ -207,17 +208,17 @@ void derivative::calcDerivative1_z(blitz::Array<real, 3> outputMat) {
  *          should be same as that of the field.
  *          It uses blitz stencils to calculate derivatives using central differencing.
  *          
- * \param   outputMat is the blitz array into which result will be written.
+ * \param   outArray is the blitz array into which result will be written.
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative2xx(blitz::Array<real, 3> outputMat) {
-    tempMat(xRange, fullRange, fullRange) = central12n(F.F, 0);
-    tempMat *= invDelx;
+void derivative::calcDerivative2xx(blitz::Array<real, 3> outArray) {
+    tmpArray(xRange, fullRange, fullRange) = central12n(F.F, 0);
+    tmpArray *= ihx;
 
-    outputMat(xRange, fullRange, fullRange) = central22n(F.F, 0);
-    outputMat *= invDelx*invDelx;
+    outArray(xRange, fullRange, fullRange) = central22n(F.F, 0);
+    outArray *= ihx2;
 
-    outputMat = xxMetric(i)*tempMat(i, j, k) + x2Metric(i)*outputMat(i, j, k);
+    outArray = xxMetric(i)*tmpArray(i, j, k) + x2Metric(i)*outArray(i, j, k);
 }
 
 
@@ -229,17 +230,17 @@ void derivative::calcDerivative2xx(blitz::Array<real, 3> outputMat) {
  *          should be same as that of the field.
  *          It uses blitz stencils to calculate derivatives using central differencing.
  *          
- * \param   outputMat is the blitz array into which result will be written.
+ * \param   outArray is the blitz array into which result will be written.
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative2yy(blitz::Array<real, 3> outputMat) {
-    tempMat(fullRange, yRange, fullRange) = central12n(F.F, 1);
-    tempMat *= invDely;
+void derivative::calcDerivative2yy(blitz::Array<real, 3> outArray) {
+    tmpArray(fullRange, yRange, fullRange) = central12n(F.F, 1);
+    tmpArray *= ihy;
 
-    outputMat(fullRange, yRange, fullRange) = central22n(F.F, 1);
-    outputMat *= invDely*invDely;
+    outArray(fullRange, yRange, fullRange) = central22n(F.F, 1);
+    outArray *= ihy2;
 
-    outputMat = yyMetric(j)*tempMat(i, j, k) + y2Metric(j)*outputMat(i, j, k);
+    outArray = yyMetric(j)*tmpArray(i, j, k) + y2Metric(j)*outArray(i, j, k);
 }
 
 
@@ -251,17 +252,17 @@ void derivative::calcDerivative2yy(blitz::Array<real, 3> outputMat) {
  *          should be same as that of the field.
  *          It uses blitz stencils to calculate derivatives using central differencing.
  *          
- * \param   outputMat is the blitz array into which result will be written.
+ * \param   outArray is the blitz array into which result will be written.
  ********************************************************************************************************************************************
  */
-void derivative::calcDerivative2zz(blitz::Array<real, 3> outputMat) {
-    tempMat(fullRange, fullRange, zRange) = central12n(F.F, 2);
-    tempMat *= invDelz;
+void derivative::calcDerivative2zz(blitz::Array<real, 3> outArray) {
+    tmpArray(fullRange, fullRange, zRange) = central12n(F.F, 2);
+    tmpArray *= ihz;
 
-    outputMat(fullRange, fullRange, zRange) = central22n(F.F, 2);
-    outputMat *= invDelz*invDelz;
+    outArray(fullRange, fullRange, zRange) = central22n(F.F, 2);
+    outArray *= ihz2;
 
-    outputMat = zzMetric(k)*tempMat(i, j, k) + z2Metric(k)*outputMat(i, j, k);
+    outArray = zzMetric(k)*tmpArray(i, j, k) + z2Metric(k)*outArray(i, j, k);
 }
 
 

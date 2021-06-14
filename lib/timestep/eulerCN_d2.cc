@@ -66,7 +66,6 @@ eulerCN_d2::eulerCN_d2(const grid &mesh, const real &sTime, const real &dt, tser
     // This can eat away a lot of core hours unnecessarily.
     // It remains to be seen if this upper limit is safe.
     maxIterations = int(std::pow(std::log(mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2)), 3));
-    //maxIterations = mesh.collocCoreSize(0)*mesh.collocCoreSize(1)*mesh.collocCoreSize(2);
 }
 
 
@@ -88,7 +87,7 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P) {
     // Compute the diffusion term of momentum equation
     V.computeDiff(nseRHS);
     // Split the diffusion term and multiply by diffusion coefficient
-    nseRHS *= 0.5*nu;
+    nseRHS *= nu/2;
 
     // Compute the non-linear term and subtract it from the RHS
     V.computeNLin(V, nseRHS);
@@ -176,12 +175,12 @@ void eulerCN_d2::timeAdvance(vfield &V, sfield &P, sfield &T) {
     // Compute the diffusion term of momentum equation
     V.computeDiff(nseRHS);
     // Split the diffusion term and multiply by diffusion coefficient
-    nseRHS *= 0.5*nu;
+    nseRHS *= nu/2;
 
     // Compute the diffusion term of scalar equation
     T.computeDiff(tmpRHS);
     // Split the diffusion term and multiply by diffusion coefficient
-    tmpRHS *= 0.5*kappa;
+    tmpRHS *= kappa/2;
 
     // Compute the non-linear term and subtract it from the RHS of momentum equation
     V.computeNLin(V, nseRHS);

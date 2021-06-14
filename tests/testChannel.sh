@@ -57,7 +57,7 @@ fi
 cd build
 
 # Run cmake with necessary flags for 3D channel flow test
-CC=mpicc CXX=mpicxx cmake ../../ -DREAL_DOUBLE=ON
+CC=mpicc CXX=mpicxx cmake ../../
 
 # Compile
 make -j8
@@ -72,9 +72,4 @@ cd ../../tests/channelTest/
 mpirun -np $PROC ./saras
 
 # Run the python script to read the output file and compare with analytic solution
-"python"
-if [ "$?" -ne 127 ]; then
-    python checkChannel.py
-else
-    python3 checkChannel.py
-fi
+python checkChannel.py
